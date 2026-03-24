@@ -116,7 +116,7 @@ func createSuperAdmin(db *gorm.DB, logger *log.Logger, username string) error {
 		UserType:      "99", // 超级管理员
 		PwdUpdateDate: &now,
 		Sex:           "0", // 默认性别
-		DeptID:        &deptID,
+		UserDeptID:    &deptID,
 	}
 
 	// 保存到数据库
