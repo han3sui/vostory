@@ -1,130 +1,172 @@
 <template>
     <frame-view>
-        <arco-table ref="table" :table-config="tableConfig" :req="getData"></arco-table>
+        <arco-table ref="table" :req="getData" :table-config="tableConfig">
+            <template #tlBtns>
+                <arco-form v-model="filterData" :config="getFilterConfig" layout="row"></arco-form>
+            </template>
+            <template #switchSlot>
+                <a-table-column title="启用">
+                    <template #cell="{ record }">
+                        <a-switch
+                            :disabled="!hasPermission('system:dict:enable')"
+                            :default-checked="record.status === '0'"
+                            :before-change="() => handleChangeIntercept(record)"
+                        ></a-switch>
+                    </template>
+                </a-table-column>
+            </template>
+        </arco-table>
     </frame-view>
 </template>
-<script lang="ts" setup name="AliveDictList-1">
-import { getDictList } from "@/config/apis";
-import { ArcoModalFormShow, ArcoTable, formHelper, ruleHelper, tableHelper } from "@easyfe/admin-component";
-import { cloneDeep } from "lodash-es";
-import { updateDict, addDict, deleteDict } from "@/config/apis/index";
+<script lang="ts" setup name="AliveDictList">
 import { Modal } from "@arco-design/web-vue";
-import router from "@/packages/vue-router";
+import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
+import {
+    getDictTypeList,
+    addDictType,
+    updateDictType,
+    deleteDictType,
+    enableDictType,
+    disableDictType,
+    DictTypeDetailType
+} from "@/config/apis/dict";
+import { cloneDeep } from "lodash-es";
+import { hasPermission, PageTableConfig } from "@/views/utils";
+import routerHelper from "@/utils/helper/router";
 
 const table = ref();
+const filterData = ref({});
+
+const getFilterConfig = computed(() => {
+    return [
+        formHelper.input("字典名称", "dict_name", { span: 6, debounce: 500 }),
+        formHelper.input("字典类型", "dict_type", { span: 6, debounce: 500 }),
+        formHelper.select(
+            "状态",
+            "status",
+            [
+                { label: "正常", value: "0" },
+                { label: "停用", value: "1" }
+            ],
+            { span: 6 }
+        )
+    ];
+});
 
 const tableConfig = computed(() => {
     return tableHelper.create({
         arcoProps: {
-            rowKey: "id",
-            pagination: false
-            // scroll: { y: "calc(100vh - 250px)" }
+            rowKey: "id"
         },
+        ...PageTableConfig,
+        showRefresh: true,
         maxHeight: "auto",
-        trBtns: [
-            {
-                label: "新增",
-                type: "primary",
-                handler: () => {
-                    onEdit(null);
-                }
-            }
-        ],
-        rowKey: "",
         columns: [
-            tableHelper.default("字典名称", "description"),
-            tableHelper.link("字典类型", "dictType", (row) => {
-                router.push({
-                    name: "admin-dict-detail",
+            tableHelper.default("字典名称", "dict_name"),
+            tableHelper.link("字典类型", "dict_type", (row) => {
+                routerHelper.push({
+                    name: "system-dict-detail",
                     query: {
                         dictId: row.id,
-                        dictType: row.dictType
+                        dictType: row.dict_type
                     }
                 });
             }),
-            tableHelper.status("配置类型", "systemFlag", (item) => {
-                if (item.systemFlag === "1") {
-                    return {
-                        text: "系统类",
-                        status: "normal"
-                    };
-                } else {
-                    return {
-                        text: "业务类",
-                        status: "success"
-                    };
-                }
-            }),
-            tableHelper.default("备注", "remarks"),
-            tableHelper.default("操作人", "createBy"),
-            tableHelper.default("更新时间", "updateTime"),
+            tableHelper.slot("switchSlot"),
+            tableHelper.default("备注", "remark"),
+            tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm:ss" }),
             tableHelper.btns("操作", [
-                { label: "编辑", handler: onEdit },
+                {
+                    label: "编辑",
+                    if: () => hasPermission("system:dict:edit"),
+                    handler: onEdit
+                },
                 {
                     label: "删除",
                     status: "danger",
-                    if: (row) => row.systemFlag !== "1",
-                    handler: (row) => {
+                    if: () => hasPermission("system:dict:remove"),
+                    handler(row: Record<string, any>) {
                         Modal.confirm({
                             title: "删除",
-                            content: "确认删除吗？",
+                            content: `确认删除字典【${row.dict_name}】？`,
                             onBeforeOk: async () => {
-                                await deleteDict([row.id]);
+                                await deleteDictType(row.id);
                                 table.value.refresh();
                             }
                         });
                     }
                 }
             ])
+        ],
+        trBtns: [
+            {
+                label: "添加",
+                if: () => hasPermission("system:dict:add"),
+                handler: () => {
+                    onEdit(null);
+                }
+            }
         ]
     });
 });
 
 const getData = computed(() => {
     return {
-        fn: getDictList
+        fn: getDictTypeList,
+        params: { ...filterData.value }
     };
 });
 
-function onEdit(v: null | Record<string, any>) {
-    const tempValue = cloneDeep(v) || {};
+function onEdit(v: Record<string, any> | null) {
+    const tempValue = cloneDeep(v);
     ArcoModalFormShow({
         modalConfig: {
-            title: v ? "编辑" : "新增"
+            title: tempValue ? "编辑" : "添加"
         },
-        value: tempValue,
+        value: tempValue || {},
         formConfig: [
+            formHelper.input("字典名称", "dict_name", { rules: [ruleHelper.require("请输入")] }),
+            formHelper.input("字典类型", "dict_type", {
+                disabled: !!tempValue,
+                rules: [ruleHelper.require("请输入")]
+            }),
             formHelper.radio(
-                "配置类型",
-                "systemFlag",
+                "状态",
+                "status",
                 [
-                    { label: "系统类", value: "1" },
-                    { label: "业务类", value: "0" }
+                    { label: "正常", value: "0" },
+                    { label: "停用", value: "1" }
                 ],
                 {
-                    disabled: !!v,
                     type: "radio",
-                    rules: ruleHelper.require("请选择")
+                    rules: [ruleHelper.require("请选择")]
                 }
             ),
-            formHelper.input("字典类型", "dictType", {
-                disabled: !!v,
-                rules: ruleHelper.require("请输入")
-            }),
-            formHelper.input("描述", "description", {
-                rules: ruleHelper.require("请输入")
-            }),
-            formHelper.textarea("备注", "remarks")
+            formHelper.textarea("备注", "remark")
         ],
-        ok: async (data) => {
-            if (v) {
-                await updateDict(data);
+        ok: async (data: any) => {
+            if (tempValue) {
+                await updateDictType(data);
             } else {
-                await addDict(data);
+                await addDictType(data);
             }
             table.value.refresh();
         }
     });
+}
+
+async function handleChangeIntercept(v2: DictTypeDetailType) {
+    try {
+        if (v2.status === "1") {
+            await enableDictType(v2.id);
+        } else {
+            await disableDictType(v2.id);
+        }
+        table.value.refresh();
+        return true;
+    } catch (error) {
+        return false;
+    }
 }
 </script>
 <style lang="scss" scoped></style>

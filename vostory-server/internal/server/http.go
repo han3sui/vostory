@@ -5,6 +5,7 @@ import (
 	"iot-alert-center/internal/cache"
 	"iot-alert-center/internal/handler"
 	"iot-alert-center/internal/middleware"
+	"iot-alert-center/internal/service"
 	"iot-alert-center/pkg/eventbus"
 	"iot-alert-center/pkg/jwt"
 	"iot-alert-center/pkg/log"
@@ -32,6 +33,10 @@ func NewHTTPServer(
 	sysLogininforHandler *handler.SysLogininforHandler,
 	userCache cache.UserCache,
 	sysApiHandler *handler.SysApiHandler,
+	sysDictTypeHandler *handler.SysDictTypeHandler,
+	sysDictDataHandler *handler.SysDictDataHandler,
+	sysOperLogHandler *handler.SysOperLogHandler,
+	sysOperLogService service.SysOperLogService,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -86,11 +91,12 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/user/options", sysUserHandler.GetUserOptions)
 			noStrictAuthRouter.GET("/common/role/options", sysRoleHandler.GetRoleOptions)
 			noStrictAuthRouter.GET("/common/dept/options", sysDeptHandler.GetDeptOptionsTree)
+			noStrictAuthRouter.GET("/common/dict/data/type/:dictType", sysDictDataHandler.ListByType)
 		}
 
 		// 3. 授权路由：需要登录 + 权限验证（白名单模式）
 		strictAuthRouter := v1.Group("/")
-		strictAuthRouter.Use(middleware.TokenCacheAuthMiddleware(conf, logger, userCache), middleware.APIPermissionMiddleware(logger, userCache))
+		strictAuthRouter.Use(middleware.TokenCacheAuthMiddleware(conf, logger, userCache), middleware.APIPermissionMiddleware(logger, userCache), middleware.OperLogMiddleware(sysOperLogService))
 		{
 
 			systemRouter := strictAuthRouter.Group("/system")
@@ -166,13 +172,44 @@ func NewHTTPServer(
 					logininforRouter.GET("/list", sysLogininforHandler.List)
 				}
 
-				sysApiRouter := systemRouter.Group("/api")
-				{
-					sysApiRouter.GET("/list", sysApiHandler.ListSysApi)
-					sysApiRouter.GET("/tag/list", sysApiHandler.ListTag)
-				}
-
+			sysApiRouter := systemRouter.Group("/api")
+			{
+				sysApiRouter.GET("/list", sysApiHandler.ListSysApi)
+				sysApiRouter.GET("/tag/list", sysApiHandler.ListTag)
 			}
+
+			dictTypeRouter := systemRouter.Group("/dict/type")
+			{
+				dictTypeRouter.GET("/:id", sysDictTypeHandler.Get)
+				dictTypeRouter.GET("/list", sysDictTypeHandler.List)
+				dictTypeRouter.POST("", sysDictTypeHandler.Create)
+				dictTypeRouter.PUT("/:id", sysDictTypeHandler.Update)
+				dictTypeRouter.DELETE("/:id", sysDictTypeHandler.Delete)
+				dictTypeRouter.PUT("/:id/enable", sysDictTypeHandler.Enable)
+				dictTypeRouter.PUT("/:id/disable", sysDictTypeHandler.Disable)
+			}
+
+			dictDataRouter := systemRouter.Group("/dict/data")
+			{
+				dictDataRouter.GET("/:id", sysDictDataHandler.Get)
+				dictDataRouter.GET("/list", sysDictDataHandler.List)
+				dictDataRouter.GET("/type/:dictType", sysDictDataHandler.ListByType)
+				dictDataRouter.POST("", sysDictDataHandler.Create)
+				dictDataRouter.PUT("/:id", sysDictDataHandler.Update)
+				dictDataRouter.DELETE("/:id", sysDictDataHandler.Delete)
+				dictDataRouter.PUT("/:id/enable", sysDictDataHandler.Enable)
+				dictDataRouter.PUT("/:id/disable", sysDictDataHandler.Disable)
+			}
+
+			operlogRouter := systemRouter.Group("/operlog")
+			{
+				operlogRouter.GET("/:id", sysOperLogHandler.Get)
+				operlogRouter.GET("/list", sysOperLogHandler.List)
+				operlogRouter.DELETE("/:id", sysOperLogHandler.Delete)
+				operlogRouter.DELETE("/clean", sysOperLogHandler.Clean)
+			}
+
+		}
 		}
 
 	}

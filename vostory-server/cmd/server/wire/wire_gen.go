@@ -63,7 +63,16 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	sysLogininforHandler := handler.NewSysLogininforHandler(sysLogininforService)
 	sysApiService := service.NewSysApiService(sysApiRepository)
 	sysApiHandler := handler.NewSysApiHandler(handlerHandler, sysApiService)
-	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler)
+	sysDictTypeRepository := repository.NewSysDictTypeRepository(repositoryRepository)
+	sysDictTypeService := service.NewSysDictTypeService(serviceService, sysDictTypeRepository)
+	sysDictTypeHandler := handler.NewSysDictTypeHandler(handlerHandler, sysDictTypeService)
+	sysDictDataRepository := repository.NewSysDictDataRepository(repositoryRepository)
+	sysDictDataService := service.NewSysDictDataService(serviceService, sysDictDataRepository)
+	sysDictDataHandler := handler.NewSysDictDataHandler(handlerHandler, sysDictDataService)
+	sysOperLogRepository := repository.NewSysOperLogRepository(repositoryRepository)
+	sysOperLogService := service.NewSysOperLogService(serviceService, sysOperLogRepository)
+	sysOperLogHandler := handler.NewSysOperLogHandler(handlerHandler, sysOperLogService)
+	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler, sysDictTypeHandler, sysDictDataHandler, sysOperLogHandler, sysOperLogService)
 	jobJob := job.NewJob(transaction, logger, sidSid, viperViper)
 	userJob := job.NewUserJob(jobJob)
 	jobServer := server.NewJobServer(logger, viperViper, userJob)
@@ -74,11 +83,11 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 
 // wire.go:
 
-var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repository.NewRepository, repository.NewTransaction, repository.NewSysPostRepository, repository.NewSysDeptRepository, repository.NewSysMenuRepository, repository.NewSysRoleRepository, repository.NewSysRoleDeptRepository, repository.NewSysRoleMenuRepository, repository.NewSysUserRoleRepository, repository.NewSysUserPostRepository, repository.NewSysUserRepository, repository.NewSysLogininforRepository, repository.NewSysApiRepository)
+var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repository.NewRepository, repository.NewTransaction, repository.NewSysPostRepository, repository.NewSysDeptRepository, repository.NewSysMenuRepository, repository.NewSysRoleRepository, repository.NewSysRoleDeptRepository, repository.NewSysRoleMenuRepository, repository.NewSysUserRoleRepository, repository.NewSysUserPostRepository, repository.NewSysUserRepository, repository.NewSysLogininforRepository, repository.NewSysApiRepository, repository.NewSysDictTypeRepository, repository.NewSysDictDataRepository, repository.NewSysOperLogRepository)
 
-var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, service.NewSysDeptService, service.NewSysMenuService, service.NewSysRoleService, service.NewSysUserService, service.NewSysLogininforService, service.NewSysApiService, cache.NewUserCache, mqtt.NewMqttClient, kafka.NewKafkaProducer, resty.NewRestyClient)
+var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, service.NewSysDeptService, service.NewSysMenuService, service.NewSysRoleService, service.NewSysUserService, service.NewSysLogininforService, service.NewSysApiService, service.NewSysDictTypeService, service.NewSysDictDataService, service.NewSysOperLogService, cache.NewUserCache, mqtt.NewMqttClient, kafka.NewKafkaProducer, resty.NewRestyClient)
 
-var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler)
+var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler, handler.NewSysDictTypeHandler, handler.NewSysDictDataHandler, handler.NewSysOperLogHandler)
 
 var jobSet = wire.NewSet(job.NewJob, job.NewUserJob)
 

@@ -54,28 +54,40 @@ const routers: RouteConfig[] = [
                 component: () => import("@/views/system/role/index.vue")
             },
 
-            // {
-            //     path: "/system/dict/list",
-            //     name: "system-dict-list",
-            //     meta: {
-            //         title: "字典管理",
-            //         sort: 5,
-            //         keepAliveName: "AliveDictList"
-            //     },
-            //     component: () => import("@/views/system/dict/list/index.vue")
-            // },
-            // {
-            //     path: "/system/dict/detail",
-            //     name: "system-dict-detail",
-            //     meta: {
-            //         title: "字典详情",
-            //         sort: 5,
-            //         parentName: "system-dict-list",
-            //         hidden: true,
-            //         navTag: true
-            //     },
-            //     component: () => import("@/views/system/dict/detail/index.vue")
-            // },
+            {
+                path: "/system/dict/list",
+                name: "system-dict-list",
+                meta: {
+                    title: "字典管理",
+                    sort: 6,
+                    keepAliveName: "AliveDictList",
+                    permission: () => hasPermission("system:dict:list")
+                },
+                component: () => import("@/views/system/dict/list/index.vue")
+            },
+            {
+                path: "/system/dict/detail",
+                name: "system-dict-detail",
+                meta: {
+                    title: "字典详情",
+                    sort: 6,
+                    parentName: "system-dict-list",
+                    hidden: true,
+                    navTag: true,
+                    permission: () => hasPermission("system:dict:list")
+                },
+                component: () => import("@/views/system/dict/detail/index.vue")
+            },
+            {
+                path: "/system/operlog",
+                name: "system-operlog",
+                meta: {
+                    title: "操作日志",
+                    sort: 8,
+                    permission: () => hasPermission("system:operlog:list")
+                },
+                component: () => import("@/views/system/operlog/index.vue")
+            },
             {
                 path: "/system/user",
                 name: "system-user",

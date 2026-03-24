@@ -40,6 +40,9 @@ var repositorySet = wire.NewSet(
 	repository.NewSysUserRepository,
 	repository.NewSysLogininforRepository,
 	repository.NewSysApiRepository,
+	repository.NewSysDictTypeRepository,
+	repository.NewSysDictDataRepository,
+	repository.NewSysOperLogRepository,
 )
 
 var serviceSet = wire.NewSet(
@@ -51,6 +54,9 @@ var serviceSet = wire.NewSet(
 	service.NewSysUserService,
 	service.NewSysLogininforService,
 	service.NewSysApiService,
+	service.NewSysDictTypeService,
+	service.NewSysDictDataService,
+	service.NewSysOperLogService,
 	cache.NewUserCache,
 	mqtt.NewMqttClient,
 	kafka.NewKafkaProducer,
@@ -66,6 +72,9 @@ var handlerSet = wire.NewSet(
 	handler.NewSysUserHandler,
 	handler.NewSysLogininforHandler,
 	handler.NewSysApiHandler,
+	handler.NewSysDictTypeHandler,
+	handler.NewSysDictDataHandler,
+	handler.NewSysOperLogHandler,
 )
 
 var jobSet = wire.NewSet(

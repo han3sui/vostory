@@ -34,6 +34,9 @@ func (m *MigrateServer) Start(ctx context.Context) error {
 		&model.SysUserRole{},
 		&model.SysLogininfor{},
 		&model.SysApi{},
+		&model.SysDictType{},
+		&model.SysDictData{},
+		&model.SysOperLog{},
 	); err != nil {
 		m.log.Error("user migrate error", zap.Error(err))
 		return err
