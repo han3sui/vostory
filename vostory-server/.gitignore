@@ -1,0 +1,16 @@
+/tmp/*
+
+# 配置覆盖文件
+*.override.toml
+__debug_bin*
+
+/storage/**
+/cmd/**/storage/**
+.idea
+*.log
+deploy/docker-compose/conf
+deploy/docker-compose/data
+
+/bin
+
+dev.yml

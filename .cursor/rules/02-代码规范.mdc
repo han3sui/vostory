@@ -1,0 +1,63 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 代码规范
+
+本项目遵循标准的 Go 规范，同时采用一些特定模式：
+
+## 项目结构
+
+- **整洁架构**：层级之间职责清晰分离
+- **依赖注入**：通过构造函数注入依赖
+- **基于接口的设计**：组件通过接口进行通信
+
+## 命名规范
+
+- **模型**：基本数据结构（如 `Rule`、`Channel`），目录：@/internal/model
+- **仓库**：数据访问对象，使用 `Repository` 后缀，目录：@/internal/repository
+- **服务**：业务逻辑组件，使用 `Service` 后缀，目录：@/internal/service
+- **处理器**：API 端点处理器，使用 `Handler` 后缀，目录：@/internal/handler
+
+## 核心模式
+
+### 仓库模式
+```go
+// 仓库接口
+type NotifyGroupRepository interface {
+    Create(ctx context.Context, group *model.NotifyGroup) error
+    Update(ctx context.Context, group *model.NotifyGroup) error
+    // ...
+}
+
+// 实现
+type GormNotifyGroupRepository struct {
+    db *gorm.DB
+}
+```
+
+### 服务模式
+```go
+// 服务接口
+type NotifyGroupService interface {
+    CreateGroup(ctx context.Context, group *model.NotifyGroup) error
+    UpdateGroup(ctx context.Context, group *model.NotifyGroup) error
+    // ...
+}
+
+// 实现
+type notifyGroupService struct {
+    repo repository.NotifyGroupRepository
+    // ...
+}
+```
+
+### 处理器模式
+```go
+type NotifyGroupHandler struct {
+    service service.NotifyGroupService
+    // ...
+}
+```
+

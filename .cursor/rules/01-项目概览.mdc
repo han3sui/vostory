@@ -1,0 +1,23 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+# 项目概览
+
+这是一个后台管理系统模板，。
+
+## 关键文件
+
+- [main.go](mdc:main.go): 应用程序主入口点
+- [pkg/core/core.go](mdc:pkg/core/core.go): 核心应用组件和初始化
+
+## 项目结构
+
+- `api/`: API 处理器，用于 HTTP 端点
+- `internal/`: 内部包（模型、仓库、服务等）
+- `pkg/`: 公共包和工具
+- `consumer/`: 数据消费者（例如 MQTT）
+- `config/`: 配置处理
+- `web/`: Web 界面

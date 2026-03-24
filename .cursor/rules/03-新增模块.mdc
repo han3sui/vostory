@@ -1,0 +1,118 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 新增模块
+
+当用户需要新增一个模块的时候,需要根据给定的model,实现后端Create、Update、Delete、FindById、FindWithPagination基础功能:
+
+## 后端模块
+
+1. 入参定义
+
+在@/api/v1目录下,定义查询、创建、更新的struct,新建对应的文件，可以参考@/api/v1/sys_post.go
+
+需要实现查询定义，类似如下，BasePageQuery为分页查询的基础入参，其余根据实际model定义：
+
+注意更新的入参，正常是引用创建入参，同时加上ID，创建的入参是没有ID的
+
+```go
+// SysPostListQuery 岗位列表查询参数
+type SysPostListQuery struct {
+	*BasePageQuery
+	PostCode string `json:"post_code"` // 岗位编码
+	PostName string `json:"post_name"` // 岗位名称
+	Status   string `json:"status"`    // 状态（0正常 1停用）
+}
+```
+
+需要实现创建定义，类似如下：
+
+```go
+// SysPostCreateRequest 创建岗位请求
+type SysPostCreateRequest struct {
+	PostCode string `json:"post_code" binding:"required"` // 岗位编码
+	PostName string `json:"post_name" binding:"required"` // 岗位名称
+	PostSort int    `json:"post_sort""`                   // 显示顺序
+	Status   string `json:"status" binding:"required"`    // 状态（0正常 1停用）
+	Remark   string `json:"remark"`                       // 备注
+}
+```
+
+需要实现更新定义，类似如下：
+```go
+// SysPostUpdateRequest 更新岗位请求
+type SysPostUpdateRequest struct {
+	SysPostCreateRequest
+	ID uint `json:"id" binding:"required"`
+}
+```
+
+如无特殊必要，不需要创建返回定义。
+
+2. 实现repository逻辑
+
+在@/internanl/repository目录下，新建对应的数据库查询模块，实现Create、Update、Delete、FindById、FindWithPagination功能，可以参考@/internanl/repository/sys_post.go
+
+注意BaseModel如下
+// BaseModel 基础模型定义
+// @Description 所有数据模型的基础字段
+type BaseModel struct {
+	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime" comment:"创建时间"`
+	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime" comment:"更新时间"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index" comment:"删除时间"`
+	CreatedBy string         `json:"created_by" comment:"创建者"`
+	UpdatedBy string         `json:"updated_by" comment:"更新者"`
+	DeptID    uint           `json:"dept_id" comment:"部门ID"`
+}
+查询排序的时候注意
+
+3. 实现service逻辑
+
+在@/internal/service目录下，新建对应的业务逻辑模块，实现Create、Update、Delete、FindById、FindWithPagination功能，可以参考@/internal/service/sys_post.go
+
+4. 实现handler逻辑
+
+在@/internal/handler目录下，新建对应的入口模块，实现Create、Update、Delete、FindById、FindWithPagination功能，可以参考@/internal/handler/sys_post.go，主要需要新增对应的swagger注解
+
+5. 添加wire注入
+
+在@/cmd/server/wire/wire.go中，增加新模块的注入
+
+6. 添加http接口入口
+
+在@/internal/server/http.go中，增加对应的接口
+
+7. 添加migration
+
+在@/internal/server/migration.go中，添加新增的model文件，以方便完成迁移
+
+## 前端模块
+
+前端模块使用的vue3+typescript+arco.design组件库的生态，其中引入了@easyfe/admin-component，对table、form组件进行了封装，具体可以参考 @/web/src/views/system/post/index.vue页面使用方式。
+
+1. 添加对应的api接口定义
+
+在@/web/src/config/apis目录下，新建对应的接口文件，添加对应的接口
+
+2. 添加对应的页面
+
+在@/web/src/views目录下，新建对应的页面文件。其中文件名称始终为index.vue，通过创建目录放不同的页面。
+
+其中当详情页较为复杂的时候，在对应模块下，新建list、edit目录。如果是简单的，则使用一个即可，
+
+以岗位模块为例，则目录结构是 @/web/src/views/system/post/index.vue，列表和新建、编辑都在一个页面里。
+
+如果页面复杂，则新建两个目录，进行区分处理。
+
+3. 添加对应的路由
+
+在@/web/src/configs/router下，新建对应的路由模块
+
+## 其他
+
+当你对页面有不确定的地方的时候，优先参考同级目录下其他文件的实现方式。
+
+不需要你执行命令，只需要完成代码即可。
+

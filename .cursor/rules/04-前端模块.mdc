@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## 前端模块
+
+前端模块使用的vue3+typescript+arco.design组件库的生态，其中引入了@easyfe/admin-component，对table、form组件进行了封装，具体可以参考 @/web/src/views/system目录下使用方式。
+
+1. 添加对应的api接口定义
+
+在@/web/src/config/apis目录下，新建对应的接口文件，添加对应的接口
+
+2. 添加对应的页面
+
+在@/web/src/views目录下，新建对应的页面文件。其中文件名称始终为index.vue，通过创建目录放不同的页面。
+
+其中当详情页较为复杂的时候，在对应模块下，新建list、edit目录。如果是简单的，则使用一个即可，
+
+以岗位模块为例，则目录结构是 @/web/src/views/system/post/index.vue，列表和新建、编辑都在一个页面里。
+
+如果页面复杂，则新建两个目录，进行区分处理,参考@/web/src/views/iot/device。
+
+3. 添加对应的路由
+
+在@/web/src/configs/router下，新建对应的路由模块
+
+## 其他
+
+当你对页面有不确定的地方的时候，优先参考同级目录下其他文件的实现方式。
+
+不需要你执行命令，只需要完成代码即可。
+

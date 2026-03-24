@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>IoT告警规则管理</title>
+        <!-- Tailwind CSS CDN -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            /* 自定义样式 */
+            .hidden {
+                display: none;
+            }
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.4);
+                z-index: 50;
+            }
+            .modal-content {
+                position: relative;
+                background-color: white;
+                margin: 5% auto;
+                padding: 2rem;
+                border-radius: 0.5rem;
+                width: 80%;
+                max-width: 800px;
+                max-height: 80vh; /* 限制最大高度为视口高度的80% */
+                overflow-y: auto; /* 添加垂直滚动条 */
+            }
+            .close {
+                position: absolute;
+                top: 0.5rem;
+                right: 1rem;
+                font-size: 1.5rem;
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body class="bg-gray-100 min-h-screen">
+        <header class="bg-blue-600 text-white shadow-md">
+            <div class="container mx-auto py-4 px-6">
+                <h1 class="text-2xl font-bold">IoT告警规则管理</h1>
+            </div>
+        </header>
+
+        <main class="container mx-auto py-6 px-6">
+            <!-- 规则列表区域 -->
+            <section class="mb-10 bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">规则列表</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th
+                                    class="
+                                        px-6
+                                        py-3
+                                        text-left text-xs
+                                        font-medium
+                                        text-gray-500
+                                        uppercase
+                                        tracking-wider
+                                    "
+                                >
+                                    ID
+                                </th>
+                                <th
+                                    class="
+                                        px-6
+                                        py-3
+                                        text-left text-xs
+                                        font-medium
+                                        text-gray-500
+                                        uppercase
+                                        tracking-wider
+                                    "
+                                >
+                                    名称
+                                </th>
+                                <th
+                                    class="
+                                        px-6
+                                        py-3
+                                        text-left text-xs
+                                        font-medium
+                                        text-gray-500
+                                        uppercase
+                                        tracking-wider
+                                    "
+                                >
+                                    设备ID
+                                </th>
+                                <th
+                                    class="
+                                        px-6
+                                        py-3
+                                        text-left text-xs
+                                        font-medium
+                                        text-gray-500
+                                        uppercase
+                                        tracking-wider
+                                    "
+                                >
+                                    参数
+                                </th>
+                                <th
+                                    class="
+                                        px-6
+                                        py-3
+                                        text-left text-xs
+                                        font-medium
+                                        text-gray-500
+                                        uppercase
+                                        tracking-wider
+                                    "
+                                >
+                                    条件
+                                </th>
+                                <th
+                                    class="
+                                        px-6
+                                        py-3
+                                        text-left text-xs
+                                        font-medium
+                                        text-gray-500
+                                        uppercase
+                                        tracking-wider
+                                    "
+                                >
+                                    状态
+                                </th>
+                                <th
+                                    class="
+                                        px-6
+                                        py-3
+                                        text-left text-xs
+                                        font-medium
+                                        text-gray-500
+                                        uppercase
+                                        tracking-wider
+                                    "
+                                >
+                                    操作
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="rules-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- 规则列表将通过JavaScript动态填充 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 添加规则区域 -->
+            <section class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">添加新规则</h2>
+                <form id="add-rule-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">规则名称</label>
+                            <input
+                                type="text"
+                                id="name"
+                                name="name"
+                                required
+                                class="
+                                    w-full
+                                    px-3
+                                    py-2
+                                    border border-gray-300
+                                    rounded-md
+                                    shadow-sm
+                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                "
+                            />
+                        </div>
+
+                        <div>
+                            <label for="device-id" class="block text-sm font-medium text-gray-700 mb-1">设备ID</label>
+                            <input
+                                type="text"
+                                id="device-id"
+                                name="device-id"
+                                required
+                                class="
+                                    w-full
+                                    px-3
+                                    py-2
+                                    border border-gray-300
+                                    rounded-md
+                                    shadow-sm
+                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                "
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                        <textarea
+                            id="description"
+                            name="description"
+                            rows="2"
+                            class="
+                                w-full
+                                px-3
+                                py-2
+                                border border-gray-300
+                                rounded-md
+                                shadow-sm
+                                focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                            "
+                        ></textarea>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">告警触发条件</h3>
+
+                        <div id="conditions-container" class="space-y-4">
+                            <!-- 条件列表将在这里动态添加 -->
+                        </div>
+
+                        <div id="logic-operator-container" class="hidden mt-4">
+                            <label for="logic-operator" class="block text-sm font-medium text-gray-700 mb-1"
+                                >逻辑运算符</label
+                            >
+                            <select
+                                id="logic-operator"
+                                name="logic-operator"
+                                class="
+                                    w-full
+                                    px-3
+                                    py-2
+                                    border border-gray-300
+                                    rounded-md
+                                    shadow-sm
+                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                "
+                            >
+                                <option value="AND">AND (所有条件都满足)</option>
+                                <option value="OR">OR (任一条件满足)</option>
+                            </select>
+                        </div>
+
+                        <div class="mt-4 flex space-x-2">
+                            <button
+                                type="button"
+                                onclick="addCondition()"
+                                class="
+                                    inline-flex
+                                    items-center
+                                    px-4
+                                    py-2
+                                    border border-gray-300
+                                    shadow-sm
+                                    text-sm
+                                    font-medium
+                                    rounded-md
+                                    text-gray-700
+                                    bg-white
+                                    hover:bg-gray-50
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                                "
+                            >
+                                添加条件
+                            </button>
+                            <button
+                                type="submit"
+                                class="
+                                    inline-flex
+                                    items-center
+                                    px-4
+                                    py-2
+                                    border border-transparent
+                                    shadow-sm
+                                    text-sm
+                                    font-medium
+                                    rounded-md
+                                    text-white
+                                    bg-blue-600
+                                    hover:bg-blue-700
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                                "
+                            >
+                                添加规则
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- 条件模板 -->
+                <div id="condition-template" class="condition-item hidden">
+                    <div class="bg-gray-50 p-4 rounded-md border border-gray-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="condition-title font-medium">条件</span>
+                            <button
+                                type="button"
+                                class="remove-condition text-red-600 hover:text-red-800 focus:outline-none"
+                                onclick="removeCondition(this)"
+                            >
+                                删除
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="parameter" class="block text-sm font-medium text-gray-700 mb-1"
+                                    >监控参数</label
+                                >
+                                <input
+                                    type="text"
+                                    id="parameter"
+                                    name="parameter"
+                                    required
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                />
+                            </div>
+
+                            <div>
+                                <label for="operator" class="block text-sm font-medium text-gray-700 mb-1"
+                                    >操作符</label
+                                >
+                                <select
+                                    id="operator"
+                                    name="operator"
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                >
+                                    <option value=">">大于 (&gt;)</option>
+                                    <option value="<">小于 (&lt;)</option>
+                                    <option value="==">等于 (==)</option>
+                                    <option value=">=">大于等于 (&gt;=)</option>
+                                    <option value="<=">小于等于 (&lt;=)</option>
+                                    <option value="!=">不等于 (!=)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="threshold" class="block text-sm font-medium text-gray-700 mb-1">阈值</label>
+                                <input
+                                    type="number"
+                                    id="threshold"
+                                    name="threshold"
+                                    step="0.01"
+                                    required
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                            <div>
+                                <label for="duration" class="block text-sm font-medium text-gray-700 mb-1"
+                                    >持续时间</label
+                                >
+                                <select
+                                    id="duration"
+                                    name="duration"
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                >
+                                    <option value="">无</option>
+                                    <option value="30">30秒</option>
+                                    <option value="60">1分钟</option>
+                                    <option value="300">5分钟</option>
+                                    <option value="600">10分钟</option>
+                                    <option value="1800">30分钟</option>
+                                    <option value="3600">1小时</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="count" class="block text-sm font-medium text-gray-700 mb-1">重复次数</label>
+                                <select
+                                    id="count"
+                                    name="count"
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                >
+                                    <option value="">无</option>
+                                    <option value="1">1次</option>
+                                    <option value="2">2次</option>
+                                    <option value="3">3次</option>
+                                    <option value="4">4次</option>
+                                    <option value="5">5次</option>
+                                    <option value="10">10次</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 编辑规则的模态框 -->
+        <div id="edit-rule-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="document.getElementById('edit-rule-modal').style.display='none'"
+                    >&times;</span
+                >
+                <h2 class="text-xl font-semibold mb-4">编辑规则</h2>
+
+                <form id="edit-rule-form" class="space-y-4">
+                    <input type="hidden" id="edit-rule-id" name="rule-id" />
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="edit-name" class="block text-sm font-medium text-gray-700 mb-1">规则名称</label>
+                            <input
+                                type="text"
+                                id="edit-name"
+                                name="name"
+                                required
+                                class="
+                                    w-full
+                                    px-3
+                                    py-2
+                                    border border-gray-300
+                                    rounded-md
+                                    shadow-sm
+                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                "
+                            />
+                        </div>
+
+                        <div>
+                            <label for="edit-device-id" class="block text-sm font-medium text-gray-700 mb-1"
+                                >设备ID</label
+                            >
+                            <input
+                                type="text"
+                                id="edit-device-id"
+                                name="device-id"
+                                required
+                                class="
+                                    w-full
+                                    px-3
+                                    py-2
+                                    border border-gray-300
+                                    rounded-md
+                                    shadow-sm
+                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                "
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="edit-description" class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                        <textarea
+                            id="edit-description"
+                            name="description"
+                            rows="2"
+                            class="
+                                w-full
+                                px-3
+                                py-2
+                                border border-gray-300
+                                rounded-md
+                                shadow-sm
+                                focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                            "
+                        ></textarea>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">告警触发条件</h3>
+
+                        <div id="edit-conditions-container" class="space-y-4">
+                            <!-- 条件列表将在这里动态添加 -->
+                        </div>
+
+                        <div id="edit-logic-operator-container" class="hidden mt-4">
+                            <label for="edit-logic-operator" class="block text-sm font-medium text-gray-700 mb-1"
+                                >逻辑运算符</label
+                            >
+                            <select
+                                id="edit-logic-operator"
+                                name="edit-logic-operator"
+                                class="
+                                    w-full
+                                    px-3
+                                    py-2
+                                    border border-gray-300
+                                    rounded-md
+                                    shadow-sm
+                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                "
+                            >
+                                <option value="AND">AND (所有条件都满足)</option>
+                                <option value="OR">OR (任一条件满足)</option>
+                            </select>
+                        </div>
+
+                        <div class="mt-4 flex space-x-2">
+                            <button
+                                type="button"
+                                onclick="addNewEditCondition()"
+                                class="
+                                    inline-flex
+                                    items-center
+                                    px-4
+                                    py-2
+                                    border border-gray-300
+                                    shadow-sm
+                                    text-sm
+                                    font-medium
+                                    rounded-md
+                                    text-gray-700
+                                    bg-white
+                                    hover:bg-gray-50
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                                "
+                            >
+                                添加条件
+                            </button>
+                            <button
+                                type="submit"
+                                class="
+                                    inline-flex
+                                    items-center
+                                    px-4
+                                    py-2
+                                    border border-transparent
+                                    shadow-sm
+                                    text-sm
+                                    font-medium
+                                    rounded-md
+                                    text-white
+                                    bg-blue-600
+                                    hover:bg-blue-700
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                                "
+                            >
+                                更新规则
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- 编辑条件模板 -->
+                <div id="edit-condition-template" class="edit-condition-item hidden">
+                    <div class="bg-gray-50 p-4 rounded-md border border-gray-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="condition-title font-medium">条件</span>
+                            <button
+                                type="button"
+                                class="remove-condition text-red-600 hover:text-red-800 focus:outline-none"
+                                onclick="removeEditCondition(this)"
+                            >
+                                删除
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="edit-parameter" class="block text-sm font-medium text-gray-700 mb-1"
+                                    >监控参数</label
+                                >
+                                <input
+                                    type="text"
+                                    id="edit-parameter"
+                                    name="edit-parameter"
+                                    required
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                />
+                            </div>
+
+                            <div>
+                                <label for="edit-operator" class="block text-sm font-medium text-gray-700 mb-1"
+                                    >操作符</label
+                                >
+                                <select
+                                    id="edit-operator"
+                                    name="edit-operator"
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                >
+                                    <option value=">">大于 (&gt;)</option>
+                                    <option value="<">小于 (&lt;)</option>
+                                    <option value="==">等于 (==)</option>
+                                    <option value=">=">大于等于 (&gt;=)</option>
+                                    <option value="<=">小于等于 (&lt;=)</option>
+                                    <option value="!=">不等于 (!=)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="edit-threshold" class="block text-sm font-medium text-gray-700 mb-1"
+                                    >阈值</label
+                                >
+                                <input
+                                    type="number"
+                                    id="edit-threshold"
+                                    name="edit-threshold"
+                                    step="0.01"
+                                    required
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                            <div>
+                                <label for="edit-duration" class="block text-sm font-medium text-gray-700 mb-1"
+                                    >持续时间</label
+                                >
+                                <select
+                                    id="edit-duration"
+                                    name="edit-duration"
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                >
+                                    <option value="">无</option>
+                                    <option value="30">30秒</option>
+                                    <option value="60">1分钟</option>
+                                    <option value="300">5分钟</option>
+                                    <option value="600">10分钟</option>
+                                    <option value="1800">30分钟</option>
+                                    <option value="3600">1小时</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="edit-count" class="block text-sm font-medium text-gray-700 mb-1"
+                                    >重复次数</label
+                                >
+                                <select
+                                    id="edit-count"
+                                    name="edit-count"
+                                    class="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border border-gray-300
+                                        rounded-md
+                                        shadow-sm
+                                        focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    "
+                                >
+                                    <option value="">无</option>
+                                    <option value="1">1次</option>
+                                    <option value="2">2次</option>
+                                    <option value="3">3次</option>
+                                    <option value="4">4次</option>
+                                    <option value="5">5次</option>
+                                    <option value="10">10次</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JavaScript -->
+        <script>
+            // 全局变量
+            let conditionCounter = 0;
+            let editConditionCounter = 0;
+
+            // 文档加载完成后执行
+            document.addEventListener("DOMContentLoaded", function () {
+                // 初始化表单提交事件
+                document.getElementById("add-rule-form").addEventListener("submit", submitRuleForm);
+                document.getElementById("edit-rule-form").addEventListener("submit", updateRule);
+
+                // 添加第一个条件
+                addCondition();
+
+                // 加载规则列表
+                fetchRules();
+            });
+
+            // 获取所有规则
+            async function fetchRules() {
+                try {
+                    const response = await fetch("http://localhost:8080/api/rules");
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const rules = await response.json();
+                    displayRules(rules);
+                } catch (error) {
+                    console.error("获取规则失败:", error);
+                    alert(`获取规则失败: ${error.message}`);
+                }
+            }
+
+            // 在表格中显示规则
+            function displayRules(rules) {
+                const tableBody = document.getElementById("rules-table-body");
+                tableBody.innerHTML = "";
+
+                rules.forEach((rule) => {
+                    const row = document.createElement("tr");
+
+                    // 规则基本信息
+                    row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${rule.id}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${rule.name}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${rule.device_id}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${getParameterDisplay(rule.config)}</td>
+          <td class="px-6 py-4 text-sm text-gray-500">${formatRuleCondition(rule.config)}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                rule.status === "enabled" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+            }">
+              ${rule.status === "enabled" ? "启用" : "禁用"}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
+            <button onclick="editRule(${
+                rule.id
+            })" class="text-blue-600 hover:text-blue-900 px-2 py-1 rounded hover:bg-blue-100">编辑</button>
+            <button onclick="deleteRule(${
+                rule.id
+            })" class="text-red-600 hover:text-red-900 px-2 py-1 rounded hover:bg-red-100">删除</button>
+            ${
+                rule.status === "enabled"
+                    ? `<button onclick="disableRule(${rule.id})" class="text-gray-600 hover:text-gray-900 px-2 py-1 rounded hover:bg-gray-100">禁用</button>`
+                    : `<button onclick="enableRule(${rule.id})" class="text-green-600 hover:text-green-900 px-2 py-1 rounded hover:bg-green-100">启用</button>`
+            }
+          </td>
+        `;
+
+                    tableBody.appendChild(row);
+                });
+            }
+
+            // 获取规则参数的显示字符串
+            function getParameterDisplay(config) {
+                if (config.conditions && config.conditions.length > 1) {
+                    // 对于多条件，显示所有参数
+                    return config.conditions.map((c) => c.parameter).join(", ");
+                } else if (config.conditions && config.conditions.length > 0) {
+                    // 对于单条件，显示唯一参数
+                    return config.conditions[0].parameter;
+                } else {
+                    return "-";
+                }
+            }
+
+            // 格式化组合规则条件为可读文本
+            function formatCompoundRuleCondition(config) {
+                if (!config.conditions || config.conditions.length === 0) {
+                    return "未配置条件";
+                }
+
+                if (config.conditions.length === 1) {
+                    // 单条件，使用单条件格式化
+                    return formatSingleCondition(config.conditions[0]);
+                }
+
+                const conditions = config.conditions.map((cond) => {
+                    return formatSingleCondition(cond);
+                });
+
+                return conditions.join(` ${config.logic_operator || "AND"} `);
+            }
+
+            // 格式化单个条件为可读文本
+            function formatSingleCondition(condition) {
+                let condText = `${condition.parameter} ${condition.operator} ${condition.threshold}`;
+
+                if (condition.duration && condition.count) {
+                    condText += ` 持续 ${condition.duration} 秒 且 连续 ${condition.count} 次`;
+                } else if (condition.duration) {
+                    condText += ` 持续 ${condition.duration} 秒`;
+                } else if (condition.count) {
+                    condText += ` 连续 ${condition.count} 次`;
+                }
+
+                return condText;
+            }
+
+            // 格式化单一规则条件为可读文本（兼容旧格式）
+            function formatSingleRuleCondition(config) {
+                // 如果有条件数组，使用第一个条件
+                if (config.conditions && config.conditions.length > 0) {
+                    return formatSingleCondition(config.conditions[0]);
+                }
+
+                // 处理旧格式的单一条件规则
+                let condition = `${config.threshold} ${config.operator}`;
+
+                if (config.duration && config.count) {
+                    return `${condition} 持续 ${config.duration} 秒 且 连续 ${config.count} 次`;
+                } else if (config.duration) {
+                    return `${condition} 持续 ${config.duration} 秒`;
+                } else if (config.count) {
+                    return `${condition} 连续 ${config.count} 次`;
+                } else {
+                    return `${condition} (立即触发)`;
+                }
+            }
+
+            // 格式化规则条件为可读文本
+            function formatRuleCondition(config) {
+                if (config.conditions && config.conditions.length > 0) {
+                    return formatCompoundRuleCondition(config);
+                } else {
+                    return formatSingleRuleCondition(config);
+                }
+            }
+
+            // 添加告警触发条件
+            function addCondition() {
+                const container = document.getElementById("conditions-container");
+                const conditionTemplate = document.getElementById("condition-template");
+
+                const newCondition = conditionTemplate.cloneNode(true);
+                newCondition.id = `condition-${conditionCounter}`;
+                newCondition.classList.remove("hidden");
+
+                // 更新ID和name属性
+                const elements = newCondition.querySelectorAll("[id]");
+                elements.forEach((element) => {
+                    const originalId = element.id;
+                    element.id = `${originalId}-${conditionCounter}`;
+                    if (element.name) {
+                        element.name = `${element.name}[${conditionCounter}]`;
+                    }
+                });
+
+                container.appendChild(newCondition);
+                conditionCounter++;
+
+                // 如果有超过1个条件，显示逻辑操作符选择
+                if (conditionCounter > 1) {
+                    document.getElementById("logic-operator-container").classList.remove("hidden");
+                }
+            }
+
+            // 删除告警触发条件
+            function removeCondition(button) {
+                const conditionItem = button.closest(".condition-item");
+                conditionItem.remove();
+
+                // 更新条件计数
+                conditionCounter--;
+
+                // 如果只有1个条件，隐藏逻辑操作符选择
+                if (conditionCounter <= 1) {
+                    document.getElementById("logic-operator-container").classList.add("hidden");
+                }
+            }
+
+            // 提交新规则表单
+            async function submitRuleForm(event) {
+                event.preventDefault();
+
+                // 获取表单数据
+                const form = event.target;
+                const formData = new FormData(form);
+
+                // 获取所有条件项
+                const conditionItems = document.querySelectorAll(".condition-item:not(.hidden)");
+
+                // 构建条件数组
+                const conditions = [];
+                conditionItems.forEach((item, index) => {
+                    const parameter = formData.get(`parameter[${index}]`);
+                    const threshold = parseFloat(formData.get(`threshold[${index}]`));
+                    const operator = formData.get(`operator[${index}]`);
+                    const duration = formData.get(`duration[${index}]`)
+                        ? parseInt(formData.get(`duration[${index}]`))
+                        : null;
+                    const count = formData.get(`count[${index}]`) ? parseInt(formData.get(`count[${index}]`)) : null;
+
+                    conditions.push({
+                        parameter: parameter,
+                        threshold: threshold,
+                        operator: operator,
+                        duration: duration,
+                        count: count
+                    });
+                });
+
+                // 判断是否为多条件规则
+                const isMultiCondition = conditions.length > 1;
+
+                // 构建统一格式的规则配置
+                const config = {
+                    conditions: conditions,
+                    logic_operator: isMultiCondition ? formData.get("logic-operator") || "AND" : null
+                };
+
+                // 构建完整规则对象
+                const rule = {
+                    name: formData.get("name"),
+                    description: formData.get("description"),
+                    device_id: formData.get("device-id"),
+                    config: config
+                };
+
+                try {
+                    // 发送创建请求
+                    const response = await fetch("http://localhost:8080/api/rules", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(rule)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    // 创建成功，刷新规则列表
+                    alert("规则创建成功!");
+                    fetchRules();
+                    form.reset();
+                    resetConditions();
+                } catch (error) {
+                    console.error("创建规则失败:", error);
+                    alert(`创建失败: ${error.message}`);
+                }
+            }
+
+            // 重置条件表单
+            function resetConditions() {
+                const container = document.getElementById("conditions-container");
+
+                // 清空所有条件
+                container.innerHTML = "";
+                conditionCounter = 0;
+
+                // 添加一个新条件
+                addCondition();
+
+                // 隐藏逻辑操作符
+                document.getElementById("logic-operator-container").classList.add("hidden");
+            }
+
+            // 加载规则到编辑表单
+            async function editRule(id) {
+                try {
+                    const response = await fetch(`http://localhost:8080/api/rules/${id}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const rule = await response.json();
+
+                    // 填充基本信息
+                    document.getElementById("edit-rule-id").value = rule.id;
+                    document.getElementById("edit-name").value = rule.name;
+                    document.getElementById("edit-description").value = rule.description;
+                    document.getElementById("edit-device-id").value = rule.device_id;
+
+                    // 清空编辑表单中的条件容器
+                    const editConditionsContainer = document.getElementById("edit-conditions-container");
+                    editConditionsContainer.innerHTML = "";
+
+                    // 重置编辑计数器
+                    editConditionCounter = 0;
+
+                    // 检查是否有条件配置
+                    if (rule.config.conditions && rule.config.conditions.length > 0) {
+                        // 如果有多个条件，显示逻辑操作符
+                        if (rule.config.conditions.length > 1) {
+                            document.getElementById("edit-logic-operator").value = rule.config.logic_operator || "AND";
+                            document.getElementById("edit-logic-operator-container").style.display = "block";
+                        } else {
+                            document.getElementById("edit-logic-operator-container").style.display = "none";
+                        }
+
+                        // 添加每个条件
+                        rule.config.conditions.forEach((condition) => {
+                            addEditCondition(
+                                condition.parameter,
+                                condition.threshold,
+                                condition.operator,
+                                condition.duration,
+                                condition.count
+                            );
+                        });
+                    } else {
+                        // 处理没有条件的情况
+                        addEditCondition("", "", ">", "", "");
+                        document.getElementById("edit-logic-operator-container").style.display = "none";
+                    }
+
+                    // 显示编辑表单
+                    document.getElementById("edit-rule-modal").style.display = "block";
+                } catch (error) {
+                    console.error("获取规则详情失败:", error);
+                    alert(`获取规则详情失败: ${error.message}`);
+                }
+            }
+
+            // 添加编辑条件
+            function addEditCondition(parameter, threshold, operator, duration, count) {
+                const container = document.getElementById("edit-conditions-container");
+                const conditionTemplate = document.getElementById("edit-condition-template");
+
+                const newCondition = conditionTemplate.cloneNode(true);
+                newCondition.id = `edit-condition-${editConditionCounter}`;
+                newCondition.classList.remove("hidden");
+
+                // 更新ID和name属性
+                const elements = newCondition.querySelectorAll("[id]");
+                elements.forEach((element) => {
+                    const originalId = element.id;
+                    element.id = `${originalId}-${editConditionCounter}`;
+                    if (element.name) {
+                        element.name = `${element.name}[${editConditionCounter}]`;
+                    }
+                });
+
+                // 设置值
+                newCondition.querySelector(`[name="edit-parameter[${editConditionCounter}]"]`).value = parameter || "";
+                newCondition.querySelector(`[name="edit-threshold[${editConditionCounter}]"]`).value = threshold || "";
+                newCondition.querySelector(`[name="edit-operator[${editConditionCounter}]"]`).value = operator || ">";
+                newCondition.querySelector(`[name="edit-duration[${editConditionCounter}]"]`).value = duration || "";
+                newCondition.querySelector(`[name="edit-count[${editConditionCounter}]"]`).value = count || "";
+
+                container.appendChild(newCondition);
+                editConditionCounter++;
+
+                // 如果有超过1个条件，显示逻辑操作符选择
+                if (editConditionCounter > 1) {
+                    document.getElementById("edit-logic-operator-container").style.display = "block";
+                }
+            }
+
+            // 删除编辑表单中的条件
+            function removeEditCondition(button) {
+                const conditionItem = button.closest(".edit-condition-item");
+                conditionItem.remove();
+
+                // 更新条件计数
+                editConditionCounter--;
+
+                // 如果只有1个条件，隐藏逻辑操作符选择
+                if (editConditionCounter <= 1) {
+                    document.getElementById("edit-logic-operator-container").style.display = "none";
+                }
+            }
+
+            // 在编辑表单中添加新条件
+            function addNewEditCondition() {
+                addEditCondition("", "", ">", "", "");
+            }
+
+            // 更新规则
+            async function updateRule(event) {
+                event.preventDefault();
+
+                const form = event.target;
+                const formData = new FormData(form);
+                const id = formData.get("rule-id");
+
+                // 获取所有条件项
+                const conditionItems = document.querySelectorAll(".edit-condition-item:not(.hidden)");
+
+                // 构建条件数组
+                const conditions = [];
+                conditionItems.forEach((item, index) => {
+                    const parameter = formData.get(`edit-parameter[${index}]`);
+                    const threshold = parseFloat(formData.get(`edit-threshold[${index}]`));
+                    const operator = formData.get(`edit-operator[${index}]`);
+                    const duration = formData.get(`edit-duration[${index}]`)
+                        ? parseInt(formData.get(`edit-duration[${index}]`))
+                        : null;
+                    const count = formData.get(`edit-count[${index}]`)
+                        ? parseInt(formData.get(`edit-count[${index}]`))
+                        : null;
+
+                    conditions.push({
+                        parameter: parameter,
+                        threshold: threshold,
+                        operator: operator,
+                        duration: duration,
+                        count: count
+                    });
+                });
+
+                // 判断是否为多条件规则
+                const isMultiCondition = conditions.length > 1;
+
+                // 构建统一格式的规则配置
+                const config = {
+                    conditions: conditions,
+                    logic_operator: isMultiCondition ? formData.get("edit-logic-operator") || "AND" : null
+                };
+
+                // 构建完整规则对象
+                const rule = {
+                    name: formData.get("name"),
+                    description: formData.get("description"),
+                    device_id: formData.get("device-id"),
+                    config: config
+                };
+
+                try {
+                    // 发送更新请求
+                    const response = await fetch(`http://localhost:8080/api/rules/${id}`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(rule)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    // 更新成功，刷新规则列表
+                    alert("规则更新成功!");
+                    fetchRules();
+                    document.getElementById("edit-rule-modal").style.display = "none";
+                } catch (error) {
+                    console.error("更新规则失败:", error);
+                    alert(`更新失败: ${error.message}`);
+                }
+            }
+
+            // 启用规则
+            async function enableRule(id) {
+                try {
+                    const response = await fetch(`http://localhost:8080/api/rules/${id}/enable`, {
+                        method: "POST"
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    alert("规则已启用");
+                    fetchRules();
+                } catch (error) {
+                    console.error("启用规则失败:", error);
+                    alert(`启用规则失败: ${error.message}`);
+                }
+            }
+
+            // 禁用规则
+            async function disableRule(id) {
+                try {
+                    const response = await fetch(`http://localhost:8080/api/rules/${id}/disable`, {
+                        method: "POST"
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    alert("规则已禁用");
+                    fetchRules();
+                } catch (error) {
+                    console.error("禁用规则失败:", error);
+                    alert(`禁用规则失败: ${error.message}`);
+                }
+            }
+
+            // 删除规则
+            async function deleteRule(id) {
+                if (!confirm("确定要删除此规则吗？")) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`http://localhost:8080/api/rules/${id}`, {
+                        method: "DELETE"
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    alert("规则已删除");
+                    fetchRules();
+                } catch (error) {
+                    console.error("删除规则失败:", error);
+                    alert(`删除规则失败: ${error.message}`);
+                }
+            }
+        </script>
+    </body>
+</html>

@@ -1,0 +1,2012 @@
+definitions:
+  iot-alert-center_api_v1.MenuPerms:
+    properties:
+      menu_name:
+        description: 菜单名称
+        type: string
+      parent_id:
+        description: 父菜单ID
+        type: integer
+      perms:
+        description: 权限标识
+        type: string
+    type: object
+  iot-alert-center_api_v1.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  iot-alert-center_api_v1.SysDeptCreateRequest:
+    properties:
+      dept_name:
+        description: 部门名称
+        type: string
+      email:
+        description: 邮箱
+        type: string
+      leader:
+        description: 负责人
+        type: string
+      order_num:
+        description: 显示顺序
+        type: integer
+      parent_id:
+        description: 父部门ID
+        type: integer
+      phone:
+        description: 联系电话
+        type: string
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 部门状态（0正常 1停用）
+        type: string
+    required:
+    - dept_name
+    - order_num
+    - parent_id
+    - status
+    type: object
+  iot-alert-center_api_v1.SysDeptUpdateRequest:
+    properties:
+      dept_name:
+        description: 部门名称
+        type: string
+      email:
+        description: 邮箱
+        type: string
+      id:
+        type: integer
+      leader:
+        description: 负责人
+        type: string
+      order_num:
+        description: 显示顺序
+        type: integer
+      parent_id:
+        description: 父部门ID
+        type: integer
+      phone:
+        description: 联系电话
+        type: string
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 部门状态（0正常 1停用）
+        type: string
+    required:
+    - dept_name
+    - id
+    - order_num
+    - parent_id
+    - status
+    type: object
+  iot-alert-center_api_v1.SysMenuCreateRequest:
+    properties:
+      icon:
+        description: 菜单图标
+        type: string
+      is_refresh:
+        description: 是否刷新（0刷新 1不刷新）
+        type: string
+      menu_name:
+        description: 菜单名称
+        type: string
+      menu_type:
+        description: 菜单类型（M目录 C菜单 F按钮）
+        type: string
+      order_num:
+        description: 显示顺序
+        type: integer
+      parent_id:
+        description: 父菜单ID
+        type: integer
+      perms:
+        description: 权限标识
+        type: string
+      remark:
+        description: 备注
+        type: string
+      target:
+        description: 打开方式
+        type: string
+      url:
+        description: 请求地址
+        type: string
+      visible:
+        description: 菜单状态（0显示 1隐藏）
+        type: string
+    required:
+    - menu_name
+    - menu_type
+    - visible
+    type: object
+  iot-alert-center_api_v1.SysMenuUpdateRequest:
+    properties:
+      icon:
+        description: 菜单图标
+        type: string
+      id:
+        type: integer
+      is_refresh:
+        description: 是否刷新（0刷新 1不刷新）
+        type: string
+      menu_name:
+        description: 菜单名称
+        type: string
+      menu_type:
+        description: 菜单类型（M目录 C菜单 F按钮）
+        type: string
+      order_num:
+        description: 显示顺序
+        type: integer
+      parent_id:
+        description: 父菜单ID
+        type: integer
+      perms:
+        description: 权限标识
+        type: string
+      remark:
+        description: 备注
+        type: string
+      target:
+        description: 打开方式
+        type: string
+      url:
+        description: 请求地址
+        type: string
+      visible:
+        description: 菜单状态（0显示 1隐藏）
+        type: string
+    required:
+    - id
+    - menu_name
+    - menu_type
+    - visible
+    type: object
+  iot-alert-center_api_v1.SysPostCreateRequest:
+    properties:
+      post_code:
+        description: 岗位编码
+        type: string
+      post_name:
+        description: 岗位名称
+        type: string
+      post_sort:
+        description: 显示顺序
+        type: integer
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - post_code
+    - post_name
+    - status
+    type: object
+  iot-alert-center_api_v1.SysPostUpdateRequest:
+    properties:
+      id:
+        type: integer
+      post_code:
+        description: 岗位编码
+        type: string
+      post_name:
+        description: 岗位名称
+        type: string
+      post_sort:
+        description: 显示顺序
+        type: integer
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - id
+    - post_code
+    - post_name
+    - status
+    type: object
+  iot-alert-center_api_v1.SysRoleCreateRequest:
+    properties:
+      data_scope:
+        description: 数据范围
+        type: string
+      data_scope_ids:
+        description: 数据范围ID,关联sys_dept表
+        items:
+          type: integer
+        type: array
+      remark:
+        description: 备注
+        type: string
+      role_key:
+        description: 角色权限字符串
+        type: string
+      role_name:
+        description: 角色名称
+        type: string
+      role_sort:
+        description: 显示顺序
+        type: integer
+      status:
+        description: 角色状态（0正常 1停用）
+        type: string
+    required:
+    - data_scope
+    - role_key
+    - role_name
+    - role_sort
+    - status
+    type: object
+  iot-alert-center_api_v1.SysRoleMenuUpdateRequest:
+    properties:
+      menu_ids:
+        description: 菜单ID列表
+        items:
+          type: integer
+        type: array
+      role_id:
+        description: 角色ID
+        type: integer
+    required:
+    - menu_ids
+    - role_id
+    type: object
+  iot-alert-center_api_v1.SysUserChangeStatusRequest:
+    properties:
+      status:
+        type: string
+      user_id:
+        type: integer
+    required:
+    - status
+    - user_id
+    type: object
+  iot-alert-center_api_v1.SysUserCreateRequest:
+    properties:
+      avatar:
+        description: 头像路径
+        type: string
+      dept_id:
+        description: 部门ID
+        type: integer
+      email:
+        description: 用户邮箱
+        type: string
+      login_name:
+        description: 登录账号
+        type: string
+      password:
+        description: 密码
+        type: string
+      phonenumber:
+        description: 手机号码
+        type: string
+      post_ids:
+        description: 岗位ID列表
+        items:
+          type: integer
+        type: array
+      remark:
+        description: 备注
+        type: string
+      role_ids:
+        description: 角色ID列表
+        items:
+          type: integer
+        type: array
+      sex:
+        description: 用户性别
+        type: string
+      status:
+        description: 账号状态
+        type: string
+      user_name:
+        description: 用户昵称
+        type: string
+      user_type:
+        description: 用户类型
+        type: string
+    required:
+    - login_name
+    - password
+    - status
+    - user_name
+    type: object
+  iot-alert-center_api_v1.SysUserLoginRequest:
+    properties:
+      login_name:
+        type: string
+      password:
+        type: string
+    required:
+    - login_name
+    - password
+    type: object
+  iot-alert-center_api_v1.SysUserResetPasswordRequest:
+    properties:
+      new_password:
+        type: string
+      user_id:
+        type: integer
+    required:
+    - new_password
+    - user_id
+    type: object
+  iot-alert-center_api_v1.SysUserUpdatePasswordRequest:
+    properties:
+      password:
+        type: string
+    required:
+    - password
+    type: object
+host: localhost:8000
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a sample server celler server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Nunu Example API
+  version: 1.0.0
+paths:
+  /api/v1/system/api/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取系统API列表
+      operationId: system:api:list
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 请求方法
+        in: query
+        name: method
+        type: string
+      - description: API路径
+        in: query
+        name: path
+        type: string
+      - description: API名称
+        in: query
+        name: name
+        type: string
+      - description: API描述
+        in: query
+        name: desc
+        type: string
+      - description: API标签
+        in: query
+        name: tag
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取API列表
+      tags:
+      - API管理
+  /api/v1/system/api/tag/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统API标签列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取API标签列表
+      tags:
+      - API管理
+  /api/v1/system/dept:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的部门
+      operationId: system:dept:add
+      parameters:
+      - description: 创建部门请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysDeptCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建部门
+      tags:
+      - 部门管理
+  /api/v1/system/dept/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定部门
+      operationId: system:dept:remove
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除部门
+      tags:
+      - 部门管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取部门详情
+      operationId: system:dept:detail
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取部门详情
+      tags:
+      - 部门管理
+    put:
+      consumes:
+      - application/json
+      description: 更新部门信息
+      operationId: system:dept:edit
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新部门请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysDeptUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新部门
+      tags:
+      - 部门管理
+  /api/v1/system/dept/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定部门
+      operationId: system:dept:disable
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用部门
+      tags:
+      - 部门管理
+  /api/v1/system/dept/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定部门
+      operationId: system:dept:enable
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用部门
+      tags:
+      - 部门管理
+  /api/v1/system/dept/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取部门列表
+      operationId: system:dept:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 部门名称
+        in: query
+        name: dept_name
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取部门列表
+      tags:
+      - 部门管理
+  /api/v1/system/dept/tree:
+    get:
+      consumes:
+      - application/json
+      description: 获取部门树形结构
+      operationId: system:dept:tree
+      parameters:
+      - description: 部门名称
+        in: query
+        name: dept_name
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取部门树
+      tags:
+      - 部门管理
+  /api/v1/system/logininfor/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取登录日志详情
+      operationId: system:logininfor:detail
+      parameters:
+      - description: 登录日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取登录日志详情
+      tags:
+      - 登录日志
+  /api/v1/system/logininfor/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取登录日志列表
+      operationId: system:logininfor:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 登录账号
+        in: query
+        name: login_name
+        type: string
+      - description: 登录IP地址
+        in: query
+        name: ip_addr
+        type: string
+      - description: 登录状态
+        in: query
+        name: status
+        type: string
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取登录日志列表
+      tags:
+      - 登录日志
+  /api/v1/system/menu:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的系统菜单
+      operationId: system:menu:add
+      parameters:
+      - description: 创建菜单请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysMenuCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建菜单
+      tags:
+      - 菜单管理
+  /api/v1/system/menu/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除系统菜单
+      operationId: system:menu:remove
+      parameters:
+      - description: 菜单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除菜单
+      tags:
+      - 菜单管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取菜单详情
+      operationId: system:menu:detail
+      parameters:
+      - description: 菜单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取菜单详情
+      tags:
+      - 菜单管理
+    put:
+      consumes:
+      - application/json
+      description: 更新系统菜单信息
+      operationId: system:menu:edit
+      parameters:
+      - description: 菜单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新菜单请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysMenuUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新菜单
+      tags:
+      - 菜单管理
+  /api/v1/system/menu/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取菜单列表
+      operationId: system:menu:list
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 菜单名称
+        in: query
+        name: menu_name
+        type: string
+      - description: 显示状态
+        in: query
+        name: visible
+        type: string
+      - description: 菜单类型
+        in: query
+        name: menu_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取菜单列表
+      tags:
+      - 菜单管理
+  /api/v1/system/menu/perms/muti:
+    post:
+      consumes:
+      - application/json
+      description: 创建多个菜单
+      operationId: system:menu:muti:add
+      parameters:
+      - description: 创建多个菜单请求
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/iot-alert-center_api_v1.MenuPerms'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建多个菜单
+      tags:
+      - 菜单管理
+  /api/v1/system/menu/tree:
+    get:
+      consumes:
+      - application/json
+      description: 获取菜单树形结构
+      operationId: system:menu:tree
+      parameters:
+      - description: 菜单名称
+        in: query
+        name: menu_name
+        type: string
+      - description: 显示状态
+        in: query
+        name: visible
+        type: string
+      - description: 菜单类型
+        in: query
+        name: menu_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取菜单树
+      tags:
+      - 菜单管理
+  /api/v1/system/menu/type/{type}:
+    get:
+      consumes:
+      - application/json
+      description: 根据菜单类型获取菜单列表
+      operationId: system:menu:type
+      parameters:
+      - description: 菜单类型
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 根据类型获取菜单
+      tags:
+      - 菜单管理
+  /api/v1/system/post:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的岗位
+      operationId: system:post:add
+      parameters:
+      - description: 创建岗位请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysPostCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建岗位
+      tags:
+      - 岗位管理
+  /api/v1/system/post/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定岗位
+      operationId: system:post:remove
+      parameters:
+      - description: 岗位ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除岗位
+      tags:
+      - 岗位管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取岗位详情
+      operationId: system:post:detail
+      parameters:
+      - description: 岗位ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取岗位详情
+      tags:
+      - 岗位管理
+    put:
+      consumes:
+      - application/json
+      description: 更新岗位信息
+      operationId: system:post:edit
+      parameters:
+      - description: 岗位ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新岗位请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysPostUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新岗位
+      tags:
+      - 岗位管理
+  /api/v1/system/post/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定岗位
+      operationId: system:post:disable
+      parameters:
+      - description: 岗位ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用岗位
+      tags:
+      - 岗位管理
+  /api/v1/system/post/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定岗位
+      operationId: system:post:enable
+      parameters:
+      - description: 岗位ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用岗位
+      tags:
+      - 岗位管理
+  /api/v1/system/post/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取岗位列表
+      operationId: system:post:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 岗位编码
+        in: query
+        name: post_code
+        type: string
+      - description: 岗位名称
+        in: query
+        name: post_name
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取岗位列表
+      tags:
+      - 岗位管理
+  /api/v1/system/role:
+    post:
+      consumes:
+      - application/json
+      description: 创建新角色
+      operationId: system:role:add
+      parameters:
+      - description: 创建角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysRoleCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建角色
+      tags:
+      - 角色管理
+  /api/v1/system/role/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定角色
+      operationId: system:role:remove
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除角色
+      tags:
+      - 角色管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取角色详情
+      operationId: system:role:detail
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取角色详情
+      tags:
+      - 角色管理
+    put:
+      consumes:
+      - application/json
+      description: 更新角色信息
+      operationId: system:role:edit
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysRoleCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新角色
+      tags:
+      - 角色管理
+  /api/v1/system/role/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定角色
+      operationId: system:role:disable
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用角色
+      tags:
+      - 角色管理
+  /api/v1/system/role/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定角色
+      operationId: system:role:enable
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用角色
+      tags:
+      - 角色管理
+  /api/v1/system/role/{id}/menus:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定角色关联的菜单ID列表
+      operationId: system:role:menus
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取角色菜单关联
+      tags:
+      - 角色管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定角色关联的菜单ID列表
+      operationId: system:role:edit:menus
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新角色菜单关联请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysRoleMenuUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新角色菜单关联
+      tags:
+      - 角色管理
+  /api/v1/system/role/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取角色列表
+      operationId: system:role:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: current
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 角色名称
+        in: query
+        name: role_name
+        type: string
+      - description: 角色权限字符串
+        in: query
+        name: role_key
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取角色列表
+      tags:
+      - 角色管理
+  /api/v1/system/user:
+    post:
+      consumes:
+      - application/json
+      description: 创建新用户
+      operationId: system:user:add
+      parameters:
+      - description: 创建用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysUserCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建用户
+      tags:
+      - 用户管理
+  /api/v1/system/user/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定用户
+      operationId: system:user:remove
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除用户
+      tags:
+      - 用户管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取用户详情
+      operationId: system:user:detail
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取用户详情
+      tags:
+      - 用户管理
+    put:
+      consumes:
+      - application/json
+      description: 更新用户信息
+      operationId: system:user:edit
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysUserCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新用户
+      tags:
+      - 用户管理
+  /api/v1/system/user/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定用户
+      operationId: system:user:disable
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用用户
+      tags:
+      - 用户管理
+  /api/v1/system/user/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定用户
+      operationId: system:user:enable
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用用户
+      tags:
+      - 用户管理
+  /api/v1/system/user/{id}/reset-password:
+    put:
+      consumes:
+      - application/json
+      description: 重置指定用户的密码
+      operationId: system:user:resetpwd
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 重置密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysUserResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 重置用户密码
+      tags:
+      - 用户管理
+  /api/v1/system/user/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 修改指定用户的启用/停用状态
+      operationId: system:user:change:status
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 修改状态请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysUserChangeStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 修改用户状态
+      tags:
+      - 用户管理
+  /api/v1/system/user/{id}/update-password:
+    put:
+      consumes:
+      - application/json
+      description: 更新指定用户的密码
+      operationId: system:user:updatepwd
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysUserUpdatePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新用户密码
+      tags:
+      - 用户管理
+  /api/v1/system/user/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取用户列表
+      operationId: system:user:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: current
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 登录账号
+        in: query
+        name: login_name
+        type: string
+      - description: 用户昵称
+        in: query
+        name: user_name
+        type: string
+      - description: 账号状态
+        in: query
+        name: status
+        type: string
+      - description: 部门ID
+        in: query
+        name: dept_id
+        type: integer
+      - description: 手机号码
+        in: query
+        name: phonenumber
+        type: string
+      - description: 邮箱
+        in: query
+        name: email
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取用户列表
+      tags:
+      - 用户管理
+  /api/v1/user/info:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前登录用户的详细信息和权限
+      operationId: user:info:profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取当前用户信息
+      tags:
+      - 用户管理
+  /api/v1/user/login:
+    post:
+      consumes:
+      - application/json
+      description: 用户登录接口
+      parameters:
+      - description: 登录请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysUserLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 用户登录
+      tags:
+      - 用户管理
+  /api/v1/user/logout:
+    post:
+      consumes:
+      - application/json
+      description: 退出登录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 退出登录
+      tags:
+      - 用户管理
+securityDefinitions:
+  Bearer:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
