@@ -112,9 +112,15 @@ func NewDB(conf *viper.Viper, l *log.Logger) *gorm.DB {
 		db, err = gorm.Open(postgres.New(postgres.Config{
 			DSN:                  dsn,
 			PreferSimpleProtocol: true, // disables implicit prepared statement usage
-		}), &gorm.Config{})
+		}), &gorm.Config{
+			Logger:                                   logger,
+			DisableForeignKeyConstraintWhenMigrating: true,
+		})
 	case "sqlite":
-		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{
+			Logger:                                   logger,
+			DisableForeignKeyConstraintWhenMigrating: true,
+		})
 	default:
 		panic("unknown db driver")
 	}
