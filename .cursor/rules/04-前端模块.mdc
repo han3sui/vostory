@@ -1,29 +1,585 @@
 ---
-description: 
-globs: 
+description: 前端模块开发规范 - 基于 Vue3 + Arco Design + @easyfe/admin-component 的管理后台开发约定
+globs: "**/*.vue,**/*.ts"
 alwaysApply: false
 ---
-## 前端模块
+# 前端模块
 
-前端模块使用的vue3+typescript+arco.design组件库的生态，其中引入了@easyfe/admin-component，对table、form组件进行了封装，具体可以参考 @/web/src/views/system目录下使用方式。
+本项目前端基于 Vue 3 + TypeScript + Vite + Arco Design Vue + `@easyfe/admin-component` 私有组件库构建。
 
-1. 添加对应的api接口定义
+具体可以参考 @/web/src/views/system 目录下使用方式。
 
-在@/web/src/config/apis目录下，新建对应的接口文件，添加对应的接口
+## 技术栈
 
-2. 添加对应的页面
+- Vue 3 (Composition API + `<script setup>`)
+- TypeScript
+- Vite 4
+- Arco Design Vue (`@arco-design/web-vue`)
+- `@easyfe/admin-component` (私有封装组件库)
+- Pinia (状态管理)
+- Vue Router 4
+- TailwindCSS
+- dayjs / lodash-es / ECharts
 
-在@/web/src/views目录下，新建对应的页面文件。其中文件名称始终为index.vue，通过创建目录放不同的页面。
+## 项目结构约定
 
-其中当详情页较为复杂的时候，在对应模块下，新建list、edit目录。如果是简单的，则使用一个即可，
+```
+web/src/
+├── config/
+│   ├── apis/          # API 接口定义（按业务模块拆分）
+│   ├── router/        # 路由配置（按业务模块拆分）
+│   ├── pinia/         # Pinia Store
+│   └── vite/          # Vite 插件配置
+├── hooks/             # 组合式函数
+├── packages/          # 核心封装（request、vue-router、init）
+├── views/
+│   ├── utils/         # 页面级工具函数
+│   ├── components/    # 页面级公共组件
+│   └── [module]/      # 业务模块页面
+├── utils/             # 通用工具函数
+├── layout/            # 布局组件
+└── locales/           # 国际化
+```
 
-以岗位模块为例，则目录结构是 @/web/src/views/system/post/index.vue，列表和新建、编辑都在一个页面里。
+## 新增模块步骤
 
-如果页面复杂，则新建两个目录，进行区分处理,参考@/web/src/views/iot/device。
+### 1. 添加 API 接口定义
 
-3. 添加对应的路由
+在 @/web/src/config/apis 目录下，新建对应的接口文件。
 
-在@/web/src/configs/router下，新建对应的路由模块
+```typescript
+// src/config/apis/[module].ts
+import request from "@/packages/request";
+
+// 1. 先定义类型
+export type ItemDetailType = {
+    id: number;
+    name: string;
+    status: string;
+    // ...
+};
+
+// 2. 定义 API 函数
+export function getList(params?: Record<string, any>): Promise<{
+    data: ItemDetailType[];
+    total: number;
+}> {
+    return request({ url: "/api/v1/items", method: "get", params });
+}
+
+export function getDetail(id: number): Promise<ItemDetailType> {
+    return request({ url: `/api/v1/items/${id}`, method: "get" });
+}
+
+export function create(data: Partial<ItemDetailType>): Promise<ItemDetailType> {
+    return request({ url: "/api/v1/items", method: "post", data });
+}
+
+export function update(data: Partial<ItemDetailType>): Promise<void> {
+    return request({ url: `/api/v1/items/${data.id}`, method: "put", data });
+}
+
+export function remove(id: number): Promise<void> {
+    return request({ url: `/api/v1/items/${id}`, method: "delete" });
+}
+
+export function enable(id: number): Promise<void> {
+    return request({ url: `/api/v1/items/${id}/enable`, method: "put" });
+}
+
+export function disable(id: number): Promise<void> {
+    return request({ url: `/api/v1/items/${id}/disable`, method: "put" });
+}
+```
+
+### 2. 添加页面
+
+在 @/web/src/views 目录下，新建对应的页面文件。文件名称始终为 index.vue，通过创建目录放不同的页面。
+
+- **简单页面**：列表和新建、编辑都在一个页面里（如岗位模块 `@/web/src/views/system/post/index.vue`）
+- **复杂页面**：新建 list、edit 目录进行区分处理（参考 `@/web/src/views/iot/device`）
+
+### 3. 添加路由
+
+在 @/web/src/configs/router 下，新建对应的路由模块。
+
+```typescript
+// src/config/router/[module].ts
+import { RouteConfig } from "types";
+import Layout from "@/layout/index.vue";
+import { hasPermission } from "@/views/utils";
+
+const routers: RouteConfig[] = [
+    {
+        path: "/module",
+        name: "module",
+        meta: { title: "模块名", icon: "menu-icon", sort: 200 },
+        component: Layout,
+        children: [
+            {
+                path: "/module/list",
+                name: "module-list",
+                meta: {
+                    title: "列表",
+                    sort: 1,
+                    keepAliveName: "ModuleList",
+                    permission: () => hasPermission("module:list")
+                },
+                component: () => import("@/views/module/list/index.vue")
+            },
+            {
+                path: "/module/detail",
+                name: "module-detail",
+                meta: {
+                    title: "详情",
+                    hidden: true,
+                    navTag: true,
+                    parentName: "module-list",
+                    permission: () => hasPermission("module:detail")
+                },
+                component: () => import("@/views/module/detail/index.vue")
+            }
+        ]
+    }
+];
+export default routers;
+```
+
+## 核心组件使用规范
+
+### 列表页标准模式 (arco-table)
+
+列表页统一使用 `<arco-table>` 组件，配合 `tableHelper` 和 `formHelper` 构建。
+
+```vue
+<template>
+    <frame-view>
+        <arco-table ref="table" :table-config="tableConfig" :req="getData">
+            <template #tlBtns>
+                <arco-form v-model="filterData" layout="row" :config="filterConfig" />
+            </template>
+            <template #switchSlot>
+                <a-table-column title="启用">
+                    <template #cell="{ record }">
+                        <a-switch
+                            :disabled="!hasPermission('module:enable')"
+                            :default-checked="record.status === '0'"
+                            :before-change="() => handleToggle(record)"
+                        />
+                    </template>
+                </a-table-column>
+            </template>
+        </arco-table>
+    </frame-view>
+</template>
+<script lang="ts" setup>
+import { ArcoTable, formHelper, tableHelper, ArcoForm } from "@easyfe/admin-component";
+import { hasPermission, PageTableConfig } from "@/views/utils";
+
+const table = ref();
+const filterData = ref({});
+
+const filterConfig = computed(() => {
+    return [
+        formHelper.input("名称", "name", { span: 6, debounce: 500 }),
+        formHelper.select("状态", "status", [
+            { label: "正常", value: "0" },
+            { label: "停用", value: "1" }
+        ], { span: 6 })
+    ];
+});
+
+const getData = computed(() => {
+    return {
+        fn: apiFunction,
+        params: { ...filterData.value }
+    };
+});
+
+const tableConfig = computed(() => {
+    return tableHelper.create({
+        ...PageTableConfig,
+        arcoProps: { rowKey: "id" },
+        maxHeight: "auto",
+        trBtns: [
+            {
+                label: "新建",
+                type: "primary",
+                if: () => hasPermission("module:action:add"),
+                handler: () => onEdit(null)
+            }
+        ],
+        columns: [
+            tableHelper.default("名称", "name"),
+            tableHelper.link("链接列", "field", (row) => { /* 跳转 */ }),
+            tableHelper.date("时间", "created_at", { format: "YYYY-MM-DD HH:mm:ss" }),
+            tableHelper.status("状态", "status", (item) => ({
+                text: item.status === "0" ? "正常" : "停用",
+                status: item.status === "0" ? "success" : "danger"
+            })),
+            tableHelper.slot("switchSlot"),
+            tableHelper.btns("操作", [
+                {
+                    label: "编辑",
+                    if: () => hasPermission("module:action:edit"),
+                    handler: (row) => onEdit(row)
+                },
+                {
+                    label: "删除",
+                    status: "danger",
+                    if: () => hasPermission("module:action:remove"),
+                    handler: (row) => onDelete(row)
+                }
+            ])
+        ]
+    });
+});
+</script>
+```
+
+### 分页配置 (PageTableConfig)
+
+```typescript
+// 标准分页（大部分接口）
+export const PageTableConfig = {
+    pageKey: "page",
+    sizeKey: "size",
+    rowKey: "data",
+    totalKey: "total"
+};
+
+// 旧版分页（字典等少数接口）
+export const TablePageConfig = {
+    pageKey: "current",
+    sizeKey: "size",
+    rowKey: "records",
+    totalKey: "total"
+};
+```
+
+### 弹窗表单 (ArcoModalFormShow)
+
+新增/编辑统一使用函数式弹窗表单：
+
+```typescript
+import { ArcoModalFormShow, formHelper, ruleHelper } from "@easyfe/admin-component";
+import { cloneDeep } from "lodash-es";
+
+function onEdit(row: DetailType | null) {
+    const tempValue = cloneDeep(row);
+    ArcoModalFormShow({
+        modalConfig: {
+            title: tempValue ? "编辑" : "新建"
+        },
+        value: tempValue || {},
+        formConfig: [
+            formHelper.input("名称", "name", {
+                rules: [ruleHelper.require("请输入")]
+            }),
+            formHelper.select("类型", "type", options, {
+                rules: [ruleHelper.require("请选择")]
+            }),
+            formHelper.textarea("备注", "remark")
+        ],
+        ok: async (data: any) => {
+            if (tempValue) {
+                await updateApi(data);
+            } else {
+                await addApi(data);
+            }
+            table.value.refresh();
+        }
+    });
+}
+```
+
+### 独立表单页 (arco-form)
+
+复杂表单使用独立页面 + `<arco-form>` 组件：
+
+```vue
+<template>
+    <frame-view :page-header="{ title: '表单标题' }">
+        <arco-form ref="form" v-model="formData" :config="formConfig">
+            <template #s1>
+                <!-- 自定义插槽内容 -->
+            </template>
+        </arco-form>
+        <template #bottom>
+            <a-space>
+                <a-button @click="handleCancel">取消</a-button>
+                <a-button type="primary" :loading="loading" @click="handleSave">保存</a-button>
+            </a-space>
+        </template>
+    </frame-view>
+</template>
+<script lang="ts" setup>
+const form = ref();
+const formData = ref({ /* 初始值 */ });
+
+const formConfig = computed(() => [
+    formHelper.section("基础信息"),
+    formHelper.input("名称", "name", { rules: [ruleHelper.require("不能为空")] }),
+    formHelper.slot("s1"),
+    formHelper.section("配置参数"),
+    // 动态字段...
+]);
+
+async function handleSave() {
+    await formHelper.validate(form.value);
+    // 提交逻辑
+}
+</script>
+```
+
+### 弹窗表格选择 (ArcoModalTableShow)
+
+```typescript
+import { ArcoModalTableShow } from "@easyfe/admin-component";
+
+ArcoModalTableShow({
+    modalConfig: { title: "选择", width: "1000px" },
+    defaultSelected: [],
+    tableConfig: {
+        tableConfig: { ...PageTableConfig, columns: [...] },
+        filterConfig: [...],
+        filterData: filterData.value,
+        req: { fn: apiFunction, params: { ...filterData.value } }
+    },
+    ok: async (selectedRows) => { /* 处理选中 */ }
+});
+```
+
+### 弹窗展示 (ArcoModalShow)
+
+```typescript
+import { ArcoModalShow } from "@easyfe/admin-component";
+
+ArcoModalShow({
+    config: { title: "标题", hideCancel: true },
+    content: () => h(SomeComponent, { props })
+});
+```
+
+## formHelper 完整 API
+
+```typescript
+// 基础表单项
+formHelper.input(label, key, options?)        // 文本输入
+formHelper.inputNumber(label, key, options?)  // 数字输入
+formHelper.textarea(label, key, options?)     // 多行文本
+formHelper.select(label, key, data[], options?) // 下拉选择
+formHelper.treeSelect(label, key, data[], options?) // 树形选择
+formHelper.radio(label, key, data[], { type: "radio" }) // 单选
+formHelper.checkbox(label, key, data[], options?) // 多选
+formHelper.switch(label, key, options?)       // 开关
+formHelper.datePicker(label, key, options?)   // 日期选择
+formHelper.rangePicker(label, key, options?)  // 日期范围
+formHelper.time(label, key, options?)         // 时间选择
+formHelper.color(label, key, options?)        // 颜色选择
+formHelper.editor(label, key, options?)       // 富文本
+formHelper.picUpload(label, key, options?)    // 图片上传
+formHelper.upload(label, key, options?)       // 文件上传
+
+// 布局/辅助
+formHelper.section(title)                     // 分组标题
+formHelper.slot(slotName)                     // 自定义插槽
+formHelper.span(label, key)                   // 纯文本展示（支持HTML）
+
+// 表单验证
+formHelper.validate(formRef)                  // 验证表单
+ruleHelper.require(message, trigger?)         // 必填规则
+ruleHelper.phone()                            // 手机号规则
+
+// 常用 options 属性
+{
+    span: 6,                    // 栅格宽度（筛选表单用）
+    debounce: 500,              // 防抖（搜索输入用）
+    rules: [],                  // 验证规则
+    disabled: boolean,          // 禁用
+    if: (formData) => boolean,  // 条件显示
+    labelTips: string,          // label 提示
+    inputTips: string,          // 输入框下方提示
+    onChange: (value) => void,  // 值变化回调
+    allowSearch: true,          // 下拉可搜索
+    multiple: true,             // 多选
+    fieldNames: {},             // 字段映射
+    formType: "password",       // 密码输入
+    maxLength: 50,              // 最大长度
+    showWordLimit: true,        // 显示字数
+    virtualListProps: { height: 300 }, // 虚拟列表（大数据量下拉）
+    triggerProps: { autoFitPopupMinWidth: true } // 下拉宽度自适应
+}
+```
+
+## tableHelper 完整 API
+
+```typescript
+tableHelper.create(config)                    // 创建表格配置
+tableHelper.default(title, dataIndex, options?) // 普通列
+tableHelper.link(title, dataIndex, handler, options?) // 链接列
+tableHelper.date(title, dataIndex, { format }) // 日期列
+tableHelper.status(title, dataIndex, handler)  // 状态标签列
+tableHelper.custom(title, handler, options?)   // 自定义渲染列
+tableHelper.slot(slotName)                     // 插槽列
+tableHelper.btns(title, buttons[], options?)   // 操作按钮列
+
+// 按钮配置
+{
+    label: string,
+    type?: "primary" | "outline",
+    status?: "danger" | "warning" | "success",
+    color?: "red",
+    loading?: boolean,
+    if?: (row?) => boolean,     // 条件显示
+    handler?: (row) => void     // 点击回调
+}
+
+// create 配置
+{
+    ...PageTableConfig,         // 分页配置
+    maxHeight: "auto",
+    showRefresh: true,
+    arcoProps: {                // 透传 arco-table 属性
+        rowKey: "id",
+        bordered: false,
+        columnResizable: true,
+        pagination: false,      // 树形表格不分页
+        scroll: { y: "70vh" },
+        rowSelection: {         // 多选
+            type: "checkbox",
+            showCheckedAll: true
+        }
+    },
+    trBtns: [],                 // 右上角按钮
+    tlBtns: [],                 // 左上角 Tab 按钮
+    blBtns: [],                 // 左下角批量操作按钮
+    columns: []
+}
+```
+
+## 页面模式约定
+
+### 列表页 (list/index.vue)
+- 使用 `<frame-view>` 包裹
+- `<arco-table>` + `<arco-form>` 筛选
+- 简单 CRUD 用 `ArcoModalFormShow` 弹窗
+- 复杂详情跳转独立页面
+
+### 详情页 (detail/index.vue)
+- `<frame-view>` + `<a-page-header>` 带返回
+- `<a-tabs>` 分标签展示
+- `<a-descriptions>` 展示基础信息
+- 编辑按钮触发 `ArcoModalFormShow`
+
+### 独立表单页 (form.vue / edit/index.vue)
+- `<frame-view :page-header="{ title }">` 带标题
+- `<arco-form>` 表单
+- `<template #bottom>` 放操作按钮
+
+## 常用模式
+
+### 删除确认
+```typescript
+Modal.confirm({
+    title: "删除",
+    content: `确认删除【${row.name}】？`,
+    onBeforeOk: async () => {
+        await deleteApi(row.id);
+        Message.success("删除成功");
+        table.value.refresh();
+    }
+});
+```
+
+### 启用/禁用开关
+```vue
+<template #switchSlot>
+    <a-table-column title="启用">
+        <template #cell="{ record }">
+            <a-switch
+                :disabled="!hasPermission('module:enable')"
+                :default-checked="record.status === '0'"
+                :before-change="() => handleToggle(record)"
+            />
+        </template>
+    </a-table-column>
+</template>
+```
+```typescript
+async function handleToggle(row: DetailType) {
+    try {
+        if (row.status === "0") {
+            await disableApi(row.id);
+        } else {
+            await enableApi(row.id);
+        }
+        table.value.refresh();
+        return true;
+    } catch { return false; }
+}
+```
+
+### 获取 URL 参数
+```typescript
+import QS from "@/utils/tools/qs";
+const id = QS.getUrlkey("id");
+```
+
+### 权限控制
+```typescript
+import { hasPermission } from "@/views/utils";
+// 按钮级: if: () => hasPermission("module:action")
+// 路由级: permission: () => hasPermission("module:list")
+```
+
+### 页面跳转
+```typescript
+import routerHelper from "@/utils/helper/router";
+routerHelper.push({ name: "route-name", query: { id } });
+routerHelper.jumpNew({ name: "route-name", query: { id } }); // 新标签
+routerHelper.back();
+routerHelper.redirect(path); // 重定向（同路由不同参数）
+```
+
+### 自定义 Hooks
+```typescript
+export function useXxxList() {
+    const list = ref<Type[]>([]);
+    async function init() {
+        const res = await getListApi();
+        list.value = res;
+    }
+    onMounted(() => init());
+    return { list };
+}
+```
+
+### 弹窗选择器封装
+```typescript
+export function onSelectItem(config: { checkType: "checkbox" | "radio" }) {
+    return new Promise((resolve) => {
+        ArcoModalTableShow({
+            modalConfig: { title: "选择", width: "1000px" },
+            tableConfig: { /* ... */ },
+            ok: async (rows) => resolve(config.checkType === "radio" ? rows[0] : rows)
+        });
+    });
+}
+```
+
+## 编码习惯
+
+1. **Vue SFC**: 始终使用 `<script lang="ts" setup>`，可加 `name` 属性用于 keepAlive
+2. **样式**: `<style lang="scss" scoped>`，即使为空也保留标签
+3. **ref 命名**: 组件 ref 用 `table`/`form`/`tableRef`/`formRef`
+4. **computed 包裹配置**: `filterConfig`、`tableConfig`、`getData` 均用 `computed` 包裹
+5. **cloneDeep**: 编辑时先 `cloneDeep(row)` 避免直接修改原数据
+6. **Message 反馈**: 操作成功用 `Message.success()`，加载用 `Message.loading()`
+7. **auto-imports**: `ref`、`computed`、`watch`、`onMounted`、`onActivated`、`useRoute`、`useRouter`、`h`、`nextTick` 等已自动导入，无需手动 import
+8. **路径别名**: 使用 `@/` 指向 `src/`
+9. **日期处理**: 统一使用 `dayjs`
+10. **树形表格**: `pagination: false` + `scroll: { y: "70vh" }` + 展开/折叠按钮
 
 ## 其他
 

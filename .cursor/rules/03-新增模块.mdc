@@ -5,17 +5,19 @@ alwaysApply: false
 ---
 # 新增模块
 
-当用户需要新增一个模块的时候,需要根据给定的model,实现后端Create、Update、Delete、FindById、FindWithPagination基础功能:
+当用户需要新增一个模块的时候，需要根据给定的 model，实现后端 Create、Update、Delete、FindById、FindWithPagination、Enable、Disable 基础功能：
 
 ## 后端模块
 
-1. 入参定义
+### 1. 入参定义（api/v1）
 
-在@/api/v1目录下,定义查询、创建、更新的struct,新建对应的文件，可以参考@/api/v1/sys_post.go
+在 @/api/v1 目录下，新建对应文件定义查询、创建、更新、详情响应的 struct，可以参考 @/api/v1/sys_post.go
 
-需要实现查询定义，类似如下，BasePageQuery为分页查询的基础入参，其余根据实际model定义：
+**状态字段规范：所有涉及"启用/禁用"类状态的字段，必须使用 `string` 类型，值为 `"0"` 表示正常/启用，`"1"` 表示停用/禁用。** 这是因为 GORM 的 `Updates` 方法会忽略零值，`int` 类型的 `0` 会被跳过。
 
-注意更新的入参，正常是引用创建入参，同时加上ID，创建的入参是没有ID的
+#### 查询定义
+
+嵌入 `*BasePageQuery` 实现分页，其余字段根据实际 model 定义：
 
 ```go
 // SysPostListQuery 岗位列表查询参数
@@ -27,20 +29,25 @@ type SysPostListQuery struct {
 }
 ```
 
-需要实现创建定义，类似如下：
+#### 创建定义
+
+注意：创建入参不包含 ID 字段：
 
 ```go
 // SysPostCreateRequest 创建岗位请求
 type SysPostCreateRequest struct {
 	PostCode string `json:"post_code" binding:"required"` // 岗位编码
 	PostName string `json:"post_name" binding:"required"` // 岗位名称
-	PostSort int    `json:"post_sort""`                   // 显示顺序
+	PostSort int    `json:"post_sort"`                    // 显示顺序
 	Status   string `json:"status" binding:"required"`    // 状态（0正常 1停用）
 	Remark   string `json:"remark"`                       // 备注
 }
 ```
 
-需要实现更新定义，类似如下：
+#### 更新定义
+
+引用创建入参，同时加上 ID：
+
 ```go
 // SysPostUpdateRequest 更新岗位请求
 type SysPostUpdateRequest struct {
@@ -49,66 +56,287 @@ type SysPostUpdateRequest struct {
 }
 ```
 
-如无特殊必要，不需要创建返回定义。
+#### 详情响应定义
 
-2. 实现repository逻辑
+用于 Service 层返回给 Handler，避免直接暴露 model：
 
-在@/internanl/repository目录下，新建对应的数据库查询模块，实现Create、Update、Delete、FindById、FindWithPagination功能，可以参考@/internanl/repository/sys_post.go
-
-注意BaseModel如下
-// BaseModel 基础模型定义
-// @Description 所有数据模型的基础字段
-type BaseModel struct {
-	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime" comment:"创建时间"`
-	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime" comment:"更新时间"`
-	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index" comment:"删除时间"`
-	CreatedBy string         `json:"created_by" comment:"创建者"`
-	UpdatedBy string         `json:"updated_by" comment:"更新者"`
-	DeptID    uint           `json:"dept_id" comment:"部门ID"`
+```go
+// SysPostDetailResponse 岗位详情响应
+type SysPostDetailResponse struct {
+	ID        uint      `json:"id"`
+	PostCode  string    `json:"post_code"`
+	PostName  string    `json:"post_name"`
+	PostSort  int       `json:"post_sort"`
+	Status    string    `json:"status"`
+	Remark    string    `json:"remark"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
-查询排序的时候注意
+```
 
-3. 实现service逻辑
+### 2. 实现 Repository 逻辑
 
-在@/internal/service目录下，新建对应的业务逻辑模块，实现Create、Update、Delete、FindById、FindWithPagination功能，可以参考@/internal/service/sys_post.go
+在 @/internal/repository 目录下，新建对应文件，可以参考 @/internal/repository/sys_post.go
 
-4. 实现handler逻辑
+关键要点：
+- 接口导出，实现体非导出（小写开头），嵌入 `*Repository`
+- 方法名直接使用 `Create`/`Update`/`Delete`/`FindByID`/`FindWithPagination`，不带模块前缀
+- 查询和修改操作需要加 `Scopes(model.WithDataScope(ctx))` 数据权限
+- Update 时使用 `Omit("created_by", "created_at")` 排除创建信息
+- 分页查询：先 `Count` 获取总数，再 `Scopes(model.Paginate(page, size))` 分页
+- 排序字段根据业务需要设置（如 `Order("post_sort ASC")`），注意 `created_at` 排序时使用 `id DESC` 替代（因 BaseModel 中 `created_at` 精度问题）
+- Enable/Disable 使用 `Update("status", "0")` 和 `Update("status", "1")` 直接更新字符串值
 
-在@/internal/handler目录下，新建对应的入口模块，实现Create、Update、Delete、FindById、FindWithPagination功能，可以参考@/internal/handler/sys_post.go，主要需要新增对应的swagger注解
+```go
+type SysPostRepository interface {
+	Create(ctx context.Context, post *model.SysPost) error
+	Update(ctx context.Context, post *model.SysPost) error
+	Delete(ctx context.Context, id uint) error
+	FindByID(ctx context.Context, id uint) (*model.SysPost, error)
+	FindWithPagination(ctx context.Context, query *v1.SysPostListQuery) ([]*model.SysPost, int64, error)
+	Enable(ctx context.Context, id uint) error
+	Disable(ctx context.Context, id uint) error
+}
 
-5. 添加wire注入
+func NewSysPostRepository(repository *Repository) SysPostRepository {
+	return &sysPostRepository{Repository: repository}
+}
 
-在@/cmd/server/wire/wire.go中，增加新模块的注入
+type sysPostRepository struct {
+	*Repository
+}
 
-6. 添加http接口入口
+func (r *sysPostRepository) FindWithPagination(ctx context.Context, query *v1.SysPostListQuery) ([]*model.SysPost, int64, error) {
+	var posts []*model.SysPost
+	db := r.db.WithContext(ctx).Model(&model.SysPost{})
 
-在@/internal/server/http.go中，增加对应的接口
+	if query.PostCode != "" {
+		db = db.Where("post_code LIKE ?", "%"+query.PostCode+"%")
+	}
+	if query.PostName != "" {
+		db = db.Where("post_name LIKE ?", "%"+query.PostName+"%")
+	}
+	if query.Status != "" {
+		db = db.Where("status = ?", query.Status)
+	}
 
-7. 添加migration
+	db = db.Scopes(model.WithDataScope(ctx))
 
-在@/internal/server/migration.go中，添加新增的model文件，以方便完成迁移
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if query.BasePageQuery != nil && query.Page > 0 && query.Size > 0 {
+		db = db.Scopes(model.Paginate(query.Page, query.Size))
+	}
+
+	if err := db.Order("post_sort ASC").Find(&posts).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return posts, total, nil
+}
+
+func (r *sysPostRepository) Enable(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Scopes(model.WithDataScope(ctx)).
+		Model(&model.SysPost{}).Where("post_id = ?", id).Update("status", "0").Error
+}
+
+func (r *sysPostRepository) Disable(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Scopes(model.WithDataScope(ctx)).
+		Model(&model.SysPost{}).Where("post_id = ?", id).Update("status", "1").Error
+}
+```
+
+### 3. 实现 Service 逻辑
+
+在 @/internal/service 目录下，新建对应文件，可以参考 @/internal/service/sys_post.go
+
+关键要点：
+- 接口导出，实现体非导出，嵌入 `*Service`
+- Service 接收 API DTO（`v1.XxxCreateRequest`），返回 API DTO（`v1.XxxDetailResponse`）
+- 内部实现 `convertToDetailResponse` 私有方法完成 model → response 转换
+- Create 时从 context 获取 `dept_id` 和 `login_name` 填充 BaseModel
+- Update 时从 context 获取 `login_name` 填充 `UpdatedBy`
+
+```go
+type SysPostService interface {
+	Create(ctx context.Context, request *v1.SysPostCreateRequest) error
+	Update(ctx context.Context, request *v1.SysPostUpdateRequest) error
+	Delete(ctx context.Context, id uint) error
+	FindByID(ctx context.Context, id uint) (*v1.SysPostDetailResponse, error)
+	FindWithPagination(ctx context.Context, query *v1.SysPostListQuery) ([]*v1.SysPostDetailResponse, int64, error)
+	Enable(ctx context.Context, id uint) error
+	Disable(ctx context.Context, id uint) error
+}
+
+func NewSysPostService(service *Service, sysPostRepository repository.SysPostRepository) SysPostService {
+	return &sysPostService{Service: service, sysPostRepository: sysPostRepository}
+}
+
+type sysPostService struct {
+	*Service
+	sysPostRepository repository.SysPostRepository
+}
+
+func (s *sysPostService) Create(ctx context.Context, request *v1.SysPostCreateRequest) error {
+	post := &model.SysPost{
+		PostCode: request.PostCode,
+		PostName: request.PostName,
+		PostSort: request.PostSort,
+		Status:   request.Status,
+		Remark:   request.Remark,
+		BaseModel: model.BaseModel{
+			DeptID:    ctx.Value("dept_id").(uint),
+			CreatedBy: ctx.Value("login_name").(string),
+		},
+	}
+	return s.sysPostRepository.Create(ctx, post)
+}
+
+func (s *sysPostService) convertToDetailResponse(post *model.SysPost) *v1.SysPostDetailResponse {
+	return &v1.SysPostDetailResponse{
+		ID:        post.PostID,
+		PostCode:  post.PostCode,
+		PostName:  post.PostName,
+		PostSort:  post.PostSort,
+		Status:    post.Status,
+		Remark:    post.Remark,
+		CreatedAt: post.CreatedAt,
+		UpdatedAt: post.UpdatedAt,
+	}
+}
+```
+
+### 4. 实现 Handler 逻辑
+
+在 @/internal/handler 目录下，新建对应文件，可以参考 @/internal/handler/sys_post.go
+
+关键要点：
+- 导出结构体，嵌入 `*Handler`
+- 每个方法需添加 Swagger 注解，包含 `@Id` 权限标识（格式：`模块:资源:操作`，如 `system:post:add`）
+- 使用 `v1.HandleSuccess` / `v1.HandleError` 统一响应
+- 路径参数用 `ctx.Param("id")`，查询参数用 `ctx.Query("field")`，请求体用 `ctx.ShouldBindJSON`
+- 列表接口手动绑定查询参数（使用 `ctx.Query` + `cast.ToInt`），不使用 `ShouldBindQuery`
+- 分页响应使用 `v1.NewPageResponse(page, size, total, data)`
+- ID 类型转换使用 `cast.ToUint(id)`（来自 `github.com/spf13/cast`）
+
+```go
+type SysPostHandler struct {
+	*Handler
+	sysPostService service.SysPostService
+}
+
+func NewSysPostHandler(handler *Handler, sysPostService service.SysPostService) *SysPostHandler {
+	return &SysPostHandler{Handler: handler, sysPostService: sysPostService}
+}
+
+// List godoc
+// @Summary      获取岗位列表
+// @Description  分页获取岗位列表
+// @Tags         岗位管理
+// @Accept       json
+// @Produce      json
+// @Param        page      query     int     false  "当前页"
+// @Param        size      query     int     false  "每页数量"
+// @Param        post_code query     string  false  "岗位编码"
+// @Param        post_name query     string  false  "岗位名称"
+// @Param        status    query     string  false  "状态"
+// @Success      200       {object}  v1.Response[v1.PageResponse[v1.SysPostDetailResponse]]
+// @Failure      400       {object}  v1.Response[any]
+// @Failure      500       {object}  v1.Response[any]
+// @Router       /api/v1/system/post/list [get]
+// @Id        system:post:list
+func (h *SysPostHandler) List(ctx *gin.Context) {
+	query := &v1.SysPostListQuery{}
+	query.BasePageQuery = &v1.BasePageQuery{}
+	query.Page = cast.ToInt(ctx.Query("page"))
+	query.Size = cast.ToInt(ctx.Query("size"))
+	query.PostCode = ctx.Query("post_code")
+	query.PostName = ctx.Query("post_name")
+	query.Status = ctx.Query("status")
+
+	posts, total, err := h.sysPostService.FindWithPagination(ctx, query)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, v1.NewPageResponse(query.Page, query.Size, total, posts))
+}
+```
+
+### 5. 添加 Wire 注入
+
+在 @/cmd/server/wire/wire.go 中，在对应的 Set 中注册新模块：
+
+```go
+var repositorySet = wire.NewSet(
+	// ... 已有的 ...
+	repository.NewSysPostRepository,  // 新增
+)
+
+var serviceSet = wire.NewSet(
+	// ... 已有的 ...
+	service.NewSysPostService,  // 新增
+)
+
+var handlerSet = wire.NewSet(
+	// ... 已有的 ...
+	handler.NewSysPostHandler,  // 新增
+)
+```
+
+### 6. 添加 HTTP 接口入口
+
+在 @/internal/server/http.go 中：
+1. 在 `NewHTTPServer` 函数参数中添加新的 Handler
+2. 在 `strictAuthRouter` 的 `systemRouter` 下注册路由组
+
+标准的 CRUD + Enable/Disable 路由模式：
+
+```go
+postRouter := systemRouter.Group("/post")
+{
+	postRouter.GET("/:id", sysPostHandler.Get)
+	postRouter.GET("/list", sysPostHandler.List)
+	postRouter.POST("", sysPostHandler.Create)
+	postRouter.PUT("/:id", sysPostHandler.Update)
+	postRouter.DELETE("/:id", sysPostHandler.Delete)
+	postRouter.PUT("/:id/enable", sysPostHandler.Enable)
+	postRouter.PUT("/:id/disable", sysPostHandler.Disable)
+}
+```
+
+### 7. 添加 Migration
+
+在 @/internal/server/migration.go 的 `AutoMigrate` 中添加新的 model：
+
+```go
+if err := m.db.AutoMigrate(
+	// ... 已有的 ...
+	&model.SysPost{},  // 新增
+); err != nil {
+```
 
 ## 前端模块
 
-前端模块使用的vue3+typescript+arco.design组件库的生态，其中引入了@easyfe/admin-component，对table、form组件进行了封装，具体可以参考 @/web/src/views/system/post/index.vue页面使用方式。
+前端模块使用 vue3 + typescript + arco.design 组件库的生态，其中引入了 @easyfe/admin-component，对 table、form 组件进行了封装，具体可以参考 @/web/src/views/system/post/index.vue 页面使用方式。
 
-1. 添加对应的api接口定义
+### 1. 添加对应的 API 接口定义
 
-在@/web/src/config/apis目录下，新建对应的接口文件，添加对应的接口
+在 @/web/src/config/apis 目录下，新建对应的接口文件，添加对应的接口。
 
-2. 添加对应的页面
+### 2. 添加对应的页面
 
-在@/web/src/views目录下，新建对应的页面文件。其中文件名称始终为index.vue，通过创建目录放不同的页面。
+在 @/web/src/views 目录下，新建对应的页面文件。其中文件名称始终为 index.vue，通过创建目录放不同的页面。
 
-其中当详情页较为复杂的时候，在对应模块下，新建list、edit目录。如果是简单的，则使用一个即可，
+- **简单页面**：列表和新建、编辑都在一个页面里（如岗位模块 `@/web/src/views/system/post/index.vue`）
+- **复杂页面**：新建 list、edit 目录进行区分处理
 
-以岗位模块为例，则目录结构是 @/web/src/views/system/post/index.vue，列表和新建、编辑都在一个页面里。
+### 3. 添加对应的路由
 
-如果页面复杂，则新建两个目录，进行区分处理。
-
-3. 添加对应的路由
-
-在@/web/src/configs/router下，新建对应的路由模块
+在 @/web/src/configs/router 下，新建对应的路由模块。
 
 ## 其他
 

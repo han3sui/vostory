@@ -10,54 +10,148 @@ alwaysApply: true
 ## 项目结构
 
 - **整洁架构**：层级之间职责清晰分离
-- **依赖注入**：通过构造函数注入依赖
-- **基于接口的设计**：组件通过接口进行通信
+- **依赖注入**：通过 Google Wire 进行依赖注入
+- **基于接口的设计**：Repository 和 Service 层通过接口通信
+
+## 目录结构
+
+- `api/v1/`：请求/响应 DTO 定义、统一响应处理、错误码定义
+- `internal/model/`：数据库模型定义（含 BaseModel、分页、数据权限）
+- `internal/repository/`：数据访问层（接口 + GORM 实现）
+- `internal/service/`：业务逻辑层（接口 + 实现）
+- `internal/handler/`：HTTP 处理器（Gin handler + Swagger 注解）
+- `internal/server/`：HTTP 路由注册、Migration
+- `cmd/server/wire/`：Wire 依赖注入配置
 
 ## 命名规范
 
-- **模型**：基本数据结构（如 `Rule`、`Channel`），目录：@/internal/model
-- **仓库**：数据访问对象，使用 `Repository` 后缀，目录：@/internal/repository
-- **服务**：业务逻辑组件，使用 `Service` 后缀，目录：@/internal/service
-- **处理器**：API 端点处理器，使用 `Handler` 后缀，目录：@/internal/handler
+- **模型**：数据库实体，如 `SysPost`、`SysUser`，目录：@/internal/model
+- **仓库**：数据访问层，接口用 `Repository` 后缀（如 `SysPostRepository`），实现用小写非导出结构体（如 `sysPostRepository`），目录：@/internal/repository
+- **服务**：业务逻辑层，接口用 `Service` 后缀（如 `SysPostService`），实现用小写非导出结构体（如 `sysPostService`），目录：@/internal/service
+- **处理器**：HTTP 处理器，使用 `Handler` 后缀（如 `SysPostHandler`），导出结构体，目录：@/internal/handler
+
+## 状态字段规范
+
+**所有涉及"启用/禁用"类状态的字段，必须使用 `string` 类型，值为 `"0"` 表示正常/启用，`"1"` 表示停用/禁用。**
+
+原因：GORM 的 `Updates` 方法会忽略零值字段，如果使用 `int` 类型，`0` 会被当作零值而无法更新。使用 `string` 类型的 `"0"` 可以避免此问题。
+
+```go
+// 正确：使用 string 类型
+Status string `json:"status" gorm:"size:1;not null;comment:状态（0正常 1停用）"`
+
+// 错误：不要使用 int 类型
+Status int `json:"status" gorm:"comment:状态（0正常 1停用）"`
+```
 
 ## 核心模式
 
-### 仓库模式
+### 基础模型
+
+所有业务模型嵌入 `BaseModel`，提供审计字段和数据权限支持：
+
 ```go
-// 仓库接口
-type NotifyGroupRepository interface {
-    Create(ctx context.Context, group *model.NotifyGroup) error
-    Update(ctx context.Context, group *model.NotifyGroup) error
-    // ...
+type BaseModel struct {
+    CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
+    UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime;comment:更新时间"`
+    DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index;comment:删除时间"`
+    CreatedBy string         `json:"created_by" gorm:"size:64;comment:创建者"`
+    UpdatedBy string         `json:"updated_by" gorm:"size:64;comment:更新者"`
+    DeptID    uint           `json:"dept_id" gorm:"comment:部门ID"`
+}
+```
+
+### 仓库模式
+
+- 接口导出，实现体非导出（小写开头）
+- 实现体嵌入公共 `*Repository`，通过 `r.db` 访问数据库
+- 方法名直接使用 `Create`/`Update`/`Delete`/`FindByID`/`FindWithPagination`，不带模块前缀
+- 查询时使用 `model.WithDataScope(ctx)` 应用数据权限
+- 分页使用 `model.Paginate(page, size)` 作为 Scope
+
+```go
+type SysPostRepository interface {
+    Create(ctx context.Context, post *model.SysPost) error
+    Update(ctx context.Context, post *model.SysPost) error
+    Delete(ctx context.Context, id uint) error
+    FindByID(ctx context.Context, id uint) (*model.SysPost, error)
+    FindWithPagination(ctx context.Context, query *v1.SysPostListQuery) ([]*model.SysPost, int64, error)
+    Enable(ctx context.Context, id uint) error
+    Disable(ctx context.Context, id uint) error
 }
 
-// 实现
-type GormNotifyGroupRepository struct {
-    db *gorm.DB
+func NewSysPostRepository(repository *Repository) SysPostRepository {
+    return &sysPostRepository{Repository: repository}
+}
+
+type sysPostRepository struct {
+    *Repository
 }
 ```
 
 ### 服务模式
+
+- 接口导出，实现体非导出
+- 实现体嵌入公共 `*Service`
+- 方法名直接使用 `Create`/`Update` 等，不带模块前缀
+- Service 层接收 API DTO（`v1.XxxCreateRequest`），返回 API DTO（`v1.XxxDetailResponse`）
+- 内部通过 `convertToDetailResponse` 私有方法完成 model → response 转换
+
 ```go
-// 服务接口
-type NotifyGroupService interface {
-    CreateGroup(ctx context.Context, group *model.NotifyGroup) error
-    UpdateGroup(ctx context.Context, group *model.NotifyGroup) error
-    // ...
+type SysPostService interface {
+    Create(ctx context.Context, request *v1.SysPostCreateRequest) error
+    Update(ctx context.Context, request *v1.SysPostUpdateRequest) error
+    Delete(ctx context.Context, id uint) error
+    FindByID(ctx context.Context, id uint) (*v1.SysPostDetailResponse, error)
+    FindWithPagination(ctx context.Context, query *v1.SysPostListQuery) ([]*v1.SysPostDetailResponse, int64, error)
+    Enable(ctx context.Context, id uint) error
+    Disable(ctx context.Context, id uint) error
 }
 
-// 实现
-type notifyGroupService struct {
-    repo repository.NotifyGroupRepository
-    // ...
+type sysPostService struct {
+    *Service
+    sysPostRepository repository.SysPostRepository
 }
 ```
 
 ### 处理器模式
+
+- 导出结构体，嵌入公共 `*Handler`
+- 每个方法需要添加 Swagger 注解，包含 `@Id` 权限标识
+- 使用 `v1.HandleSuccess` / `v1.HandleError` 统一响应
+- 列表接口使用 `v1.NewPageResponse` 构建分页响应
+- 路径参数使用 `ctx.Param`，查询参数使用 `ctx.Query`，请求体使用 `ctx.ShouldBindJSON`
+
 ```go
-type NotifyGroupHandler struct {
-    service service.NotifyGroupService
-    // ...
+type SysPostHandler struct {
+    *Handler
+    sysPostService service.SysPostService
 }
 ```
+
+### 统一响应
+
+```go
+// 成功响应
+v1.HandleSuccess(ctx, data)
+
+// 错误响应
+v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
+
+// 分页响应
+v1.HandleSuccess(ctx, v1.NewPageResponse(query.Page, query.Size, total, data))
+```
+
+### Wire 依赖注入
+
+Wire 配置按层分组：`repositorySet`、`serviceSet`、`handlerSet`、`jobSet`、`serverSet`，新增模块需在对应 Set 中注册。
+
+### HTTP 路由分层
+
+路由分三层权限：
+1. **无认证路由**（`noAuthRouter`）：登录、登出等公开接口
+2. **仅 Token 认证**（`noStrictAuthRouter`）：获取用户信息等白名单接口
+3. **Token + API 权限**（`strictAuthRouter`）：需要具体权限的业务接口
+
+业务路由在 `strictAuthRouter` 下按模块分组（如 `/system/post`、`/system/dept`）。
 

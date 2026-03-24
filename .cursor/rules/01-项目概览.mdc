@@ -6,18 +6,70 @@ alwaysApply: true
 
 # 项目概览
 
-这是一个后台管理系统模板，。
+VoStory 是一个面向团队协作的 AI 有声小说 / 广播剧制作平台，基于 Vue 3 + Golang 构建。当前阶段为 MVP，基础框架（用户、权限、组织管理）已搭建完成，核心业务模块正在开发中。
 
-## 关键文件
+## 仓库结构
 
-- [main.go](mdc:main.go): 应用程序主入口点
-- [pkg/core/core.go](mdc:pkg/core/core.go): 核心应用组件和初始化
+```
+vostory/
+├── vostory-server/    # 后端服务（Golang）
+├── vostory-web/       # 前端应用（Vue 3 + TypeScript）
+├── docs/              # 产品文档与设计说明
+└── .cursor/rules/     # AI 开发规范
+```
 
-## 项目结构
+## 后端结构（vostory-server）
 
-- `api/`: API 处理器，用于 HTTP 端点
-- `internal/`: 内部包（模型、仓库、服务等）
-- `pkg/`: 公共包和工具
-- `consumer/`: 数据消费者（例如 MQTT）
-- `config/`: 配置处理
-- `web/`: Web 界面
+```
+vostory-server/
+├── api/v1/            # 请求/响应 DTO、统一响应、错误码
+├── cmd/
+│   ├── server/        # 主服务入口 & Wire 依赖注入
+│   ├── migration/     # 数据库迁移入口
+│   ├── task/          # 异步任务入口
+│   └── createadmin/   # 初始化管理员
+├── config/            # 配置文件（dev.yml / prod.yml）
+├── internal/
+│   ├── model/         # 数据库模型
+│   ├── repository/    # 数据访问层（GORM）
+│   ├── service/       # 业务逻辑层
+│   ├── handler/       # HTTP 处理器（Gin）
+│   ├── server/        # HTTP 路由注册、Migration、Job
+│   ├── middleware/     # 中间件（认证、CORS、日志等）
+│   ├── cache/         # 缓存层（Redis / 内存）
+│   ├── job/           # 定时任务
+│   ├── task/          # 异步任务
+│   ├── client/        # 外部客户端（MQTT、Kafka、Resty）
+│   ├── notify/        # 通知渠道（邮件、短信、钉钉、电话）
+│   └── utils/         # 内部工具函数
+├── pkg/               # 公共包（jwt、log、eventbus、sid 等）
+├── docs/              # Swagger 文档
+└── deploy/            # 部署配置（Docker Compose）
+```
+
+## 前端结构（vostory-web）
+
+```
+vostory-web/src/
+├── config/
+│   ├── apis/          # API 接口定义（按业务模块拆分）
+│   ├── router/        # 路由配置（按业务模块拆分）
+│   ├── pinia/         # 状态管理
+│   └── vite/          # Vite 插件配置
+├── views/             # 业务页面
+├── layout/            # 布局组件
+├── hooks/             # 组合式函数
+├── packages/          # 核心封装（request、vue-router）
+├── utils/             # 通用工具函数
+├── locales/           # 国际化
+└── assets/            # 静态资源
+```
+
+## 技术栈
+
+- **后端**：Golang + Gin + GORM + Wire（依赖注入）+ Redis
+- **前端**：Vue 3 + TypeScript + Vite + Arco Design Vue + @easyfe/admin-component
+- **数据库**：PostgreSQL
+- **消息**：MQTT + Kafka
+- **文档**：Swagger（swag）
+
