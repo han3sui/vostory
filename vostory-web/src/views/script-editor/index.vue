@@ -276,6 +276,23 @@ async function handleSplit() {
 }
 
 async function handleSynthesize(seg: ScriptSegmentDetailType) {
+    if (!seg.content?.trim()) {
+        Message.warning("片段内容为空，无法合成");
+        return;
+    }
+    if (
+        (seg.segment_type === "dialogue" || seg.segment_type === "monologue") &&
+        !seg.character_id
+    ) {
+        Message.warning("请先为该片段指定说话人");
+        return;
+    }
+    const speaker = characterOptions.value.find((c) => c.id === seg.character_id);
+    if (seg.character_id && !speaker) {
+        Message.warning("说话人数据异常，请刷新后重试");
+        return;
+    }
+
     synthesizingId.value = seg.id;
     try {
         const result = await synthesizeSegment(seg.id);
@@ -284,8 +301,9 @@ async function handleSynthesize(seg: ScriptSegmentDetailType) {
         seg.status = "generated";
         Message.success("合成完成");
         playAudio(seg);
-    } catch {
-        Message.error("TTS 合成失败");
+    } catch (e: any) {
+        const msg = e?.data?.message || e?.response?.data?.message || e?.message || "TTS 合成失败";
+        Message.error(msg);
     } finally {
         synthesizingId.value = null;
     }

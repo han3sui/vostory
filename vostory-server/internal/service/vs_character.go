@@ -23,13 +23,15 @@ type VsCharacterService interface {
 func NewVsCharacterService(
 	service *Service,
 	repo repository.VsCharacterRepository,
+	voiceProfileRepo repository.VsVoiceProfileRepository,
 ) VsCharacterService {
-	return &vsCharacterService{Service: service, repo: repo}
+	return &vsCharacterService{Service: service, repo: repo, voiceProfileRepo: voiceProfileRepo}
 }
 
 type vsCharacterService struct {
 	*Service
-	repo repository.VsCharacterRepository
+	repo             repository.VsCharacterRepository
+	voiceProfileRepo repository.VsVoiceProfileRepository
 }
 
 func (s *vsCharacterService) Create(ctx context.Context, request *v1.VsCharacterCreateRequest) error {
@@ -89,9 +91,23 @@ func (s *vsCharacterService) FindWithPagination(ctx context.Context, query *v1.V
 		return nil, 0, err
 	}
 
+	profileIDs := make([]uint64, 0)
+	for _, c := range characters {
+		if c.VoiceProfileID != nil {
+			profileIDs = append(profileIDs, *c.VoiceProfileID)
+		}
+	}
+	profileMap, _ := s.voiceProfileRepo.FindByIDs(ctx, profileIDs)
+
 	var responses []*v1.VsCharacterDetailResponse
 	for _, c := range characters {
-		responses = append(responses, s.convertToDetailResponse(c))
+		resp := s.convertToDetailResponse(c)
+		if c.VoiceProfileID != nil {
+			if p, ok := profileMap[*c.VoiceProfileID]; ok {
+				resp.VoiceProfileName = p.Name
+			}
+		}
+		responses = append(responses, resp)
 	}
 	return responses, total, nil
 }

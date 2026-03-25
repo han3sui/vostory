@@ -45,6 +45,7 @@ import {
     disableVoiceProfile,
     VoiceProfileDetailType
 } from "@/config/apis/voice-profile";
+import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import { cloneDeep } from "lodash-es";
 import VoiceEmotionManager from "@/views/voice-emotion/index.vue";
@@ -56,6 +57,16 @@ const filterData = ref<Record<string, any>>({});
 const emotionDrawerVisible = ref(false);
 const emotionDrawerProfileId = ref<number>(0);
 const emotionDrawerProfileName = ref("");
+const ttsProviderOptions = ref<{ label: string; value: number }[]>([]);
+
+async function loadTTSProviders() {
+    const res = await getTTSProviderList({ page: 1, size: 100, status: "0" });
+    ttsProviderOptions.value = (res.data || []).map((p: TTSProviderDetailType) => ({
+        label: `${p.name} (${p.provider_type})`,
+        value: p.id
+    }));
+}
+onMounted(loadTTSProviders);
 
 const getFilterConfig = computed(() => {
     return [
@@ -121,8 +132,16 @@ const getData = computed(() => {
 function getFormConfig(isEdit: boolean) {
     return [
         formHelper.input("配置名称", "name", { rules: [ruleHelper.require("请输入名称")] }),
-        formHelper.input("参考音频 URL", "reference_audio_url"),
-        formHelper.input("参考文本", "reference_text")
+        formHelper.select("TTS 提供商", "tts_provider_id", ttsProviderOptions.value, {
+            allowClear: true,
+            placeholder: "选择 TTS 提供商"
+        }),
+        formHelper.input("参考音频 URL", "reference_audio_url", {
+            placeholder: "参考音频文件路径或 URL"
+        }),
+        formHelper.input("参考文本", "reference_text", {
+            placeholder: "参考音频对应的文本内容"
+        })
     ];
 }
 

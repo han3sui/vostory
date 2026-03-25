@@ -69,6 +69,7 @@ import {
     extractFromText,
     CharacterDetailType
 } from "@/config/apis/character";
+import { getVoiceProfilesByProject, VoiceProfileOptionType } from "@/config/apis/voice-profile";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 
@@ -99,6 +100,14 @@ const extracting = ref(false);
 const showSmartImportModal = ref(false);
 const smartImportText = ref("");
 const smartImporting = ref(false);
+const voiceProfileOptions = ref<VoiceProfileOptionType[]>([]);
+
+async function loadVoiceProfiles() {
+    if (!props.projectId) return;
+    voiceProfileOptions.value = await getVoiceProfilesByProject(props.projectId);
+}
+onMounted(loadVoiceProfiles);
+watch(() => props.projectId, loadVoiceProfiles);
 
 const getFilterConfig = computed(() => {
     return [
@@ -123,6 +132,7 @@ const tableConfig = computed(() => {
             }),
             tableHelper.slot("levelSlot"),
             tableHelper.default("描述", "description"),
+            tableHelper.default("声音配置", "voice_profile_name"),
             tableHelper.default("排序", "sort_order"),
             tableHelper.slot("switchSlot"),
             tableHelper.date("更新时间", "updated_at", { format: "YYYY-MM-DD HH:mm:ss" }),
@@ -191,6 +201,12 @@ function onEdit(v: Record<string, any> | null) {
             }),
             formHelper.select("性别", "gender", GENDERS),
             formHelper.select("层级", "level", LEVELS),
+            formHelper.select(
+                "声音配置",
+                "voice_profile_id",
+                voiceProfileOptions.value.map((v) => ({ label: v.name, value: v.id })),
+                { allowClear: true, placeholder: "选择声音配置（用于 TTS 合成）" }
+            ),
             formHelper.textarea("角色描述", "description"),
             formHelper.radio(
                 "状态",

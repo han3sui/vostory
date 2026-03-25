@@ -12,6 +12,7 @@ type VsVoiceProfileRepository interface {
 	Update(ctx context.Context, profile *model.VsVoiceProfile) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsVoiceProfile, error)
+	FindByIDs(ctx context.Context, ids []uint64) (map[uint64]*model.VsVoiceProfile, error)
 	FindWithPagination(ctx context.Context, query *v1.VsVoiceProfileListQuery) ([]*model.VsVoiceProfile, int64, error)
 	FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsVoiceProfile, error)
 }
@@ -46,6 +47,21 @@ func (r *vsVoiceProfileRepository) FindByID(ctx context.Context, id uint64) (*mo
 		return nil, err
 	}
 	return &profile, nil
+}
+
+func (r *vsVoiceProfileRepository) FindByIDs(ctx context.Context, ids []uint64) (map[uint64]*model.VsVoiceProfile, error) {
+	if len(ids) == 0 {
+		return make(map[uint64]*model.VsVoiceProfile), nil
+	}
+	var profiles []*model.VsVoiceProfile
+	if err := r.db.WithContext(ctx).Where("voice_profile_id IN ?", ids).Find(&profiles).Error; err != nil {
+		return nil, err
+	}
+	result := make(map[uint64]*model.VsVoiceProfile, len(profiles))
+	for _, p := range profiles {
+		result[p.VoiceProfileID] = p
+	}
+	return result, nil
 }
 
 func (r *vsVoiceProfileRepository) FindWithPagination(ctx context.Context, query *v1.VsVoiceProfileListQuery) ([]*model.VsVoiceProfile, int64, error) {

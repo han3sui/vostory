@@ -33,18 +33,19 @@ type VsCharacterUpdateRequest struct {
 
 // VsCharacterDetailResponse 角色详情响应
 type VsCharacterDetailResponse struct {
-	ID             uint64    `json:"id"`
-	ProjectID      uint64    `json:"project_id"`
-	Name           string    `json:"name"`
-	Aliases        []string  `json:"aliases"`
-	Gender         string    `json:"gender"`
-	Description    string    `json:"description"`
-	Level          string    `json:"level"`
-	VoiceProfileID *uint64   `json:"voice_profile_id"`
-	SortOrder      int       `json:"sort_order"`
-	Status         string    `json:"status"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID               uint64    `json:"id"`
+	ProjectID        uint64    `json:"project_id"`
+	Name             string    `json:"name"`
+	Aliases          []string  `json:"aliases"`
+	Gender           string    `json:"gender"`
+	Description      string    `json:"description"`
+	Level            string    `json:"level"`
+	VoiceProfileID   *uint64   `json:"voice_profile_id"`
+	VoiceProfileName string    `json:"voice_profile_name,omitempty"`
+	SortOrder        int       `json:"sort_order"`
+	Status           string    `json:"status"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 // VsCharacterOptionResponse 角色选项响应（下拉选择用）

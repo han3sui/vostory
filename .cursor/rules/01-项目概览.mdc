@@ -37,6 +37,7 @@ vostory-server/
 │   ├── service/       # 业务逻辑层
 │   ├── handler/       # HTTP 处理器（Gin）
 │   ├── server/        # HTTP 路由注册、Migration、Job
+│   ├── tts/           # TTS 客户端（IndexTTS2 HTTP 适配）
 │   ├── middleware/     # 中间件（认证、CORS、操作日志等）
 │   ├── cache/         # 缓存层（Redis / 内存）
 │   ├── job/           # 定时任务
@@ -45,7 +46,7 @@ vostory-server/
 │   ├── notify/        # 通知渠道（邮件、短信、钉钉、电话）
 │   └── utils/         # 内部工具函数
 ├── pkg/               # 公共包（jwt、log、eventbus、sid 等）
-├── docs/              # Swagger 文档
+├── docs/              # Swagger 文档 + TTS 对接文档
 └── deploy/            # 部署配置（Docker Compose）
 ```
 
@@ -124,14 +125,16 @@ vostory-web/src/
 - [x] 发音词典（项目级 + 全局级，有效词典合并查询）（前后端完成）
 - [x] 精准填充（LLM 输出对齐回原文，精确匹配 + 模糊匹配）（前后端完成）
 
-#### 第 3 阶段：可生成  <!-- 技术注意点见 docs/tech-notes.md「第 3 阶段」 -->
+#### 第 3 阶段：可生成（进行中）  <!-- 技术注意点见 docs/tech-notes.md「第 3 阶段」，TTS 对接详见 vostory-server/docs/tts-integration.md -->
 
-- [ ] TTS 适配层（统一接口，支持多厂商切换）
-- [ ] 情绪 + 强度双维度传参、多情绪参考音频
+- [x] TTS 适配层 — IndexTTS2 HTTP 客户端（internal/tts/client.go），支持合成/检查/上传参考音频
+- [x] 情绪 + 强度双维度传参 — 7 种情绪 × 3 级强度 → IndexTTS2 8 维向量映射
+- [x] 多情绪参考音频 — VoiceEmotion CRUD 全套（按声音配置 + 情绪类型 + 强度精确匹配）
+- [x] 音频版本管理 — AudioClip 模型 + is_current 版本标记 + 自动递增版本号
+- [x] 单句试听与重生成 — POST /tts/synthesize/:segment_id + 前端试听按钮 + 播放逻辑
 - [ ] 任务队列（Redis，异步生成、重试、超时、状态追踪）
 - [ ] SSE 实时推送任务进度
-- [ ] 音频缓存与版本管理
-- [ ] 单句试听与重生成
+- [ ] 批量章节合成（SynthesizeChapter）
 
 #### 第 4 阶段：可交付
 
