@@ -17,6 +17,7 @@ VoStory 的核心需求：
 |------|------|---------|---------|---------|------|--------|
 | **IndexTTS2** | 本地部署 | ✅ 零样本 | ✅ 多模态 | ✅ 原生 | 免费（需 GPU） | ⭐⭐⭐⭐⭐ |
 | **GPT-SoVITS** | 本地部署 | ✅ 零样本 | ⚠️ 仅参考音频 | ✅ 原生 | 免费（需 GPU） | ⭐⭐⭐⭐ |
+| **ChatTTS** | 本地部署 | ⚠️ 随机/种子 | ✅ Token 标签 | ✅ 原生 | 免费（需 GPU） | ⭐⭐⭐ |
 | **Gemini 2.5 TTS** | 在线 API | ❌ 预置音色 | ✅ 自然语言 | ✅ 支持 | 按量付费 | ⭐⭐⭐ |
 | **Fish Audio** | 在线 API | ✅ 克隆 | ⚠️ 控制标签 | ✅ 支持 | $15/百万字节 | ⭐⭐⭐⭐ |
 | **Azure TTS** | 在线 API | ⚠️ 付费定制 | ✅ SSML | ✅ 优秀 | 按量付费 | ⭐⭐⭐ |
@@ -151,7 +152,95 @@ VoiceEmotion.reference_audio_url  → 替换 ref_audio_path（按情绪切换参
 
 ---
 
-### 3. Gemini 2.5 TTS
+### 3. ChatTTS
+
+- **仓库**：https://github.com/2noise/ChatTTS
+- **类型**：本地部署，生成式对话语音模型
+- **许可**：代码 AGPLv3+，模型 CC BY-NC 4.0（仅限非商业用途）
+
+**核心能力：**
+
+ChatTTS 是一个专为对话场景设计的生成式语音模型（类似 GPT 的自回归架构），39k+ GitHub Stars，社区活跃度很高。
+
+1. **对话场景优化**：针对日常对话设计，语音自然流畅，韵律表现好
+2. **细粒度韵律控制**：通过特殊 Token 标签控制笑声、停顿、语气词等
+   - `[laugh]` — 笑声
+   - `[uv_break]` — 停顿
+   - `[lbreak]` — 长停顿
+   - `[oral_0]`~`[oral_9]` — 口语化程度
+3. **多说话人**：支持在推理时随机采样或指定说话人 embedding（`spk_emb`）
+4. **中英双语**：原生支持中文和英文
+5. **10 万小时训练数据**：开源版为 4 万小时预训练模型
+
+**API 调用方式：**
+
+```python
+import ChatTTS
+import torch
+
+chat = ChatTTS.Chat()
+chat.load(compile=False)
+
+# 随机采样一个说话人（可保存 seed 用于复现）
+rand_spk = chat.sample_random_speaker()
+
+params_infer_code = ChatTTS.Chat.InferCodeParams(
+    spk_emb=rand_spk,    # 说话人 embedding
+    temperature=0.3,
+    top_P=0.7,
+    top_K=20,
+)
+
+# 韵律控制
+params_refine_text = ChatTTS.Chat.RefineTextParams(
+    prompt='[oral_2][laugh_0][break_6]',
+)
+
+wavs = chat.infer(
+    ["你好，今天天气真不错！"],
+    params_refine_text=params_refine_text,
+    params_infer_code=params_infer_code,
+)
+```
+
+**与 VoStory 的适配性分析：**
+
+| 需求 | ChatTTS 支持度 | 说明 |
+|------|---------------|------|
+| 声音克隆 | ⚠️ 不支持 | 没有参考音频克隆能力。只能随机采样说话人或复用 seed/embedding，无法从真人音频克隆 |
+| 情绪控制 | ⚠️ 有限 | 只有 `[laugh]`、`[oral_N]`、`[break_N]` 等韵律标签，没有 happy/sad/angry 等情绪维度控制 |
+| 角色一致性 | ⚠️ 不稳定 | 自回归模型的通病，同一 `spk_emb` 多次推理音色可能有波动 |
+| 发音词典 | ❌ 不支持 | 无拼音标注机制，无法精确控制多音字发音 |
+| 批量生成 | ✅ 支持 | 可批量输入文本列表 |
+
+**VoStory 适配层映射：**
+
+```
+VoiceProfile.reference_audio_url  → 无法映射（不支持参考音频克隆）
+VoiceProfile                      → 只能映射到 spk_emb 种子值（随机采样后固定）
+VoiceEmotion                      → 只能映射到 [oral_N][laugh_N][break_N] 标签组合
+emotion_type + emotion_strength   → 需要手动设计 Token 标签组合映射表
+发音词典                           → 不支持
+```
+
+**优势：**
+- 对话韵律自然，语气词和笑声效果好
+- 免费开源，社区活跃（39k Stars）
+- 4GB 显存即可运行，硬件门槛低
+- 支持 OpenAI 兼容 API 格式（社区方案）
+
+**劣势：**
+- **无声音克隆**：这是最大的硬伤。VoStory 的核心设计（VoiceProfile 参考音频 → 角色音色）完全无法对接
+- **情绪控制粒度不够**：只有韵律标签，没有情绪向量或情绪参考音频
+- **音色稳定性差**：自回归模型可能出现多说话人混淆、音质波动
+- **非商业许可**：模型 CC BY-NC 4.0，不允许商业使用
+- **无发音词典**：有声小说中的多音字、专有名词无法纠音
+
+**结论：不推荐作为 VoStory 核心引擎。** ChatTTS 更适合聊天机器人、语音助手等"不需要固定角色音色"的对话场景。VoStory 作为有声小说配音系统，核心需求是"每个角色有固定的、可控的音色"，而 ChatTTS 缺乏声音克隆能力，无法满足这一点。如果只是用于快速 Demo 或对音色一致性要求不高的旁白片段，可以作为开发调试的备选方案。
+
+---
+
+### 4. Gemini 2.5 TTS
 
 - **文档**：https://ai.google.dev/gemini-api/docs/speech-generation
 - **类型**：在线 API（Google Cloud）
@@ -206,7 +295,7 @@ emotion_type + emotion_strength → 转换为自然语言 prompt 前缀
 
 ---
 
-### 4. Fish Audio
+### 5. Fish Audio
 
 - **文档**：https://docs.fish.audio
 - **类型**：在线商业 API
@@ -247,7 +336,7 @@ emotion_type → 控制标签
 
 ---
 
-### 5. Azure TTS（微软 TTS）
+### 6. Azure TTS（微软 TTS）
 
 - **文档**：https://learn.microsoft.com/en-us/azure/ai-services/speech-service/rest-text-to-speech
 - **类型**：在线商业 API
@@ -287,7 +376,7 @@ emotion_strength → SSML styledegree (0.01-2.0)
 
 ---
 
-### 6. Edge TTS / OpenAI Edge TTS
+### 7. Edge TTS / OpenAI Edge TTS
 
 - **Edge TTS**：https://github.com/rany2/edge-tts
 - **OpenAI Edge TTS**：https://github.com/travisvn/openai-edge-tts
@@ -380,6 +469,7 @@ emotion_strength → 无法映射
 
 | 引擎 | 原因 |
 |------|------|
+| ChatTTS | 无声音克隆，只能随机采样说话人；情绪控制粒度不足；模型 CC BY-NC 不允许商业使用 |
 | Gemini 2.5 TTS | 无声音克隆，30 种预置音色无法满足角色定制需求 |
 | Azure TTS | 声音克隆需企业级付费，普通用户只能用固定音色 |
 | OpenAI Edge TTS | 与 Edge TTS 本质相同，只是多了 OpenAI 兼容接口包装 |
@@ -467,6 +557,7 @@ var strengthAlphaMap = map[string]float64{
 |------|---------|
 | IndexTTS2 | 将 `phoneme` 转为拼音标注混入文本（如 `重DE5庆` → `CHONG2QING4`） |
 | GPT-SoVITS | 文本替换：将词替换为注音文本 |
+| ChatTTS | 不支持（无拼音标注机制） |
 | Edge TTS | 文本替换（不支持 SSML phoneme） |
 | Azure TTS | SSML `<phoneme>` 标签（最佳方案） |
 | Fish Audio | 文本替换 |
