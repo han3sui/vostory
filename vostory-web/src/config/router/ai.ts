@@ -44,6 +44,16 @@ const routers: RouteConfig[] = [
                 component: () => import("@/views/ai/prompt-template/index.vue")
             },
             {
+                path: "/ai/voice-asset",
+                name: "ai-voice-asset",
+                meta: {
+                    title: "音色管理",
+                    sort: 5,
+                    permission: () => hasPermission("voice-asset:list")
+                },
+                component: () => import("@/views/ai/voice-asset/index.vue")
+            },
+            {
                 path: "/ai/llm-log",
                 name: "ai-llm-log",
                 meta: {
