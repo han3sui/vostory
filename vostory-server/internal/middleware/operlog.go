@@ -22,7 +22,10 @@ func OperLogMiddleware(operLogService service.SysOperLogService) gin.HandlerFunc
 		startTime := time.Now()
 
 		var reqBody string
-		if ctx.Request.Body != nil {
+		contentType := ctx.GetHeader("Content-Type")
+		if strings.Contains(contentType, "multipart/form-data") {
+			reqBody = "[multipart/form-data]"
+		} else if ctx.Request.Body != nil {
 			bodyBytes, _ := io.ReadAll(ctx.Request.Body)
 			ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 			reqBody = string(bodyBytes)
