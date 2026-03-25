@@ -251,7 +251,6 @@ func NewHTTPServer(
 				projectRouter.PUT("/:id", vsProjectHandler.Update)
 				projectRouter.DELETE("/:id", vsProjectHandler.Delete)
 				projectRouter.POST("/import/upload", vsFileImportHandler.Upload)
-				projectRouter.POST("/import/:project_id/parse", vsFileImportHandler.Parse)
 			}
 
 			chapterRouter := strictAuthRouter.Group("/chapter")

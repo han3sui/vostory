@@ -107,10 +107,9 @@ const tableConfig = computed(() => {
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm:ss" }),
             tableHelper.btns("操作", [
                 {
-                    label: "导入",
-                    if: () => hasPermission("project:import:upload"),
+                    label: "进入",
                     handler(row: Record<string, any>) {
-                        router.push({ path: "/project/import", query: { project_id: row.id } });
+                        router.push(`/project/detail/${row.id}`);
                     }
                 },
                 {

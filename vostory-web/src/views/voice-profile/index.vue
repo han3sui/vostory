@@ -1,5 +1,5 @@
 <template>
-    <frame-view>
+    <div>
         <arco-table ref="table" :req="getData" :table-config="tableConfig">
             <template #tlBtns>
                 <arco-form v-model="filterData" :config="getFilterConfig" layout="row"></arco-form>
@@ -9,13 +9,13 @@
                     <template #cell="{ record }">
                         <a-switch
                             :model-value="record.status === '0'"
-                            @change="(val: boolean) => handleToggleStatus(record, val)"
+                            @change="(val: string | number | boolean) => handleToggleStatus(record, !!val)"
                         />
                     </template>
                 </a-table-column>
             </template>
         </arco-table>
-    </frame-view>
+    </div>
 </template>
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
@@ -36,28 +36,16 @@ import {
     disableVoiceProfile,
     VoiceProfileDetailType
 } from "@/config/apis/voice-profile";
-import { getWorkspaceOptions, WorkspaceOptionType } from "@/config/apis/workspace";
-import { getProjectsByWorkspace, ProjectOptionType } from "@/config/apis/project";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import { cloneDeep } from "lodash-es";
 
+const props = defineProps<{ projectId: number }>();
+
 const table = ref();
 const filterData = ref<Record<string, any>>({});
-const projectOptions = ref<{ label: string; value: number }[]>([]);
-
-onMounted(async () => {
-    const wsRes = await getWorkspaceOptions();
-    for (const ws of wsRes as WorkspaceOptionType[]) {
-        const projects = await getProjectsByWorkspace(ws.id);
-        for (const p of projects as ProjectOptionType[]) {
-            projectOptions.value.push({ label: `${ws.name} / ${p.name}`, value: p.id });
-        }
-    }
-});
 
 const getFilterConfig = computed(() => {
     return [
-        formHelper.select("项目", "project_id", projectOptions.value, { span: 8, allowClear: true }),
         formHelper.input("名称", "name", { span: 6, debounce: 500 })
     ];
 });
@@ -107,16 +95,12 @@ const tableConfig = computed(() => {
 const getData = computed(() => {
     return {
         fn: getVoiceProfileList,
-        params: { ...filterData.value }
+        params: { project_id: props.projectId, ...filterData.value }
     };
 });
 
 function getFormConfig(isEdit: boolean) {
     return [
-        formHelper.select("所属项目", "project_id", projectOptions.value, {
-            rules: [ruleHelper.require("请选择项目")],
-            disabled: isEdit
-        }),
         formHelper.input("配置名称", "name", { rules: [ruleHelper.require("请输入名称")] }),
         formHelper.input("参考音频 URL", "reference_audio_url"),
         formHelper.input("参考文本", "reference_text")
@@ -126,7 +110,7 @@ function getFormConfig(isEdit: boolean) {
 function handleAdd() {
     ArcoModalFormShow({
         modalConfig: { title: "新增声音配置" },
-        value: {},
+        value: { project_id: props.projectId },
         formConfig: getFormConfig(false),
         ok: async (data: any) => {
             await addVoiceProfile(data);

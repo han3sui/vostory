@@ -50,7 +50,8 @@ func (r *vsChapterRepository) FindByID(ctx context.Context, id uint64) (*model.V
 
 func (r *vsChapterRepository) FindWithPagination(ctx context.Context, query *v1.VsChapterListQuery) ([]*model.VsChapter, int64, error) {
 	var chapters []*model.VsChapter
-	db := r.db.WithContext(ctx).Model(&model.VsChapter{})
+	db := r.db.WithContext(ctx).Model(&model.VsChapter{}).
+		Select("chapter_id, project_id, title, chapter_num, word_count, status, remark, created_by, created_at, updated_by, updated_at, dept_id")
 
 	if query.ProjectID > 0 {
 		db = db.Where("project_id = ?", query.ProjectID)
@@ -80,7 +81,9 @@ func (r *vsChapterRepository) FindWithPagination(ctx context.Context, query *v1.
 
 func (r *vsChapterRepository) FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsChapter, error) {
 	var chapters []*model.VsChapter
-	if err := r.db.WithContext(ctx).Where("project_id = ?", projectID).
+	if err := r.db.WithContext(ctx).
+		Select("chapter_id, project_id, title, chapter_num, word_count, status, remark, created_by, created_at, updated_by, updated_at, dept_id").
+		Where("project_id = ?", projectID).
 		Order("chapter_num ASC").Find(&chapters).Error; err != nil {
 		return nil, err
 	}

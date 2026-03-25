@@ -59,35 +59,3 @@ func (h *VsFileImportHandler) Upload(ctx *gin.Context) {
 	})
 }
 
-// Parse godoc
-// @Summary      解析源文件
-// @Description  对已上传的源文件（txt/epub）进行章节自动切分
-// @Tags         文件导入
-// @Accept       json
-// @Produce      json
-// @Param        project_id  path      int  true  "项目ID"
-// @Success      200         {object}  v1.Response
-// @Failure      400         {object}  v1.Response
-// @Failure      500         {object}  v1.Response
-// @Router       /api/v1/project/import/{project_id}/parse [post]
-// @Id        project:import:parse
-func (h *VsFileImportHandler) Parse(ctx *gin.Context) {
-	projectID := cast.ToUint64(ctx.Param("project_id"))
-	if projectID == 0 {
-		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "project_id is required"), nil)
-		return
-	}
-
-	totalChapters, totalWords, err := h.svc.ParseSourceFile(ctx, projectID)
-	if err != nil {
-		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
-		return
-	}
-
-	v1.HandleSuccess(ctx, &v1.VsFileParseResponse{
-		ProjectID:     projectID,
-		TotalChapters: totalChapters,
-		TotalWords:    totalWords,
-		Message:       "解析完成",
-	})
-}

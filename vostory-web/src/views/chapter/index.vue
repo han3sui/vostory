@@ -1,5 +1,5 @@
 <template>
-    <frame-view>
+    <div>
         <arco-table ref="table" :req="getData" :table-config="tableConfig">
             <template #tlBtns>
                 <arco-form v-model="filterData" :config="getFilterConfig" layout="row"></arco-form>
@@ -14,16 +14,16 @@
                 </a-table-column>
             </template>
         </arco-table>
-    </frame-view>
+    </div>
 </template>
 <script lang="ts" setup>
 import { Modal } from "@arco-design/web-vue";
 import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
-import { getChapterList, addChapter, updateChapter, deleteChapter } from "@/config/apis/chapter";
-import { getProjectsByWorkspace, ProjectOptionType } from "@/config/apis/project";
-import { getWorkspaceOptions, WorkspaceOptionType } from "@/config/apis/workspace";
+import { getChapterList, getChapter, addChapter, updateChapter, deleteChapter } from "@/config/apis/chapter";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
+
+const props = defineProps<{ projectId: number }>();
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
     raw: { label: "原始", color: "gray" },
@@ -42,21 +42,9 @@ function statusColor(s: string) {
 
 const table = ref();
 const filterData = ref<Record<string, any>>({});
-const projectOptions = ref<{ label: string; value: number }[]>([]);
-
-onMounted(async () => {
-    const wsRes = await getWorkspaceOptions();
-    for (const ws of wsRes as WorkspaceOptionType[]) {
-        const projects = await getProjectsByWorkspace(ws.id);
-        for (const p of projects as ProjectOptionType[]) {
-            projectOptions.value.push({ label: `${ws.name} / ${p.name}`, value: p.id });
-        }
-    }
-});
 
 const getFilterConfig = computed(() => {
     return [
-        formHelper.select("项目", "project_id", projectOptions.value, { span: 8 }),
         formHelper.input("章节标题", "title", { span: 6, debounce: 500 }),
         formHelper.select(
             "状态",
@@ -117,31 +105,28 @@ const tableConfig = computed(() => {
 const getData = computed(() => {
     return {
         fn: getChapterList,
-        params: { ...filterData.value }
+        params: { project_id: props.projectId, ...filterData.value }
     };
 });
 
-function onEdit(v: Record<string, any> | null) {
-    const tempValue = cloneDeep(v);
+async function onEdit(v: Record<string, any> | null) {
+    let tempValue: Record<string, any> | null = null;
+    if (v) {
+        const detail = await getChapter(v.id);
+        tempValue = cloneDeep(detail) as Record<string, any>;
+    }
     ArcoModalFormShow({
         modalConfig: {
             title: tempValue ? "编辑章节" : "添加章节",
             width: "700px"
         },
-        value: tempValue || {},
+        value: tempValue || { project_id: props.projectId },
         formConfig: [
-            ...(tempValue
-                ? []
-                : [
-                      formHelper.select("所属项目", "project_id", projectOptions.value, {
-                          rules: [ruleHelper.require("请选择项目")]
-                      })
-                  ]),
             formHelper.input("章节标题", "title"),
             formHelper.inputNumber("章节序号", "chapter_num", {
                 rules: [ruleHelper.require("请输入序号")]
             }),
-            formHelper.textarea("章节原文", "content", {
+            formHelper.editor("章节原文", "content", {
                 inputTips: "粘贴或输入章节文本内容"
             }),
             formHelper.textarea("备注", "remark")

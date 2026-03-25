@@ -29,6 +29,19 @@ type VsChapterUpdateRequest struct {
 	Remark     string `json:"remark"`     // 备注
 }
 
+// VsChapterListResponse 章节列表响应（不含 content，避免大文本传输）
+type VsChapterListResponse struct {
+	ID         uint64    `json:"id"`
+	ProjectID  uint64    `json:"project_id"`
+	Title      string    `json:"title"`
+	ChapterNum int       `json:"chapter_num"`
+	WordCount  int       `json:"word_count"`
+	Status     string    `json:"status"`
+	Remark     string    `json:"remark"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 // VsChapterDetailResponse 章节详情响应
 type VsChapterDetailResponse struct {
 	ID         uint64    `json:"id"`

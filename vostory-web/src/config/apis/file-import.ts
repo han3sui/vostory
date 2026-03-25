@@ -9,13 +9,6 @@ export type FileImportResponse = {
     source_file_url: string;
 };
 
-export type FileParseResponse = {
-    project_id: number;
-    total_chapters: number;
-    total_words: number;
-    message: string;
-};
-
 export function uploadSourceFile(option: RequestOption, projectId: number): any {
     return new Promise((resolve, reject) => {
         const { onProgress, onError, onSuccess, fileItem } = option;
@@ -41,12 +34,5 @@ export function uploadSourceFile(option: RequestOption, projectId: number): any 
                 onError(err);
                 reject(err);
             });
-    });
-}
-
-export function parseSourceFile(projectId: number): Promise<FileParseResponse> {
-    return request({
-        url: `/api/v1/project/import/${projectId}/parse`,
-        method: "post"
     });
 }

@@ -1,5 +1,5 @@
 <template>
-    <frame-view>
+    <div>
         <arco-table ref="table" :req="getData" :table-config="tableConfig">
             <template #tlBtns>
                 <arco-form v-model="filterData" :config="getFilterConfig" layout="row"></arco-form>
@@ -25,7 +25,7 @@
                 </a-table-column>
             </template>
         </arco-table>
-    </frame-view>
+    </div>
 </template>
 <script lang="ts" setup>
 import { Modal } from "@arco-design/web-vue";
@@ -33,6 +33,8 @@ import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, Arco
 import { getScriptSegmentList, updateScriptSegment, deleteScriptSegment } from "@/config/apis/script-segment";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
+
+const props = defineProps<{ projectId: number }>();
 
 const TYPE_MAP: Record<string, { label: string; color: string }> = {
     dialogue: { label: "对白", color: "blue" },
@@ -125,7 +127,7 @@ const tableConfig = computed(() => {
 const getData = computed(() => {
     return {
         fn: getScriptSegmentList,
-        params: { ...filterData.value }
+        params: { project_id: props.projectId, ...filterData.value }
     };
 });
 

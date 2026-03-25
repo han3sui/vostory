@@ -15,8 +15,8 @@ type VsChapterService interface {
 	Update(ctx context.Context, request *v1.VsChapterUpdateRequest) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*v1.VsChapterDetailResponse, error)
-	FindWithPagination(ctx context.Context, query *v1.VsChapterListQuery) ([]*v1.VsChapterDetailResponse, int64, error)
-	FindByProjectID(ctx context.Context, projectID uint64) ([]*v1.VsChapterDetailResponse, error)
+	FindWithPagination(ctx context.Context, query *v1.VsChapterListQuery) ([]*v1.VsChapterListResponse, int64, error)
+	FindByProjectID(ctx context.Context, projectID uint64) ([]*v1.VsChapterListResponse, error)
 }
 
 func NewVsChapterService(
@@ -84,30 +84,44 @@ func (s *vsChapterService) FindByID(ctx context.Context, id uint64) (*v1.VsChapt
 	return s.convertToDetailResponse(chapter), nil
 }
 
-func (s *vsChapterService) FindWithPagination(ctx context.Context, query *v1.VsChapterListQuery) ([]*v1.VsChapterDetailResponse, int64, error) {
+func (s *vsChapterService) FindWithPagination(ctx context.Context, query *v1.VsChapterListQuery) ([]*v1.VsChapterListResponse, int64, error) {
 	chapters, total, err := s.repo.FindWithPagination(ctx, query)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	var responses []*v1.VsChapterDetailResponse
+	var responses []*v1.VsChapterListResponse
 	for _, c := range chapters {
-		responses = append(responses, s.convertToDetailResponse(c))
+		responses = append(responses, s.convertToListResponse(c))
 	}
 	return responses, total, nil
 }
 
-func (s *vsChapterService) FindByProjectID(ctx context.Context, projectID uint64) ([]*v1.VsChapterDetailResponse, error) {
+func (s *vsChapterService) FindByProjectID(ctx context.Context, projectID uint64) ([]*v1.VsChapterListResponse, error) {
 	chapters, err := s.repo.FindByProjectID(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	var responses []*v1.VsChapterDetailResponse
+	var responses []*v1.VsChapterListResponse
 	for _, c := range chapters {
-		responses = append(responses, s.convertToDetailResponse(c))
+		responses = append(responses, s.convertToListResponse(c))
 	}
 	return responses, nil
+}
+
+func (s *vsChapterService) convertToListResponse(c *model.VsChapter) *v1.VsChapterListResponse {
+	return &v1.VsChapterListResponse{
+		ID:         c.ChapterID,
+		ProjectID:  c.ProjectID,
+		Title:      c.Title,
+		ChapterNum: c.ChapterNum,
+		WordCount:  c.WordCount,
+		Status:     c.Status,
+		Remark:     c.Remark,
+		CreatedAt:  c.CreatedAt,
+		UpdatedAt:  c.UpdatedAt,
+	}
 }
 
 func (s *vsChapterService) convertToDetailResponse(c *model.VsChapter) *v1.VsChapterDetailResponse {

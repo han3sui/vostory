@@ -19,7 +19,6 @@ import (
 
 type VsFileImportService interface {
 	UploadFile(ctx context.Context, projectID uint64, file *multipart.FileHeader) (string, string, error)
-	ParseSourceFile(ctx context.Context, projectID uint64) (int, int, error)
 }
 
 func NewVsFileImportService(
@@ -83,13 +82,24 @@ func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, 
 		return "", "", fmt.Errorf("保存文件失败: %w", err)
 	}
 
+	loginName := ctx.Value("login_name").(string)
+	deptID := ctx.Value("dept_id").(uint)
+
 	project.SourceType = sourceType
 	project.SourceFileURL = filePath
 	project.Status = "parsing"
-	project.UpdatedBy = ctx.Value("login_name").(string)
+	project.UpdatedBy = loginName
 
 	if err := s.projectRepo.Update(ctx, project); err != nil {
 		return "", "", fmt.Errorf("更新项目失败: %w", err)
+	}
+
+	if sourceType == "txt" || sourceType == "epub" {
+		go func() {
+			bgCtx := context.WithValue(context.Background(), "login_name", loginName)
+			bgCtx = context.WithValue(bgCtx, "dept_id", deptID)
+			s.parseSourceFile(bgCtx, projectID)
+		}()
 	}
 
 	return sourceType, filePath, nil
@@ -97,20 +107,26 @@ func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, 
 
 var chapterPattern = regexp.MustCompile(`^第[零一二三四五六七八九十百千万\d]+[章节回卷集篇]`)
 
-// ParseSourceFile 根据 source_type 分发到对应的解析器
-func (s *vsFileImportService) ParseSourceFile(ctx context.Context, projectID uint64) (int, int, error) {
+func (s *vsFileImportService) parseSourceFile(ctx context.Context, projectID uint64) {
 	project, err := s.projectRepo.FindByID(ctx, projectID)
 	if err != nil {
-		return 0, 0, fmt.Errorf("项目不存在")
+		return
 	}
 
+	var parseErr error
 	switch project.SourceType {
 	case "txt":
-		return s.parseTxtFile(ctx, project)
+		_, _, parseErr = s.parseTxtFile(ctx, project)
 	case "epub":
-		return s.parseEpubFile(ctx, project)
+		_, _, parseErr = s.parseEpubFile(ctx, project)
 	default:
-		return 0, 0, fmt.Errorf("不支持 %s 格式的自动解析", project.SourceType)
+		parseErr = fmt.Errorf("不支持 %s 格式的自动解析", project.SourceType)
+	}
+
+	if parseErr != nil {
+		project.Status = "parse_failed"
+		project.UpdatedBy = ctx.Value("login_name").(string)
+		s.projectRepo.Update(ctx, project)
 	}
 }
 

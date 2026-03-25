@@ -1,5 +1,5 @@
 <template>
-    <frame-view>
+    <div>
         <arco-table ref="table" :req="getData" :table-config="tableConfig">
             <template #tlBtns>
                 <arco-form v-model="filterData" :config="getFilterConfig" layout="row"></arco-form>
@@ -34,7 +34,7 @@
                 </a-table-column>
             </template>
         </arco-table>
-    </frame-view>
+    </div>
 </template>
 <script lang="ts" setup>
 import { Modal } from "@arco-design/web-vue";
@@ -48,10 +48,10 @@ import {
     disableCharacter,
     CharacterDetailType
 } from "@/config/apis/character";
-import { getProjectsByWorkspace, ProjectOptionType } from "@/config/apis/project";
-import { getWorkspaceOptions, WorkspaceOptionType } from "@/config/apis/workspace";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
+
+const props = defineProps<{ projectId: number }>();
 
 const LEVELS = [
     { label: "主角", value: "main" },
@@ -74,21 +74,9 @@ function levelColor(l: string) {
 
 const table = ref();
 const filterData = ref<Record<string, any>>({});
-const projectOptions = ref<{ label: string; value: number }[]>([]);
-
-onMounted(async () => {
-    const wsRes = await getWorkspaceOptions();
-    for (const ws of wsRes as WorkspaceOptionType[]) {
-        const projects = await getProjectsByWorkspace(ws.id);
-        for (const p of projects as ProjectOptionType[]) {
-            projectOptions.value.push({ label: `${ws.name} / ${p.name}`, value: p.id });
-        }
-    }
-});
 
 const getFilterConfig = computed(() => {
     return [
-        formHelper.select("项目", "project_id", projectOptions.value, { span: 6 }),
         formHelper.input("角色名称", "name", { span: 5, debounce: 500 }),
         formHelper.select("层级", "level", LEVELS, { span: 4 }),
         formHelper.select("性别", "gender", GENDERS, { span: 4 })
@@ -150,7 +138,7 @@ const tableConfig = computed(() => {
 const getData = computed(() => {
     return {
         fn: getCharacterList,
-        params: { ...filterData.value }
+        params: { project_id: props.projectId, ...filterData.value }
     };
 });
 
@@ -161,15 +149,8 @@ function onEdit(v: Record<string, any> | null) {
             title: tempValue ? "编辑角色" : "添加角色",
             width: "650px"
         },
-        value: tempValue || { status: "0", level: "main", gender: "unknown", aliases: [] },
+        value: tempValue || { project_id: props.projectId, status: "0", level: "main", gender: "unknown", aliases: [] },
         formConfig: [
-            ...(tempValue
-                ? []
-                : [
-                      formHelper.select("所属项目", "project_id", projectOptions.value, {
-                          rules: [ruleHelper.require("请选择项目")]
-                      })
-                  ]),
             formHelper.input("角色名称", "name", {
                 rules: [ruleHelper.require("请输入角色名称")]
             }),

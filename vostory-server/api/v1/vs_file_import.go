@@ -11,14 +11,6 @@ type VsFileImportResponse struct {
 	SourceFileURL string `json:"source_file_url"`
 }
 
-// VsFileParseResponse 文件解析响应
-type VsFileParseResponse struct {
-	ProjectID     uint64 `json:"project_id"`
-	TotalChapters int    `json:"total_chapters"`
-	TotalWords    int    `json:"total_words"`
-	Message       string `json:"message"`
-}
-
 // VsLLMLogListQuery LLM调用日志列表查询参数
 type VsLLMLogListQuery struct {
 	*BasePageQuery

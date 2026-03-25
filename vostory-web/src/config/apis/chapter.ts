@@ -31,7 +31,7 @@ export function getChapterList(params?: ChapterListParams): Promise<{
 }
 
 export function getChapter(id: number): Promise<ChapterDetailType> {
-    return request({ url: `/api/v1/chapter/${id}` });
+    return request({ url: `/api/v1/chapter/${id}`, loading: true });
 }
 
 export function addChapter(data: Partial<ChapterDetailType>) {
