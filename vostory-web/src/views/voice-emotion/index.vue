@@ -51,8 +51,23 @@
                         <a-option value="strong">强</a-option>
                     </a-select>
                 </a-form-item>
-                <a-form-item label="参考音频路径" required>
-                    <a-input v-model="formData.reference_audio_url" placeholder="参考音频文件路径" />
+                <a-form-item label="参考音频" required>
+                    <div style="width: 100%">
+                        <a-upload
+                            :limit="1"
+                            accept=".mp3,.wav,.flac,.ogg"
+                            :custom-request="handleAudioUpload"
+                            :show-file-list="!formData.reference_audio_url"
+                        >
+                            <template #upload-button>
+                                <a-button type="outline" size="small">选择音频文件</a-button>
+                            </template>
+                        </a-upload>
+                        <div v-if="formData.reference_audio_url" class="uploaded-file-info">
+                            <icon-check-circle style="color: rgb(var(--green-6)); margin-right: 4px" />
+                            <span class="file-name">{{ formData.reference_audio_url.split('/').pop() }}</span>
+                        </div>
+                    </div>
                 </a-form-item>
                 <a-form-item label="参考文本">
                     <a-textarea v-model="formData.reference_text" placeholder="参考音频对应的文本内容" :auto-size="{ minRows: 2 }" />
@@ -62,7 +77,8 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { Message } from "@arco-design/web-vue";
+import { Message, RequestOption } from "@arco-design/web-vue";
+import { IconCheckCircle } from "@arco-design/web-vue/es/icon";
 import {
     getVoiceEmotionsByProfile,
     addVoiceEmotion,
@@ -70,6 +86,7 @@ import {
     deleteVoiceEmotion,
     VoiceEmotionDetailType
 } from "@/config/apis/voice-emotion";
+import { uploadReferenceAudio } from "@/config/apis/upload";
 
 const props = defineProps<{ voiceProfileId: number }>();
 
@@ -131,6 +148,13 @@ async function handleFormOk() {
     } catch {
         Message.error("操作失败");
     }
+}
+
+function handleAudioUpload(option: RequestOption): any {
+    return uploadReferenceAudio(option).then((res: any) => {
+        formData.value.reference_audio_url = res.url;
+        Message.success("音频上传成功");
+    });
 }
 
 async function handleDelete(id: number) {
@@ -228,5 +252,20 @@ function strengthLabel(strength: string) {
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px solid var(--color-border);
+}
+
+.uploaded-file-info {
+    display: flex;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--color-text-2);
+
+    .file-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 300px;
+    }
 }
 </style>

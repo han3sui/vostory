@@ -127,6 +127,7 @@ var handlerSet = wire.NewSet(
 	handler.NewVsVoiceEmotionHandler,
 	handler.NewVsTTSSynthesizeHandler,
 	handler.NewVsVoiceAssetHandler,
+	handler.NewVsCommonUploadHandler,
 )
 
 var jobSet = wire.NewSet(

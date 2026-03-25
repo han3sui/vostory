@@ -55,6 +55,7 @@ func NewHTTPServer(
 	vsVoiceEmotionHandler *handler.VsVoiceEmotionHandler,
 	vsTTSSynthesizeHandler *handler.VsTTSSynthesizeHandler,
 	vsVoiceAssetHandler *handler.VsVoiceAssetHandler,
+	vsCommonUploadHandler *handler.VsCommonUploadHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -120,6 +121,7 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/pronunciation-dict/:workspace_id/:project_id", vsPronunciationDictHandler.GetEffective)
 			noStrictAuthRouter.GET("/common/voice-emotion/profile/:voice_profile_id", vsVoiceEmotionHandler.GetByVoiceProfile)
 			noStrictAuthRouter.GET("/common/voice-asset/options", vsVoiceAssetHandler.GetAllEnabled)
+			noStrictAuthRouter.POST("/common/upload/reference-audio", vsCommonUploadHandler.UploadReferenceAudio)
 		}
 
 		// 3. 授权路由：需要登录 + 权限验证（白名单模式）

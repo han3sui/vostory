@@ -48,6 +48,7 @@ import {
 } from "@/config/apis/voice-profile";
 import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
 import { getVoiceAssetList, VoiceAssetDetailType } from "@/config/apis/voice-asset";
+import { uploadReferenceAudio } from "@/config/apis/upload";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import { cloneDeep } from "lodash-es";
 import VoiceEmotionManager from "@/views/voice-emotion/index.vue";
@@ -146,8 +147,10 @@ function getFormConfig(isEdit: boolean) {
             allowClear: true,
             placeholder: "选择 TTS 提供商"
         }),
-        formHelper.input("参考音频 URL", "reference_audio_url", {
-            placeholder: "参考音频文件路径或 URL"
+        formHelper.upload("参考音频", "reference_audio_url", {
+            accept: ".mp3,.wav,.flac,.ogg",
+            limit: 1,
+            customRequest: uploadReferenceAudio
         }),
         formHelper.input("参考文本", "reference_text", {
             placeholder: "参考音频对应的文本内容"
