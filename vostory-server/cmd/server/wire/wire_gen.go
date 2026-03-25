@@ -81,7 +81,10 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsPromptTemplateRepository := repository.NewVsPromptTemplateRepository(repositoryRepository)
 	vsPromptTemplateService := service.NewVsPromptTemplateService(serviceService, vsPromptTemplateRepository)
 	vsPromptTemplateHandler := handler.NewVsPromptTemplateHandler(handlerHandler, vsPromptTemplateService)
-	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler, sysDictTypeHandler, sysDictDataHandler, sysOperLogHandler, sysOperLogService, vsLLMProviderHandler, vsTTSProviderHandler, vsPromptTemplateHandler)
+	vsWorkspaceRepository := repository.NewVsWorkspaceRepository(repositoryRepository)
+	vsWorkspaceService := service.NewVsWorkspaceService(serviceService, vsWorkspaceRepository)
+	vsWorkspaceHandler := handler.NewVsWorkspaceHandler(handlerHandler, vsWorkspaceService)
+	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler, sysDictTypeHandler, sysDictDataHandler, sysOperLogHandler, sysOperLogService, vsLLMProviderHandler, vsTTSProviderHandler, vsPromptTemplateHandler, vsWorkspaceHandler)
 	jobJob := job.NewJob(transaction, logger, sidSid, viperViper)
 	userJob := job.NewUserJob(jobJob)
 	jobServer := server.NewJobServer(logger, viperViper, userJob)
@@ -92,11 +95,11 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 
 // wire.go:
 
-var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repository.NewRepository, repository.NewTransaction, repository.NewSysPostRepository, repository.NewSysDeptRepository, repository.NewSysMenuRepository, repository.NewSysRoleRepository, repository.NewSysRoleDeptRepository, repository.NewSysRoleMenuRepository, repository.NewSysUserRoleRepository, repository.NewSysUserPostRepository, repository.NewSysUserRepository, repository.NewSysLogininforRepository, repository.NewSysApiRepository, repository.NewSysDictTypeRepository, repository.NewSysDictDataRepository, repository.NewSysOperLogRepository, repository.NewVsLLMProviderRepository, repository.NewVsTTSProviderRepository, repository.NewVsPromptTemplateRepository)
+var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repository.NewRepository, repository.NewTransaction, repository.NewSysPostRepository, repository.NewSysDeptRepository, repository.NewSysMenuRepository, repository.NewSysRoleRepository, repository.NewSysRoleDeptRepository, repository.NewSysRoleMenuRepository, repository.NewSysUserRoleRepository, repository.NewSysUserPostRepository, repository.NewSysUserRepository, repository.NewSysLogininforRepository, repository.NewSysApiRepository, repository.NewSysDictTypeRepository, repository.NewSysDictDataRepository, repository.NewSysOperLogRepository, repository.NewVsLLMProviderRepository, repository.NewVsTTSProviderRepository, repository.NewVsPromptTemplateRepository, repository.NewVsWorkspaceRepository)
 
-var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, service.NewSysDeptService, service.NewSysMenuService, service.NewSysRoleService, service.NewSysUserService, service.NewSysLogininforService, service.NewSysApiService, service.NewSysDictTypeService, service.NewSysDictDataService, service.NewSysOperLogService, service.NewVsLLMProviderService, service.NewVsTTSProviderService, service.NewVsPromptTemplateService, cache.NewUserCache, mqtt.NewMqttClient, kafka.NewKafkaProducer, resty.NewRestyClient)
+var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, service.NewSysDeptService, service.NewSysMenuService, service.NewSysRoleService, service.NewSysUserService, service.NewSysLogininforService, service.NewSysApiService, service.NewSysDictTypeService, service.NewSysDictDataService, service.NewSysOperLogService, service.NewVsLLMProviderService, service.NewVsTTSProviderService, service.NewVsPromptTemplateService, service.NewVsWorkspaceService, cache.NewUserCache, mqtt.NewMqttClient, kafka.NewKafkaProducer, resty.NewRestyClient)
 
-var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler, handler.NewSysDictTypeHandler, handler.NewSysDictDataHandler, handler.NewSysOperLogHandler, handler.NewVsLLMProviderHandler, handler.NewVsTTSProviderHandler, handler.NewVsPromptTemplateHandler)
+var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler, handler.NewSysDictTypeHandler, handler.NewSysDictDataHandler, handler.NewSysOperLogHandler, handler.NewVsLLMProviderHandler, handler.NewVsTTSProviderHandler, handler.NewVsPromptTemplateHandler, handler.NewVsWorkspaceHandler)
 
 var jobSet = wire.NewSet(job.NewJob, job.NewUserJob)
 

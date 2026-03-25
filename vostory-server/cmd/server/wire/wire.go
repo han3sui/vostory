@@ -46,6 +46,7 @@ var repositorySet = wire.NewSet(
 	repository.NewVsLLMProviderRepository,
 	repository.NewVsTTSProviderRepository,
 	repository.NewVsPromptTemplateRepository,
+	repository.NewVsWorkspaceRepository,
 )
 
 var serviceSet = wire.NewSet(
@@ -63,6 +64,7 @@ var serviceSet = wire.NewSet(
 	service.NewVsLLMProviderService,
 	service.NewVsTTSProviderService,
 	service.NewVsPromptTemplateService,
+	service.NewVsWorkspaceService,
 	cache.NewUserCache,
 	mqtt.NewMqttClient,
 	kafka.NewKafkaProducer,
@@ -84,6 +86,7 @@ var handlerSet = wire.NewSet(
 	handler.NewVsLLMProviderHandler,
 	handler.NewVsTTSProviderHandler,
 	handler.NewVsPromptTemplateHandler,
+	handler.NewVsWorkspaceHandler,
 )
 
 var jobSet = wire.NewSet(

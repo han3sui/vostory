@@ -104,7 +104,7 @@ vostory-web/src/
 **核心业务**：
 
 - [x] **数据库表设计**：Workspace、Project、Chapter、Scene、ScriptSegment、Character、VoiceProfile、VoiceAsset、PronunciationDictionary、GenerationTask、TaskBatch、AudioClip、ExportJob、LLMProvider、TTSProvider、PromptTemplate、LLMLog
-- [ ] **工作空间模块**：团队/组织空间管理
+- [x] **工作空间模块**：团队/组织空间管理（前后端完成）
 - [ ] **项目管理模块**：创建项目、项目列表、项目状态
 - [ ] **文件导入**：txt / docx / epub 上传与解析
 - [ ] **章节管理模块**：章节切分、排序、状态
