@@ -79,18 +79,16 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 	}
 
 	if segment.CharacterID == nil {
-		return nil, fmt.Errorf("该片段未关联角色，无法合成")
+		return nil, fmt.Errorf("该片段未关联角色，无法合成。请先为片段指定说话人（旁白/描述类型请指定「旁白」角色）")
 	}
 
 	character, err := s.characterRepo.FindByID(ctx, *segment.CharacterID)
 	if err != nil {
 		return nil, fmt.Errorf("角色不存在: %w", err)
 	}
-
 	if character.VoiceProfileID == nil {
-		return nil, fmt.Errorf("角色 %s 未绑定声音配置", character.Name)
+		return nil, fmt.Errorf("角色「%s」未绑定声音配置，请先在角色管理中绑定", character.Name)
 	}
-
 	voiceProfile, err := s.voiceProfileRepo.FindByID(ctx, *character.VoiceProfileID)
 	if err != nil {
 		return nil, fmt.Errorf("声音配置不存在: %w", err)
@@ -111,6 +109,8 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 		return nil, fmt.Errorf("声音配置 %s 缺少参考音频", voiceProfile.Name)
 	}
 
+	_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
+
 	text := s.applyPronunciationDict(ctx, segment)
 
 	emoVector, _ := buildEmotionVector(segment.EmotionType, segment.EmotionStrength)
@@ -119,23 +119,29 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 
 	remoteKey := filepath.Base(referenceAudioURL)
 	if err := client.EnsureAudioUploaded(referenceAudioURL, remoteKey); err != nil {
+		_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "failed")
 		return nil, fmt.Errorf("上传参考音频失败: %w", err)
 	}
 
 	audioData, err := client.Synthesize(text, remoteKey, emoVector, "")
 	if err != nil {
+		_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "failed")
 		return nil, fmt.Errorf("TTS 合成失败: %w", err)
 	}
 
 	audioURL, fileSize, err := s.saveAudioFile(segment, audioData)
 	if err != nil {
+		_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "failed")
 		return nil, fmt.Errorf("保存音频文件失败: %w", err)
 	}
 
 	clip, err := s.createAudioClip(ctx, segment, provider, voiceProfile, audioURL, fileSize)
 	if err != nil {
+		_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "failed")
 		return nil, fmt.Errorf("创建音频记录失败: %w", err)
 	}
+
+	_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "generated")
 
 	return &v1.TTSSynthesizeResponse{
 		ClipID:   clip.ClipID,

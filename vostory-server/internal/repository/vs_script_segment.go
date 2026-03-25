@@ -18,6 +18,7 @@ type VsScriptSegmentRepository interface {
 	FindBySceneID(ctx context.Context, sceneID uint64) ([]*model.VsScriptSegment, error)
 	CountByChapterID(ctx context.Context, chapterID uint64) (int64, error)
 	DeleteByChapterID(ctx context.Context, chapterID uint64) error
+	UpdateStatus(ctx context.Context, id uint64, status string) error
 }
 
 func NewVsScriptSegmentRepository(repository *Repository) VsScriptSegmentRepository {
@@ -123,4 +124,9 @@ func (r *vsScriptSegmentRepository) CountByChapterID(ctx context.Context, chapte
 
 func (r *vsScriptSegmentRepository) DeleteByChapterID(ctx context.Context, chapterID uint64) error {
 	return r.db.WithContext(ctx).Where("chapter_id = ?", chapterID).Delete(&model.VsScriptSegment{}).Error
+}
+
+func (r *vsScriptSegmentRepository) UpdateStatus(ctx context.Context, id uint64, status string) error {
+	return r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Where("segment_id = ?", id).Update("status", status).Error
 }

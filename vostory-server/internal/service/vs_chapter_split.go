@@ -170,6 +170,28 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 			return fmt.Errorf("清理旧场景失败: %w", err)
 		}
 
+		narratorID := resolveCharacterID(charMap, "旁白")
+		if narratorID == nil {
+			narrator := &model.VsCharacter{
+				ProjectID:   project.ProjectID,
+				Name:        "旁白",
+				Level:       "supporting",
+				Gender:      "unknown",
+				Description: "系统内置旁白角色，用于旁白与描述类型片段的语音合成",
+				Status:      "0",
+				SortOrder:   9999,
+				BaseModel: model.BaseModel{
+					CreatedBy: loginName,
+					DeptID:    deptID,
+				},
+			}
+			if err := tx.Create(narrator).Error; err == nil {
+				charMap[strings.ToLower("旁白")] = narrator.CharacterID
+				narratorID = &narrator.CharacterID
+				newCharacters++
+			}
+		}
+
 		segmentNum := 0
 		for i, sc := range result.Scenes {
 			scene := &model.VsScene{
@@ -192,9 +214,13 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 			for _, seg := range sc.Segments {
 				segmentNum++
 
+				segType := normalizeSegmentType(seg.Type)
 				var charID *uint64
 				charName := strings.TrimSpace(seg.Character)
-				if charName != "" {
+
+				if segType == "narration" || segType == "description" {
+					charID = narratorID
+				} else if charName != "" {
 					charID = resolveCharacterID(charMap, charName)
 					if charID == nil {
 						newChar := &model.VsCharacter{
@@ -220,7 +246,7 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 					SceneID:         scene.SceneID,
 					ChapterID:       chapterID,
 					SegmentNum:      segmentNum,
-					SegmentType:     normalizeSegmentType(seg.Type),
+					SegmentType:     segType,
 					Content:         seg.Content,
 					OriginalContent: seg.Content,
 					CharacterID:     charID,

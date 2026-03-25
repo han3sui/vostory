@@ -23,8 +23,19 @@
                     <h3>{{ currentChapter?.title }}</h3>
                     <a-space>
                         <a-button
-                            v-if="hasPermission('chapter:split')"
+                            v-if="hasPermission('tts:synthesize')"
                             type="primary"
+                            size="small"
+                            :loading="batchGenerating"
+                            :disabled="generatableCount === 0"
+                            @click="handleBatchGenerate"
+                        >
+                            <template #icon><icon-sound /></template>
+                            批量生成 ({{ generatableCount }})
+                        </a-button>
+                        <a-button
+                            v-if="hasPermission('chapter:split')"
+                            type="outline"
                             size="small"
                             :loading="splitting"
                             @click="handleSplit"
@@ -66,11 +77,10 @@
                                     </a-select>
 
                                     <a-select
-                                        v-if="seg.segment_type === 'dialogue' || seg.segment_type === 'monologue'"
                                         :model-value="seg.character_id ?? undefined"
                                         size="mini"
                                         style="width: 120px"
-                                        placeholder="说话人"
+                                        :placeholder="seg.segment_type === 'narration' || seg.segment_type === 'description' ? '旁白角色' : '说话人'"
                                         allow-clear
                                         @update:model-value="(v: any) => { seg.character_id = v ?? null; saveSegment(seg); }"
                                     >
@@ -113,17 +123,30 @@
                                     </a-tag>
                                     <span class="version-label">v{{ seg.version }}</span>
 
+                                    <a-tooltip :content="disableReason(seg)" :disabled="!disableReason(seg)" mini>
+                                        <a-button
+                                            type="outline"
+                                            size="mini"
+                                            status="normal"
+                                            :loading="synthesizingId === seg.id"
+                                            :disabled="!canGenerate(seg)"
+                                            @click="handleGenerate(seg)"
+                                        >
+                                            <template #icon><icon-sound /></template>
+                                            生成
+                                        </a-button>
+                                    </a-tooltip>
                                     <a-button
+                                        v-if="seg.has_audio"
                                         type="text"
                                         size="mini"
-                                        :loading="synthesizingId === seg.id"
-                                        @click="handleSynthesize(seg)"
+                                        :class="{ 'playing-btn': playingId === seg.id }"
+                                        @click="togglePlayAudio(seg)"
                                     >
-                                        <template #icon><icon-sound /></template>
-                                        试听
-                                    </a-button>
-                                    <a-button v-if="seg.has_audio" type="text" size="mini" @click="playAudio(seg)">
-                                        <template #icon><icon-play-arrow /></template>
+                                        <template #icon>
+                                            <icon-pause v-if="playingId === seg.id" />
+                                            <icon-play-arrow v-else />
+                                        </template>
                                     </a-button>
                                 </div>
 
@@ -152,7 +175,7 @@
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
 import { Modal } from "@arco-design/web-vue";
-import { IconSound, IconPlayArrow } from "@arco-design/web-vue/es/icon";
+import { IconSound, IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
 import {
     getSegmentsByChapter,
     updateScriptSegment,
@@ -175,7 +198,22 @@ const loadingSegments = ref(false);
 const aligning = ref(false);
 const splitting = ref(false);
 const synthesizingId = ref<number | null>(null);
+const batchGenerating = ref(false);
+const playingId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
+
+const generatableCount = computed(() => segments.value.filter((s) => canGenerate(s)).length);
+
+function canGenerate(seg: ScriptSegmentDetailType): boolean {
+    return !disableReason(seg);
+}
+
+function disableReason(seg: ScriptSegmentDetailType): string {
+    if (!seg.content?.trim()) return "片段内容为空";
+    if (!seg.character_id) return "未指定说话人角色";
+    if (seg.status === "processing") return "正在生成中";
+    return "";
+}
 
 async function loadChapters() {
     chapters.value = [];
@@ -256,6 +294,7 @@ async function handleSplit() {
             }
             Message.success(msg);
             segments.value = await getSegmentsByChapter(selectedChapterId.value!);
+            characterOptions.value = await getCharactersByProject(props.projectId);
         } finally {
             splitting.value = false;
         }
@@ -275,49 +314,89 @@ async function handleSplit() {
     }
 }
 
-async function handleSynthesize(seg: ScriptSegmentDetailType) {
-    if (!seg.content?.trim()) {
-        Message.warning("片段内容为空，无法合成");
-        return;
-    }
-    if (
-        (seg.segment_type === "dialogue" || seg.segment_type === "monologue") &&
-        !seg.character_id
-    ) {
-        Message.warning("请先为该片段指定说话人");
-        return;
-    }
-    const speaker = characterOptions.value.find((c) => c.id === seg.character_id);
-    if (seg.character_id && !speaker) {
-        Message.warning("说话人数据异常，请刷新后重试");
-        return;
-    }
+async function handleGenerate(seg: ScriptSegmentDetailType) {
+    if (!canGenerate(seg)) return;
 
     synthesizingId.value = seg.id;
+    seg.status = "processing";
     try {
         const result = await synthesizeSegment(seg.id);
         seg.audio_url = result.audio_url;
         seg.has_audio = true;
         seg.status = "generated";
-        Message.success("合成完成");
-        playAudio(seg);
-    } catch (e: any) {
-        const msg = e?.data?.message || e?.response?.data?.message || e?.message || "TTS 合成失败";
-        Message.error(msg);
+        Message.success(`#${seg.segment_num} 生成完成`);
+    } catch {
+        seg.status = "failed";
     } finally {
         synthesizingId.value = null;
     }
 }
 
-function playAudio(seg: ScriptSegmentDetailType) {
+async function handleBatchGenerate() {
+    const todo = segments.value.filter((s) => canGenerate(s));
+    if (!todo.length) {
+        Message.info("没有可生成的片段");
+        return;
+    }
+
+    Modal.confirm({
+        title: "批量生成配音",
+        content: `将为 ${todo.length} 个片段生成配音，已绑定角色和声音的片段才会被处理。是否继续？`,
+        okText: "确认生成",
+        cancelText: "取消",
+        onOk: async () => {
+            batchGenerating.value = true;
+            let success = 0;
+            let fail = 0;
+            for (const seg of todo) {
+                seg.status = "processing";
+                try {
+                    const result = await synthesizeSegment(seg.id);
+                    seg.audio_url = result.audio_url;
+                    seg.has_audio = true;
+                    seg.status = "generated";
+                    success++;
+                } catch {
+                    seg.status = "failed";
+                    fail++;
+                }
+            }
+            batchGenerating.value = false;
+            let msg = `批量生成完成：成功 ${success} 个`;
+            if (fail > 0) msg += `，失败 ${fail} 个`;
+            Message.success(msg);
+        }
+    });
+}
+
+function togglePlayAudio(seg: ScriptSegmentDetailType) {
+    if (playingId.value === seg.id) {
+        stopAudio();
+        return;
+    }
+
+    stopAudio();
+    if (!seg.audio_url) return;
+    const audio = new Audio(seg.audio_url);
+    currentAudioEl = audio;
+    playingId.value = seg.id;
+    audio.addEventListener("ended", () => stopAudio());
+    audio.addEventListener("error", () => {
+        Message.warning("音频播放失败");
+        stopAudio();
+    });
+    audio.play().catch(() => {
+        Message.warning("音频播放失败");
+        stopAudio();
+    });
+}
+
+function stopAudio() {
     if (currentAudioEl) {
         currentAudioEl.pause();
         currentAudioEl = null;
     }
-    if (!seg.audio_url) return;
-    const audio = new Audio(seg.audio_url);
-    currentAudioEl = audio;
-    audio.play().catch(() => Message.warning("音频播放失败"));
+    playingId.value = null;
 }
 
 function segmentBorderClass(seg: ScriptSegmentDetailType) {
@@ -331,12 +410,24 @@ function segmentBorderClass(seg: ScriptSegmentDetailType) {
 }
 
 function statusColor(status: string) {
-    const map: Record<string, string> = { raw: "gray", edited: "blue", generated: "green" };
+    const map: Record<string, string> = {
+        raw: "gray",
+        edited: "blue",
+        processing: "orangered",
+        generated: "green",
+        failed: "red"
+    };
     return map[status] || "gray";
 }
 
 function statusLabel(status: string) {
-    const map: Record<string, string> = { raw: "原始", edited: "已编辑", generated: "已生成" };
+    const map: Record<string, string> = {
+        raw: "原始",
+        edited: "已编辑",
+        processing: "生成中",
+        generated: "已生成",
+        failed: "生成失败"
+    };
     return map[status] || status;
 }
 </script>
@@ -480,6 +571,21 @@ function statusLabel(status: string) {
 .version-label {
     font-size: 12px;
     color: var(--color-text-3);
+}
+
+.playing-btn {
+    color: rgb(var(--primary-6));
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .segment-textarea {
