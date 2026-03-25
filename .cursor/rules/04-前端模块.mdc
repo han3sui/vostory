@@ -580,6 +580,7 @@ export function onSelectItem(config: { checkType: "checkbox" | "radio" }) {
 8. **路径别名**: 使用 `@/` 指向 `src/`
 9. **日期处理**: 统一使用 `dayjs`
 10. **树形表格**: `pagination: false` + `scroll: { y: "70vh" }` + 展开/折叠按钮
+11. **删除必须确认**: 所有删除操作必须使用 `Modal.confirm` 二次确认，禁止直接调用删除 API
 
 ## 常见易错点
 
