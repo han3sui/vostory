@@ -129,6 +129,7 @@ func (s *vsScriptSegmentService) FindByChapterID(ctx context.Context, chapterID 
 		if clip, ok := audioMap[seg.SegmentID]; ok {
 			resp.HasAudio = true
 			resp.AudioURL = clip.AudioURL
+			resp.ClipID = &clip.ClipID
 		}
 		responses = append(responses, resp)
 	}

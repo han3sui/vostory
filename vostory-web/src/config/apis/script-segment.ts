@@ -16,6 +16,7 @@ export type ScriptSegmentDetailType = {
     version: number;
     has_audio: boolean;
     audio_url: string;
+    clip_id: number | null;
     created_at: string;
     updated_at: string;
 };

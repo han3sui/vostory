@@ -328,6 +328,9 @@ func NewHTTPServer(
 			{
 				ttsRouter.POST("/synthesize/:segment_id", vsTTSSynthesizeHandler.Synthesize)
 				ttsRouter.GET("/audio/:segment_id", vsTTSSynthesizeHandler.GetAudio)
+				ttsRouter.POST("/batch-generate", vsTTSSynthesizeHandler.BatchGenerate)
+				ttsRouter.GET("/task/:task_id", vsTTSSynthesizeHandler.GetTaskProgress)
+				ttsRouter.GET("/stream/:clip_id", vsTTSSynthesizeHandler.StreamAudio)
 			}
 
 			pronunciationDictRouter := strictAuthRouter.Group("/pronunciation-dict")

@@ -58,6 +58,7 @@ var repositorySet = wire.NewSet(
 	repository.NewVsAudioClipRepository,
 	repository.NewVsVoiceEmotionRepository,
 	repository.NewVsVoiceAssetRepository,
+	repository.NewVsGenerationTaskRepository,
 )
 
 var serviceSet = wire.NewSet(

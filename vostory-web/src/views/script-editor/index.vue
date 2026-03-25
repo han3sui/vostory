@@ -27,11 +27,16 @@
                             type="primary"
                             size="small"
                             :loading="batchGenerating"
-                            :disabled="generatableCount === 0"
+                            :disabled="generatableCount === 0 && !batchGenerating"
                             @click="handleBatchGenerate"
                         >
                             <template #icon><icon-sound /></template>
-                            批量生成 ({{ generatableCount }})
+                            <template v-if="batchGenerating && batchProgress.total > 0">
+                                生成中 {{ batchProgress.completed }}/{{ batchProgress.total }}
+                            </template>
+                            <template v-else>
+                                批量生成 ({{ generatableCount }})
+                            </template>
                         </a-button>
                         <a-button
                             v-if="hasPermission('chapter:split')"
@@ -137,7 +142,7 @@
                                         </a-button>
                                     </a-tooltip>
                                     <a-button
-                                        v-if="seg.has_audio"
+                                        v-if="seg.clip_id"
                                         type="text"
                                         size="mini"
                                         :class="{ 'playing-btn': playingId === seg.id }"
@@ -183,9 +188,10 @@ import {
     ScriptSegmentDetailType
 } from "@/config/apis/script-segment";
 import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
-import { synthesizeSegment } from "@/config/apis/tts";
+import { synthesizeSegment, batchGenerate, getTaskProgress, getTTSStreamURL } from "@/config/apis/tts";
 import { hasPermission } from "@/views/utils";
 import request from "@/packages/request";
+import storage from "@/utils/tools/storage";
 
 const props = defineProps<{ projectId: number }>();
 
@@ -199,8 +205,11 @@ const aligning = ref(false);
 const splitting = ref(false);
 const synthesizingId = ref<number | null>(null);
 const batchGenerating = ref(false);
+const batchProgress = ref({ total: 0, completed: 0, status: "" });
+let batchPollTimer: ReturnType<typeof setInterval> | null = null;
 const playingId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
+let currentBlobURL: string | null = null;
 
 const generatableCount = computed(() => segments.value.filter((s) => canGenerate(s)).length);
 
@@ -321,7 +330,7 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
     seg.status = "processing";
     try {
         const result = await synthesizeSegment(seg.id);
-        seg.audio_url = result.audio_url;
+        seg.clip_id = result.clip_id;
         seg.has_audio = true;
         seg.status = "generated";
         Message.success(`#${seg.segment_num} 生成完成`);
@@ -333,6 +342,7 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
 }
 
 async function handleBatchGenerate() {
+    if (!selectedChapterId.value) return;
     const todo = segments.value.filter((s) => canGenerate(s));
     if (!todo.length) {
         Message.info("没有可生成的片段");
@@ -346,55 +356,106 @@ async function handleBatchGenerate() {
         cancelText: "取消",
         onOk: async () => {
             batchGenerating.value = true;
-            let success = 0;
-            let fail = 0;
-            for (const seg of todo) {
-                seg.status = "processing";
-                try {
-                    const result = await synthesizeSegment(seg.id);
-                    seg.audio_url = result.audio_url;
-                    seg.has_audio = true;
-                    seg.status = "generated";
-                    success++;
-                } catch {
-                    seg.status = "failed";
-                    fail++;
-                }
+            batchProgress.value = { total: 0, completed: 0, status: "pending" };
+            todo.forEach((seg) => (seg.status = "processing"));
+
+            try {
+                const result = await batchGenerate(selectedChapterId.value!);
+                batchProgress.value = { total: result.total_count, completed: 0, status: "running" };
+                startBatchPolling(result.task_id);
+            } catch {
+                batchGenerating.value = false;
+                todo.forEach((seg) => (seg.status = "failed"));
+                Message.error("批量生成启动失败");
             }
-            batchGenerating.value = false;
-            let msg = `批量生成完成：成功 ${success} 个`;
-            if (fail > 0) msg += `，失败 ${fail} 个`;
-            Message.success(msg);
         }
     });
 }
 
-function togglePlayAudio(seg: ScriptSegmentDetailType) {
+function startBatchPolling(taskId: number) {
+    if (batchPollTimer) clearInterval(batchPollTimer);
+
+    batchPollTimer = setInterval(async () => {
+        try {
+            const progress = await getTaskProgress(taskId);
+            batchProgress.value = {
+                total: progress.total_count,
+                completed: progress.completed_count,
+                status: progress.status
+            };
+
+            if (progress.status === "completed" || progress.status === "failed") {
+                clearInterval(batchPollTimer!);
+                batchPollTimer = null;
+                batchGenerating.value = false;
+
+                // 刷新片段列表以获取最新状态和 clip_id
+                if (selectedChapterId.value) {
+                    segments.value = await getSegmentsByChapter(selectedChapterId.value);
+                }
+
+                if (progress.error_message) {
+                    Message.warning(`批量生成完成：${progress.error_message}`);
+                } else {
+                    Message.success(`批量生成完成：${progress.completed_count} 个片段`);
+                }
+            }
+        } catch {
+            // 轮询失败不中断，继续等待
+        }
+    }, 2000);
+}
+
+onUnmounted(() => {
+    if (batchPollTimer) {
+        clearInterval(batchPollTimer);
+        batchPollTimer = null;
+    }
+    stopAudio();
+});
+
+async function togglePlayAudio(seg: ScriptSegmentDetailType) {
     if (playingId.value === seg.id) {
         stopAudio();
         return;
     }
 
     stopAudio();
-    if (!seg.audio_url) return;
-    const audio = new Audio(seg.audio_url);
-    currentAudioEl = audio;
+    if (!seg.clip_id) return;
+
     playingId.value = seg.id;
-    audio.addEventListener("ended", () => stopAudio());
-    audio.addEventListener("error", () => {
+    try {
+        const resp = await fetch(getTTSStreamURL(seg.clip_id), {
+            headers: { Authorization: `Bearer ${storage.getToken()}` }
+        });
+        if (!resp.ok) throw new Error("fetch failed");
+
+        const blob = await resp.blob();
+        const blobURL = URL.createObjectURL(blob);
+        currentBlobURL = blobURL;
+
+        const audio = new Audio(blobURL);
+        currentAudioEl = audio;
+        audio.addEventListener("ended", () => stopAudio());
+        audio.addEventListener("error", () => {
+            Message.warning("音频播放失败");
+            stopAudio();
+        });
+        await audio.play();
+    } catch {
         Message.warning("音频播放失败");
         stopAudio();
-    });
-    audio.play().catch(() => {
-        Message.warning("音频播放失败");
-        stopAudio();
-    });
+    }
 }
 
 function stopAudio() {
     if (currentAudioEl) {
         currentAudioEl.pause();
         currentAudioEl = null;
+    }
+    if (currentBlobURL) {
+        URL.revokeObjectURL(currentBlobURL);
+        currentBlobURL = null;
     }
     playingId.value = null;
 }

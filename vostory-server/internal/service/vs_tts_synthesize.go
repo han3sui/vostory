@@ -6,11 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/tts"
+
+	"go.uber.org/zap"
 )
 
 // IndexTTS2 8-dim emotion vector order:
@@ -34,6 +37,9 @@ var strengthAlphaMap = map[string]float64{
 type VsTTSSynthesizeService interface {
 	SynthesizeSegment(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error)
 	GetSegmentAudio(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error)
+	BatchGenerate(ctx context.Context, chapterID uint64) (*v1.BatchGenerateResponse, error)
+	GetTaskProgress(ctx context.Context, taskID uint64) (*v1.TaskProgressResponse, error)
+	GetAudioClipFile(ctx context.Context, clipID uint64) (filePath string, contentType string, err error)
 }
 
 func NewVsTTSSynthesizeService(
@@ -46,6 +52,7 @@ func NewVsTTSSynthesizeService(
 	audioClipRepo repository.VsAudioClipRepository,
 	ttsProviderRepo repository.VsTTSProviderRepository,
 	projectRepo repository.VsProjectRepository,
+	taskRepo repository.VsGenerationTaskRepository,
 ) VsTTSSynthesizeService {
 	return &vsTTSSynthesizeService{
 		Service:               service,
@@ -57,6 +64,7 @@ func NewVsTTSSynthesizeService(
 		audioClipRepo:         audioClipRepo,
 		ttsProviderRepo:       ttsProviderRepo,
 		projectRepo:           projectRepo,
+		taskRepo:              taskRepo,
 	}
 }
 
@@ -70,6 +78,7 @@ type vsTTSSynthesizeService struct {
 	audioClipRepo         repository.VsAudioClipRepository
 	ttsProviderRepo       repository.VsTTSProviderRepository
 	projectRepo           repository.VsProjectRepository
+	taskRepo              repository.VsGenerationTaskRepository
 }
 
 func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error) {
@@ -274,6 +283,120 @@ func (s *vsTTSSynthesizeService) createAudioClip(
 		return nil, err
 	}
 	return clip, nil
+}
+
+func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID uint64) (*v1.BatchGenerateResponse, error) {
+	segments, err := s.segmentRepo.FindByChapterID(ctx, chapterID)
+	if err != nil {
+		return nil, fmt.Errorf("获取章节片段失败: %w", err)
+	}
+
+	var eligible []*model.VsScriptSegment
+	for _, seg := range segments {
+		if seg.CharacterID == nil {
+			continue
+		}
+		if seg.Status == "processing" {
+			continue
+		}
+		eligible = append(eligible, seg)
+	}
+
+	if len(eligible) == 0 {
+		return nil, fmt.Errorf("没有可生成的片段（请确保片段已关联角色）")
+	}
+
+	task := &model.VsGenerationTask{
+		ChapterID:    &chapterID,
+		TaskType:     "tts_generate",
+		Status:       "pending",
+		TotalBatches: len(eligible),
+	}
+	if err := s.taskRepo.Create(ctx, task); err != nil {
+		return nil, fmt.Errorf("创建生成任务失败: %w", err)
+	}
+
+	go s.executeBatchGenerate(task.TaskID, eligible)
+
+	return &v1.BatchGenerateResponse{
+		TaskID:       task.TaskID,
+		TotalCount:   len(eligible),
+		SkippedCount: len(segments) - len(eligible),
+	}, nil
+}
+
+func (s *vsTTSSynthesizeService) executeBatchGenerate(taskID uint64, segments []*model.VsScriptSegment) {
+	ctx := context.Background()
+	total := len(segments)
+	var completed int32
+	var failedCount int32
+
+	_ = s.taskRepo.SetStarted(ctx, taskID)
+
+	for _, seg := range segments {
+		_, err := s.SynthesizeSegment(ctx, seg.SegmentID)
+		if err != nil {
+			atomic.AddInt32(&failedCount, 1)
+			s.logger.Warn("批量生成片段失败",
+				zap.Uint64("segment_id", seg.SegmentID),
+				zap.Error(err))
+		}
+
+		done := int(atomic.AddInt32(&completed, 1))
+		progress := done * 100 / total
+		_ = s.taskRepo.UpdateProgress(ctx, taskID, done, progress)
+	}
+
+	if atomic.LoadInt32(&failedCount) > 0 {
+		errMsg := fmt.Sprintf("%d 个片段合成失败", failedCount)
+		if atomic.LoadInt32(&failedCount) == int32(total) {
+			_ = s.taskRepo.UpdateStatus(ctx, taskID, "failed", errMsg)
+		} else {
+			_ = s.taskRepo.SetCompleted(ctx, taskID)
+			_ = s.taskRepo.UpdateStatus(ctx, taskID, "completed", errMsg)
+		}
+	} else {
+		_ = s.taskRepo.SetCompleted(ctx, taskID)
+	}
+}
+
+func (s *vsTTSSynthesizeService) GetTaskProgress(ctx context.Context, taskID uint64) (*v1.TaskProgressResponse, error) {
+	task, err := s.taskRepo.FindByID(ctx, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("任务不存在: %w", err)
+	}
+
+	return &v1.TaskProgressResponse{
+		TaskID:         task.TaskID,
+		Status:         task.Status,
+		Progress:       task.Progress,
+		TotalCount:     task.TotalBatches,
+		CompletedCount: task.CompletedBatches,
+		FailedCount:    0,
+		ErrorMessage:   task.ErrorMessage,
+		StartedAt:      task.StartedAt,
+		CompletedAt:    task.CompletedAt,
+	}, nil
+}
+
+func (s *vsTTSSynthesizeService) GetAudioClipFile(ctx context.Context, clipID uint64) (string, string, error) {
+	clip, err := s.audioClipRepo.FindByID(ctx, clipID)
+	if err != nil {
+		return "", "", fmt.Errorf("音频片段不存在: %w", err)
+	}
+
+	if _, err := os.Stat(clip.AudioURL); err != nil {
+		return "", "", fmt.Errorf("音频文件不存在: %w", err)
+	}
+
+	contentType := "audio/wav"
+	if clip.Format == "mp3" {
+		contentType = "audio/mpeg"
+	} else if clip.Format == "flac" {
+		contentType = "audio/flac"
+	}
+
+	return clip.AudioURL, contentType, nil
 }
 
 func getLoginName(ctx context.Context) string {

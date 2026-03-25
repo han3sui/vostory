@@ -54,6 +54,7 @@ type VsScriptSegmentDetailResponse struct {
 	Version         int       `json:"version"`
 	HasAudio        bool      `json:"has_audio"`
 	AudioURL        string    `json:"audio_url,omitempty"`
+	ClipID          *uint64   `json:"clip_id"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
