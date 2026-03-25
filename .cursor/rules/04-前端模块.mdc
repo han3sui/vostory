@@ -582,6 +582,144 @@ export function onSelectItem(config: { checkType: "checkbox" | "radio" }) {
 10. **树形表格**: `pagination: false` + `scroll: { y: "70vh" }` + 展开/折叠按钮
 11. **删除必须确认**: 所有删除操作必须使用 `Modal.confirm` 二次确认，禁止直接调用删除 API
 
+## 文件上传规范
+
+项目中文件上传分为两种场景：**上传到本地服务器**（私有文件，通过接口流式访问）和**上传到 OSS/CDN**（公开文件，直链访问）。两者在 `customRequest` 实现、回显方式、访问方式上有本质区别。
+
+### 场景一：上传到本地服务器（私有文件）
+
+适用于参考音频等非公开文件。文件存储在后端 `storage/` 目录，前端无法直接访问，需通过带鉴权的流接口获取。
+
+**后端接口：**
+- `POST /api/v1/common/upload/reference-audio` — 上传，返回 `{ path: "storage/reference-audio/1774xxx_文件名.wav", filename: "文件名.wav" }`
+- `GET /api/v1/common/reference-audio/stream?source=voice-asset&id=2` — 流式获取，通过 source + id 查库获取文件路径
+
+**工具函数（`@/config/apis/upload.ts`）：**
+
+```typescript
+import { uploadReferenceAudio, extractUploadUrl, pathToFileList, extractFilenameFromPath, fetchReferenceAudioBlob } from "@/config/apis/upload";
+```
+
+| 函数 | 用途 |
+|------|------|
+| `uploadReferenceAudio` | `customRequest` 回调，上传文件到本地服务器 |
+| `extractUploadUrl(value)` | 提交时从 `FileItem[]` / `string` 中提取存储路径字符串 |
+| `pathToFileList(path)` | 编辑回显时将路径字符串转为 `FileItem[]` |
+| `extractFilenameFromPath(path)` | 从存储路径提取原始文件名（去掉时间戳前缀） |
+| `fetchReferenceAudioBlob(source, id)` | 通过流接口获取音频 Blob URL 用于播放 |
+
+**在 `formHelper.upload` 中使用（ArcoModalFormShow 场景）：**
+
+```typescript
+// 1. 表单配置
+formHelper.upload("参考音频", "reference_audio_url", {
+    accept: ".mp3,.wav,.flac,.ogg",
+    limit: 1,
+    customRequest: uploadReferenceAudio
+})
+
+// 2. 编辑时回显：将路径字符串转为 FileItem[]
+function handleEdit(row: DetailType) {
+    const editValue = cloneDeep(row) as any;
+    if (editValue.reference_audio_url) {
+        editValue.reference_audio_url = pathToFileList(editValue.reference_audio_url);
+    }
+    ArcoModalFormShow({
+        value: editValue,
+        formConfig: [...],
+        ok: async (data: any) => {
+            // 3. 提交时提取回字符串
+            data.reference_audio_url = extractUploadUrl(data.reference_audio_url);
+            await updateApi(data);
+        }
+    });
+}
+```
+
+**在自定义 `a-upload` 中使用（手写表单场景）：**
+
+```vue
+<a-upload :limit="1" accept=".mp3,.wav,.flac,.ogg" :custom-request="handleAudioUpload" :show-file-list="!formData.reference_audio_url">
+    <template #upload-button>
+        <a-button type="outline" size="small">选择音频文件</a-button>
+    </template>
+</a-upload>
+<div v-if="formData.reference_audio_url" class="uploaded-file-info">
+    <icon-check-circle style="color: rgb(var(--green-6)); margin-right: 4px" />
+    <span>{{ extractFilenameFromPath(formData.reference_audio_url) }}</span>
+</div>
+```
+```typescript
+function handleAudioUpload(option: RequestOption): any {
+    return uploadReferenceAudio(option).then((res: any) => {
+        formData.value.reference_audio_url = res.path;
+    });
+}
+```
+
+**试听播放（通过流接口）：**
+
+```typescript
+// source: "voice-asset" | "voice-profile" | "voice-emotion"
+const blobURL = await fetchReferenceAudioBlob("voice-asset", record.id);
+const audio = new Audio(blobURL);
+audio.play();
+audio.onended = () => URL.revokeObjectURL(blobURL); // 播放结束释放
+```
+
+**关键注意事项：**
+- 本地文件**没有直链**，`reference_audio_url` 存的是服务器本地路径（如 `storage\reference-audio\xxx.wav`），前端不能直接用于 `<audio src>` 或 `new Audio()`
+- 播放必须通过 `fetchReferenceAudioBlob` 走流接口 + Blob URL
+- `fetch` 必须使用 `envHelper.get("VITE_APP_API_URL")` 拼接 baseURL，与 `request` 保持一致
+- 使用完 Blob URL 后务必调用 `URL.revokeObjectURL()` 释放内存
+
+### 场景二：上传到 OSS/CDN（公开文件）
+
+适用于图片等公开资源。上传后返回直链 URL，前端可直接访问。
+
+**工具函数（`@/config/apis/common.ts`）：**
+
+```typescript
+import { uploadFileNew } from "@/config/apis/common";
+```
+
+**在 `formHelper.picUpload` 中使用：**
+
+```typescript
+// picUpload 专用于图片上传（带预览），值为 URL 字符串
+formHelper.picUpload("图片", "image_url", {
+    customRequest: uploadFileNew,
+    inputTips: "推荐使用400*400的图片"
+})
+```
+
+**在 `formHelper.upload` 中使用：**
+
+```typescript
+formHelper.upload("附件", "file_url", {
+    accept: ".pdf,.doc,.docx",
+    limit: 1,
+    customRequest: uploadFileNew
+})
+```
+
+**关键区别：**
+- OSS 上传后 `onSuccess` 返回的直接是可访问的 URL，`fileItem.url` 就是直链
+- 编辑回显时，URL 字符串可以直接被 upload 组件识别，**不需要** `pathToFileList` 转换
+- 访问时直接使用 URL，**不需要**流接口
+
+### 两种场景对比
+
+| | 本地上传 | OSS/CDN 上传 |
+|---|---|---|
+| **customRequest** | `uploadReferenceAudio` | `uploadFileNew` |
+| **存储值** | 服务器本地路径 | 公开直链 URL |
+| **编辑回显** | 需 `pathToFileList()` 转换 | 直接使用 URL 字符串 |
+| **提交提取** | 需 `extractUploadUrl()` | 需 `extractUploadUrl()` |
+| **前端访问** | 流接口 `fetchReferenceAudioBlob()` | 直接 `<img src>` / `new Audio()` |
+| **鉴权** | 需要 Bearer Token | 无需鉴权 |
+| **formHelper** | `formHelper.upload` | `formHelper.upload` / `formHelper.picUpload` |
+
 ## 常见易错点
 
 ### ArcoModalFormShow 参数结构
