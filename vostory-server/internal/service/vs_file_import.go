@@ -19,7 +19,7 @@ import (
 
 type VsFileImportService interface {
 	UploadFile(ctx context.Context, projectID uint64, file *multipart.FileHeader) (string, string, error)
-	ParseTxt(ctx context.Context, projectID uint64) (int, int, error)
+	ParseSourceFile(ctx context.Context, projectID uint64) (int, int, error)
 }
 
 func NewVsFileImportService(
@@ -97,16 +97,24 @@ func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, 
 
 var chapterPattern = regexp.MustCompile(`^第[零一二三四五六七八九十百千万\d]+[章节回卷集篇]`)
 
-func (s *vsFileImportService) ParseTxt(ctx context.Context, projectID uint64) (int, int, error) {
+// ParseSourceFile 根据 source_type 分发到对应的解析器
+func (s *vsFileImportService) ParseSourceFile(ctx context.Context, projectID uint64) (int, int, error) {
 	project, err := s.projectRepo.FindByID(ctx, projectID)
 	if err != nil {
 		return 0, 0, fmt.Errorf("项目不存在")
 	}
 
-	if project.SourceType != "txt" {
-		return 0, 0, fmt.Errorf("仅支持 txt 格式的自动解析，当前格式: %s", project.SourceType)
+	switch project.SourceType {
+	case "txt":
+		return s.parseTxtFile(ctx, project)
+	case "epub":
+		return s.parseEpubFile(ctx, project)
+	default:
+		return 0, 0, fmt.Errorf("不支持 %s 格式的自动解析", project.SourceType)
 	}
+}
 
+func (s *vsFileImportService) parseTxtFile(ctx context.Context, project *model.VsProject) (int, int, error) {
 	f, err := os.Open(project.SourceFileURL)
 	if err != nil {
 		return 0, 0, fmt.Errorf("打开源文件失败: %w", err)
@@ -155,20 +163,49 @@ func (s *vsFileImportService) ParseTxt(ctx context.Context, projectID uint64) (i
 		return 0, 0, fmt.Errorf("未识别到任何章节")
 	}
 
+	parsed := make([]parsedChapter, 0, len(chapters))
+	for _, ch := range chapters {
+		parsed = append(parsed, parsedChapter{Title: ch.title, Content: ch.content.String()})
+	}
+	return s.saveChapters(ctx, project, parsed)
+}
+
+func (s *vsFileImportService) parseEpubFile(ctx context.Context, project *model.VsProject) (int, int, error) {
+	epubChapters, err := ParseEpubFile(project.SourceFileURL)
+	if err != nil {
+		return 0, 0, fmt.Errorf("解析 epub 失败: %w", err)
+	}
+
+	parsed := make([]parsedChapter, 0, len(epubChapters))
+	for _, ch := range epubChapters {
+		parsed = append(parsed, parsedChapter{Title: ch.Title, Content: ch.Content})
+	}
+	return s.saveChapters(ctx, project, parsed)
+}
+
+type parsedChapter struct {
+	Title   string
+	Content string
+}
+
+func (s *vsFileImportService) saveChapters(ctx context.Context, project *model.VsProject, chapters []parsedChapter) (int, int, error) {
+	if len(chapters) == 0 {
+		return 0, 0, fmt.Errorf("未识别到任何章节")
+	}
+
 	loginName := ctx.Value("login_name").(string)
 	deptID := ctx.Value("dept_id").(uint)
 	totalWords := 0
 
 	for i, ch := range chapters {
-		content := ch.content.String()
-		wordCount := utf8.RuneCountInString(content)
+		wordCount := utf8.RuneCountInString(ch.Content)
 		totalWords += wordCount
 
 		chapter := &model.VsChapter{
-			ProjectID:  projectID,
-			Title:      ch.title,
+			ProjectID:  project.ProjectID,
+			Title:      ch.Title,
 			ChapterNum: i + 1,
-			Content:    content,
+			Content:    ch.Content,
 			WordCount:  wordCount,
 			Status:     "raw",
 			BaseModel: model.BaseModel{

@@ -12,37 +12,20 @@
                     </a-form-item>
                     <a-form-item label="上传源文件" required>
                         <a-upload
-                            :auto-upload="false"
+                            :custom-request="handleUpload"
                             :limit="1"
+                            :disabled="!formData.project_id"
                             accept=".txt,.docx,.epub"
-                            @change="handleFileChange"
                         >
                             <template #upload-button>
-                                <a-button type="primary">
+                                <a-button type="primary" :disabled="!formData.project_id">
                                     选择文件（支持 txt / docx / epub）
                                 </a-button>
                             </template>
                         </a-upload>
                     </a-form-item>
-                    <a-form-item>
-                        <a-space>
-                            <a-button
-                                type="primary"
-                                :loading="uploading"
-                                :disabled="!formData.project_id || !selectedFile"
-                                @click="handleUpload"
-                            >
-                                上传文件
-                            </a-button>
-                            <a-button
-                                v-if="uploaded"
-                                type="outline"
-                                :loading="parsing"
-                                @click="handleParse"
-                            >
-                                解析章节
-                            </a-button>
-                        </a-space>
+                    <a-form-item v-if="uploaded && canParse">
+                        <a-button type="primary" :loading="parsing" @click="handleParse"> 解析章节 </a-button>
                     </a-form-item>
                 </a-form>
 
@@ -50,13 +33,17 @@
 
                 <a-descriptions v-if="uploadResult" title="上传结果" :column="1" bordered size="small">
                     <a-descriptions-item label="文件名">{{ uploadResult.file_name }}</a-descriptions-item>
-                    <a-descriptions-item label="文件大小">{{ (uploadResult.file_size / 1024).toFixed(1) }} KB</a-descriptions-item>
+                    <a-descriptions-item label="文件大小"
+                        >{{ (uploadResult.file_size / 1024).toFixed(1) }} KB</a-descriptions-item
+                    >
                     <a-descriptions-item label="文件类型">{{ uploadResult.source_type }}</a-descriptions-item>
                 </a-descriptions>
 
                 <a-descriptions v-if="parseResult" title="解析结果" :column="1" bordered size="small" class="mt-4">
                     <a-descriptions-item label="章节数">{{ parseResult.total_chapters }}</a-descriptions-item>
-                    <a-descriptions-item label="总字数">{{ parseResult.total_words.toLocaleString() }}</a-descriptions-item>
+                    <a-descriptions-item label="总字数">{{
+                        parseResult.total_words.toLocaleString()
+                    }}</a-descriptions-item>
                     <a-descriptions-item label="状态">
                         <a-tag color="green">{{ parseResult.message }}</a-tag>
                     </a-descriptions-item>
@@ -66,24 +53,24 @@
     </frame-view>
 </template>
 <script lang="ts" setup>
-import { Message } from "@arco-design/web-vue";
-import {
-    uploadSourceFile,
-    parseSourceFile,
-    FileImportResponse,
-    FileParseResponse
-} from "@/config/apis/file-import";
+import { Message, RequestOption } from "@arco-design/web-vue";
+import { uploadSourceFile, parseSourceFile, FileImportResponse, FileParseResponse } from "@/config/apis/file-import";
 import { getProjectsByWorkspace, ProjectOptionType } from "@/config/apis/project";
 import { getWorkspaceOptions, WorkspaceOptionType } from "@/config/apis/workspace";
+import { useRoute } from "vue-router";
 
-const formData = ref<{ project_id: number | undefined }>({ project_id: undefined });
-const selectedFile = ref<File | null>(null);
-const uploading = ref(false);
+const route = useRoute();
+const queryProjectId = route.query.project_id ? Number(route.query.project_id) : undefined;
+const formData = ref<{ project_id: number | undefined }>({ project_id: queryProjectId });
 const parsing = ref(false);
 const uploaded = ref(false);
 const uploadResult = ref<FileImportResponse | null>(null);
 const parseResult = ref<FileParseResponse | null>(null);
 const projectOptions = ref<{ label: string; value: number }[]>([]);
+const supportedParseTypes = ["txt", "epub"];
+const canParse = computed(
+    () => uploadResult.value != null && supportedParseTypes.includes(uploadResult.value.source_type)
+);
 
 onMounted(async () => {
     const wsRes = await getWorkspaceOptions();
@@ -95,25 +82,18 @@ onMounted(async () => {
     }
 });
 
-function handleFileChange(fileList: any[]) {
-    selectedFile.value = fileList.length > 0 ? fileList[0].file : null;
-}
-
-async function handleUpload() {
-    if (!formData.value.project_id || !selectedFile.value) return;
-    uploading.value = true;
+function handleUpload(option: RequestOption): any {
     uploadResult.value = null;
     parseResult.value = null;
-    try {
-        const result = await uploadSourceFile(formData.value.project_id, selectedFile.value);
-        uploadResult.value = result;
-        uploaded.value = true;
-        Message.success("文件上传成功");
-    } catch {
-        Message.error("上传失败");
-    } finally {
-        uploading.value = false;
-    }
+    return uploadSourceFile(option, formData.value.project_id!)
+        .then((res: FileImportResponse) => {
+            uploadResult.value = res;
+            uploaded.value = true;
+            Message.success("文件上传成功");
+        })
+        .catch(() => {
+            Message.error("上传失败");
+        });
 }
 
 async function handleParse() {

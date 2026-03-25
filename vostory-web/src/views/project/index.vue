@@ -30,7 +30,10 @@ import { getWorkspaceOptions, WorkspaceOptionType } from "@/config/apis/workspac
 import { getLLMProviderList, LLMProviderDetailType } from "@/config/apis/ai";
 import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
 import { cloneDeep } from "lodash-es";
+import { useRouter } from "vue-router";
 import { hasPermission, PageTableConfig } from "@/views/utils";
+
+const router = useRouter();
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
     draft: { label: "草稿", color: "gray" },
@@ -103,6 +106,13 @@ const tableConfig = computed(() => {
             tableHelper.default("角色数", "total_characters"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm:ss" }),
             tableHelper.btns("操作", [
+                {
+                    label: "导入",
+                    if: () => hasPermission("project:import:upload"),
+                    handler(row: Record<string, any>) {
+                        router.push({ path: "/project/import", query: { project_id: row.id } });
+                    }
+                },
                 {
                     label: "编辑",
                     if: () => hasPermission("project:edit"),

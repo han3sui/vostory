@@ -61,7 +61,7 @@ func (h *VsFileImportHandler) Upload(ctx *gin.Context) {
 
 // Parse godoc
 // @Summary      解析源文件
-// @Description  对已上传的 txt 文件进行章节自动切分
+// @Description  对已上传的源文件（txt/epub）进行章节自动切分
 // @Tags         文件导入
 // @Accept       json
 // @Produce      json
@@ -78,7 +78,7 @@ func (h *VsFileImportHandler) Parse(ctx *gin.Context) {
 		return
 	}
 
-	totalChapters, totalWords, err := h.svc.ParseTxt(ctx, projectID)
+	totalChapters, totalWords, err := h.svc.ParseSourceFile(ctx, projectID)
 	if err != nil {
 		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
 		return
