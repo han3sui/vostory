@@ -17,7 +17,7 @@
 </template>
 <script lang="ts" setup>
 import { Modal } from "@arco-design/web-vue";
-import { formHelper, ArcoTable, tableHelper, ArcoForm } from "@easyfe/admin-component";
+import { formHelper, ArcoTable, tableHelper } from "@easyfe/admin-component";
 import { getOperLogList, deleteOperLog, cleanOperLog, OperLogDetailType } from "@/config/apis/operlog";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import { ArcoModalShow } from "@easyfe/admin-component";
@@ -119,31 +119,42 @@ const getData = computed(() => {
 });
 
 function onDetail(row: OperLogDetailType) {
+    const items: Array<{ label: string; value: string; span?: number }> = [
+        { label: "模块标题", value: row.title },
+        { label: "请求方式", value: row.request_method },
+        { label: "操作人员", value: row.oper_name },
+        { label: "部门名称", value: row.dept_name },
+        { label: "请求URL", value: row.oper_url, span: 2 },
+        { label: "操作IP", value: row.oper_ip },
+        { label: "操作状态", value: row.status === 0 ? "成功" : "异常" },
+        { label: "耗时", value: `${row.cost_time}ms` },
+        { label: "操作时间", value: row.oper_time }
+    ];
+    if (row.oper_param) items.push({ label: "请求参数", value: row.oper_param, span: 2 });
+    if (row.json_result) items.push({ label: "返回结果", value: row.json_result, span: 2 });
+    if (row.error_msg) items.push({ label: "错误信息", value: row.error_msg, span: 2 });
+
     ArcoModalShow({
         config: { title: "操作日志详情", hideCancel: true, width: "700px" },
         content: () =>
-            h("div", { class: "p-4" }, [
-                h("a-descriptions", { bordered: true, column: 2, size: "small" }, [
-                    h("a-descriptions-item", { label: "模块标题" }, row.title),
-                    h("a-descriptions-item", { label: "请求方式" }, row.request_method),
-                    h("a-descriptions-item", { label: "操作人员" }, row.oper_name),
-                    h("a-descriptions-item", { label: "部门名称" }, row.dept_name),
-                    h("a-descriptions-item", { label: "请求URL", span: 2 }, row.oper_url),
-                    h("a-descriptions-item", { label: "操作IP" }, row.oper_ip),
-                    h("a-descriptions-item", { label: "操作状态" }, row.status === 0 ? "成功" : "异常"),
-                    h("a-descriptions-item", { label: "耗时" }, `${row.cost_time}ms`),
-                    h("a-descriptions-item", { label: "操作时间" }, row.oper_time),
-                    row.oper_param
-                        ? h("a-descriptions-item", { label: "请求参数", span: 2 }, row.oper_param)
-                        : null,
-                    row.json_result
-                        ? h("a-descriptions-item", { label: "返回结果", span: 2 }, row.json_result)
-                        : null,
-                    row.error_msg
-                        ? h("a-descriptions-item", { label: "错误信息", span: 2 }, row.error_msg)
-                        : null
-                ])
-            ])
+            h(
+                "div",
+                { style: "padding: 16px" },
+                items.map((item) =>
+                    h(
+                        "div",
+                        { style: "display: flex; padding: 8px 0; border-bottom: 1px solid var(--color-border-2)" },
+                        [
+                            h(
+                                "span",
+                                { style: "width: 100px; flex-shrink: 0; color: var(--color-text-3)" },
+                                item.label
+                            ),
+                            h("span", { style: "flex: 1; word-break: break-all" }, item.value || "-")
+                        ]
+                    )
+                )
+            )
     });
 }
 </script>
