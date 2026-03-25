@@ -163,10 +163,10 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 	var newCharacters int
 
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("chapter_id = ?", chapterID).Delete(&model.VsScriptSegment{}).Error; err != nil {
+		if err := tx.Unscoped().Where("chapter_id = ?", chapterID).Delete(&model.VsScriptSegment{}).Error; err != nil {
 			return fmt.Errorf("清理旧片段失败: %w", err)
 		}
-		if err := tx.Where("chapter_id = ?", chapterID).Delete(&model.VsScene{}).Error; err != nil {
+		if err := tx.Unscoped().Where("chapter_id = ?", chapterID).Delete(&model.VsScene{}).Error; err != nil {
 			return fmt.Errorf("清理旧场景失败: %w", err)
 		}
 
