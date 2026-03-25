@@ -101,31 +101,42 @@ vostory-web/src/
 
 #### 第 1 阶段：打通主链路（当前阶段）
 
-- [ ] **数据库表设计**：Workspace、Project、Chapter、Scene、ScriptSegment、Character、VoiceProfile、VoiceAsset、PronunciationDictionary、GenerationTask、AudioClip、ExportJob
+**核心业务**：
+
+- [ ] **数据库表设计**：Workspace、Project、Chapter、Scene、ScriptSegment、Character、VoiceProfile、VoiceAsset、PronunciationDictionary、GenerationTask、TaskBatch、AudioClip、ExportJob、LLMProvider、TTSProvider、PromptTemplate、LLMLog
 - [ ] **工作空间模块**：团队/组织空间管理
 - [ ] **项目管理模块**：创建项目、项目列表、项目状态
 - [ ] **文件导入**：txt / docx / epub 上传与解析
 - [ ] **章节管理模块**：章节切分、排序、状态
-- [ ] **脚本片段模块**：旁白/对白/独白识别、片段存储
+- [ ] **脚本片段模块**：旁白/对白/独白识别、片段存储（含情绪类型和情绪强度）
 - [ ] **角色管理模块**：角色抽取结果存储、别名合并、层级分类
+
+**基础设施（同步完成）**：
+
+- [ ] **AI 服务配置模块**：LLMProvider / TTSProvider 的 CRUD、连通性测试、运行时切换
+- [ ] **Prompt 模板管理**：内置默认模板 + 用户自定义，按类型分（character_extract / dialogue_parse / emotion_tag 等）
+- [ ] **LLM 调用日志**：记录 Prompt 版本、模型、耗时、输入输出摘要
 
 #### 第 2 阶段：可编辑
 
-- [ ] 脚本编辑页（片段级编辑、修正说话人、调整类型/情绪）
+- [ ] 脚本编辑页（片段级编辑、修正说话人、调整类型/情绪/强度）
 - [ ] 角色编辑页（绑定声音配置、编辑别名）
 - [ ] 发音词典（项目级 + 全局级）
+- [ ] 精准填充（LLM 输出对齐回原文）
 
 #### 第 3 阶段：可生成
 
-- [ ] TTS 模型适配层（统一接口，支持本地/云端切换）
-- [ ] 任务队列（异步生成、重试、超时、状态追踪）
+- [ ] TTS 适配层（统一接口，支持多厂商切换）
+- [ ] 情绪 + 强度双维度传参、多情绪参考音频
+- [ ] 任务队列（Redis，异步生成、重试、超时、状态追踪）
+- [ ] SSE 实时推送任务进度
 - [ ] 音频缓存与版本管理
 - [ ] 单句试听与重生成
 
 #### 第 4 阶段：可交付
 
-- [ ] 章节音频拼接导出
-- [ ] 基础音频后处理（停顿、音量标准化）
+- [ ] 章节音频拼接导出（停顿插入、音量标准化）
+- [ ] 多轨音频合并
 - [ ] 导出记录管理
 - [ ] 失败重试
 
@@ -133,7 +144,7 @@ vostory-web/src/
 
 - [ ] 团队权限分工
 - [ ] 审核流程
-- [ ] 全局声音资产库
+- [ ] 全局声音资产库（跨项目复用）
 
 ---
 
