@@ -182,7 +182,8 @@ function onEdit(v: Record<string, any> | null) {
         ],
         ok: async (data: any) => {
             if (tempValue) {
-                await updateProject(data);
+                const { id, name, description, cover_url, llm_provider_id, tts_provider_id, prompt_template_ids, remark } = data;
+                await updateProject({ id, name, description, cover_url, llm_provider_id, tts_provider_id, prompt_template_ids, remark });
             } else {
                 await addProject(data);
             }

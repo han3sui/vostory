@@ -65,14 +65,14 @@ type BaseModel struct {
 
 - 接口导出，实现体非导出（小写开头）
 - 实现体嵌入公共 `*Repository`，通过 `r.db` 访问数据库
-- 方法名直接使用 `Create`/`Update`/`Delete`/`FindByID`/`FindWithPagination`，不带模块前缀
+- 方法名直接使用 `Create`/`UpdateFields`/`Delete`/`FindByID`/`FindWithPagination`，不带模块前缀
 - 查询时使用 `model.WithDataScope(ctx)` 应用数据权限
 - 分页使用 `model.Paginate(page, size)` 作为 Scope
 
 ```go
 type SysPostRepository interface {
     Create(ctx context.Context, post *model.SysPost) error
-    Update(ctx context.Context, post *model.SysPost) error
+    UpdateFields(ctx context.Context, id uint, fields map[string]interface{}) error
     Delete(ctx context.Context, id uint) error
     FindByID(ctx context.Context, id uint) (*model.SysPost, error)
     FindWithPagination(ctx context.Context, query *v1.SysPostListQuery) ([]*model.SysPost, int64, error)
@@ -96,6 +96,7 @@ type sysPostRepository struct {
 - 方法名直接使用 `Create`/`Update` 等，不带模块前缀
 - Service 层接收 API DTO（`v1.XxxCreateRequest`），返回 API DTO（`v1.XxxDetailResponse`）
 - 内部通过 `convertToDetailResponse` 私有方法完成 model → response 转换
+- **Update 方法不查询旧记录**，直接通过 `repo.UpdateFields(ctx, id, map[string]interface{}{...})` 按字段更新，只传递请求中携带的字段，避免多余的 SELECT 查询和全字段覆盖
 
 ```go
 type SysPostService interface {
@@ -111,6 +112,46 @@ type SysPostService interface {
 type sysPostService struct {
     *Service
     sysPostRepository repository.SysPostRepository
+}
+```
+
+### 更新操作规范
+
+**Service 层的 Update 方法禁止先查询旧记录再全量赋值更新。** 应直接使用 `repo.UpdateFields` 按 `map[string]interface{}` 指定字段更新，好处：
+
+1. 减少一次 SELECT 查询，提升性能
+2. 只更新请求中的字段，不会意外覆盖其他字段
+3. `map` 方式可以正确更新零值字段（如空字符串、0、nil）
+
+```go
+// ✅ 正确：直接按字段更新
+func (s *xxxService) Update(ctx context.Context, request *v1.XxxUpdateRequest) error {
+    return s.repo.UpdateFields(ctx, request.ID, map[string]interface{}{
+        "name":       request.Name,
+        "remark":     request.Remark,
+        "updated_by": ctx.Value("login_name").(string),
+    })
+}
+
+// ❌ 错误：先查旧记录再全量赋值
+func (s *xxxService) Update(ctx context.Context, request *v1.XxxUpdateRequest) error {
+    existing, err := s.repo.FindByID(ctx, request.ID)
+    if err != nil {
+        return err
+    }
+    existing.Name = request.Name
+    existing.Remark = request.Remark
+    return s.repo.Update(ctx, existing)
+}
+```
+
+Repository 层对应的 `UpdateFields` 实现：
+
+```go
+func (r *xxxRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error {
+    return r.db.WithContext(ctx).Model(&model.Xxx{}).
+        Where("id = ?", id).
+        Updates(fields).Error
 }
 ```
 

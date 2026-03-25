@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
@@ -54,21 +53,16 @@ func (s *vsProjectService) Create(ctx context.Context, request *v1.VsProjectCrea
 }
 
 func (s *vsProjectService) Update(ctx context.Context, request *v1.VsProjectUpdateRequest) error {
-	existing, err := s.repo.FindByID(ctx, request.ID)
-	if err != nil {
-		return fmt.Errorf("项目不存在")
-	}
-
-	existing.Name = request.Name
-	existing.Description = request.Description
-	existing.CoverURL = request.CoverURL
-	existing.LLMProviderID = request.LLMProviderID
-	existing.TTSProviderID = request.TTSProviderID
-	existing.PromptTemplateIDs = model.PromptTemplateIDMap(request.PromptTemplateIDs)
-	existing.Remark = request.Remark
-	existing.UpdatedBy = ctx.Value("login_name").(string)
-
-	return s.repo.Update(ctx, existing)
+	return s.repo.UpdateFields(ctx, request.ID, map[string]interface{}{
+		"name":               request.Name,
+		"description":        request.Description,
+		"cover_url":          request.CoverURL,
+		"llm_provider_id":    request.LLMProviderID,
+		"tts_provider_id":    request.TTSProviderID,
+		"prompt_template_ids": model.PromptTemplateIDMap(request.PromptTemplateIDs),
+		"remark":             request.Remark,
+		"updated_by":         ctx.Value("login_name").(string),
+	})
 }
 
 func (s *vsProjectService) Delete(ctx context.Context, id uint64) error {

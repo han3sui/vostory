@@ -85,12 +85,12 @@ func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, 
 	loginName := ctx.Value("login_name").(string)
 	deptID := ctx.Value("dept_id").(uint)
 
-	project.SourceType = sourceType
-	project.SourceFileURL = filePath
-	project.Status = "parsing"
-	project.UpdatedBy = loginName
-
-	if err := s.projectRepo.Update(ctx, project); err != nil {
+	if err := s.projectRepo.UpdateFields(ctx, project.ProjectID, map[string]interface{}{
+		"source_type":     sourceType,
+		"source_file_url": filePath,
+		"status":          "parsing",
+		"updated_by":      loginName,
+	}); err != nil {
 		return "", "", fmt.Errorf("更新项目失败: %w", err)
 	}
 
@@ -124,9 +124,10 @@ func (s *vsFileImportService) parseSourceFile(ctx context.Context, projectID uin
 	}
 
 	if parseErr != nil {
-		project.Status = "parse_failed"
-		project.UpdatedBy = ctx.Value("login_name").(string)
-		s.projectRepo.Update(ctx, project)
+		s.projectRepo.UpdateFields(ctx, project.ProjectID, map[string]interface{}{
+			"status":     "parse_failed",
+			"updated_by": ctx.Value("login_name").(string),
+		})
 	}
 }
 
@@ -235,10 +236,11 @@ func (s *vsFileImportService) saveChapters(ctx context.Context, project *model.V
 		}
 	}
 
-	project.Status = "parsed"
-	project.TotalChapters = len(chapters)
-	project.UpdatedBy = loginName
-	if err := s.projectRepo.Update(ctx, project); err != nil {
+	if err := s.projectRepo.UpdateFields(ctx, project.ProjectID, map[string]interface{}{
+		"status":         "parsed",
+		"total_chapters": len(chapters),
+		"updated_by":     loginName,
+	}); err != nil {
 		return len(chapters), totalWords, fmt.Errorf("更新项目失败: %w", err)
 	}
 

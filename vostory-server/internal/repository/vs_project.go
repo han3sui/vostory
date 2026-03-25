@@ -9,7 +9,7 @@ import (
 
 type VsProjectRepository interface {
 	Create(ctx context.Context, project *model.VsProject) error
-	Update(ctx context.Context, project *model.VsProject) error
+	UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsProject, error)
 	FindWithPagination(ctx context.Context, query *v1.VsProjectListQuery) ([]*model.VsProject, int64, error)
@@ -28,11 +28,10 @@ func (r *vsProjectRepository) Create(ctx context.Context, project *model.VsProje
 	return r.db.WithContext(ctx).Create(project).Error
 }
 
-func (r *vsProjectRepository) Update(ctx context.Context, project *model.VsProject) error {
-	return r.db.WithContext(ctx).Model(project).
-		Where("project_id = ?", project.ProjectID).
-		Omit("created_by", "created_at", "project_id", "workspace_id").
-		Updates(project).Error
+func (r *vsProjectRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error {
+	return r.db.WithContext(ctx).Model(&model.VsProject{}).
+		Where("project_id = ?", id).
+		Updates(fields).Error
 }
 
 func (r *vsProjectRepository) Delete(ctx context.Context, id uint64) error {
