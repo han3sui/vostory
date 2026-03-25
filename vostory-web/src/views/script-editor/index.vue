@@ -1,28 +1,28 @@
 <template>
-    <div class="flex" style="height: calc(100vh - 280px)">
+    <div class="script-editor-wrap">
         <!-- 左侧章节列表 -->
-        <div class="w-60 border-r border-gray-200 overflow-y-auto p-3">
+        <div class="chapter-sidebar">
             <div
                 v-for="ch in chapters"
-                :key="ch.chapter_id"
-                class="px-3 py-2 rounded cursor-pointer mb-1 text-sm"
-                :class="selectedChapterId === ch.chapter_id ? 'bg-blue-50 text-blue-600 font-medium' : 'hover:bg-gray-50'"
+                :key="ch.id"
+                class="chapter-item"
+                :class="{ active: selectedChapterId === ch.id }"
                 @click="selectChapter(ch)"
             >
-                <div class="truncate">{{ ch.title || `第${ch.chapter_num}章` }}</div>
-                <div class="text-xs text-gray-400 mt-0.5">{{ ch.word_count }} 字</div>
+                <div class="chapter-title">{{ ch.title || `第${ch.chapter_num}章` }}</div>
+                <div class="chapter-meta">{{ ch.word_count }} 字</div>
             </div>
             <a-empty v-if="chapters.length === 0" description="暂无章节" />
         </div>
 
         <!-- 右侧片段编辑区 -->
-        <div class="flex-1 overflow-y-auto p-4">
-            <div v-if="!selectedChapterId" class="flex items-center justify-center h-full text-gray-400">
+        <div class="segment-main">
+            <div v-if="!selectedChapterId" class="empty-placeholder">
                 请选择章节
             </div>
             <template v-else>
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium">{{ currentChapter?.title }}</h3>
+                <div class="segment-header">
+                    <h3>{{ currentChapter?.title }}</h3>
                     <a-space>
                         <a-button
                             v-if="hasPermission('chapter:align')"
@@ -36,23 +36,21 @@
                     </a-space>
                 </div>
 
-                <div v-if="loadingSegments" class="flex justify-center py-10">
+                <div v-if="loadingSegments" class="loading-area">
                     <a-spin />
                 </div>
 
-                <div v-else class="space-y-2">
+                <div v-else class="segment-list">
                     <div
                         v-for="seg in segments"
                         :key="seg.id"
-                        class="border rounded-lg p-3 hover:shadow-sm transition-shadow"
+                        class="segment-card"
                         :class="segmentBorderClass(seg)"
                     >
-                        <div class="flex items-start gap-3">
-                            <div class="flex-shrink-0 w-8 text-center text-xs text-gray-400 pt-1">
-                                #{{ seg.segment_num }}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                        <div class="segment-row">
+                            <div class="segment-num">#{{ seg.segment_num }}</div>
+                            <div class="segment-body">
+                                <div class="segment-controls">
                                     <a-select
                                         v-model="seg.segment_type"
                                         size="mini"
@@ -67,12 +65,12 @@
 
                                     <a-select
                                         v-if="seg.segment_type === 'dialogue' || seg.segment_type === 'monologue'"
-                                        v-model="seg.character_id"
+                                        :model-value="seg.character_id ?? undefined"
                                         size="mini"
                                         style="width: 120px"
                                         placeholder="说话人"
                                         allow-clear
-                                        @change="() => saveSegment(seg)"
+                                        @update:model-value="(v: any) => { seg.character_id = v ?? null; saveSegment(seg); }"
                                     >
                                         <a-option v-for="c in characterOptions" :key="c.id" :value="c.id">
                                             {{ c.name }}
@@ -111,19 +109,19 @@
                                     <a-tag size="small" :color="statusColor(seg.status)">
                                         {{ statusLabel(seg.status) }}
                                     </a-tag>
-                                    <span class="text-xs text-gray-400">v{{ seg.version }}</span>
+                                    <span class="version-label">v{{ seg.version }}</span>
                                 </div>
 
                                 <a-textarea
                                     v-model="seg.content"
                                     :auto-size="{ minRows: 1, maxRows: 6 }"
-                                    class="!border-0 !bg-gray-50 !rounded"
+                                    class="segment-textarea"
                                     @blur="() => saveSegment(seg)"
                                 />
 
                                 <div
                                     v-if="seg.original_content && seg.original_content !== seg.content"
-                                    class="mt-1 text-xs text-gray-400 bg-yellow-50 p-1 rounded"
+                                    class="original-text"
                                 >
                                     原文：{{ seg.original_content }}
                                 </div>
@@ -176,11 +174,11 @@ onMounted(loadChapters);
 watch(() => props.projectId, loadChapters);
 
 async function selectChapter(ch: any) {
-    selectedChapterId.value = ch.chapter_id;
+    selectedChapterId.value = ch.id;
     currentChapter.value = ch;
     loadingSegments.value = true;
     try {
-        segments.value = await getSegmentsByChapter(ch.chapter_id);
+        segments.value = await getSegmentsByChapter(ch.id);
     } finally {
         loadingSegments.value = false;
     }
@@ -225,12 +223,12 @@ async function handleAlign() {
 
 function segmentBorderClass(seg: ScriptSegmentDetailType) {
     const map: Record<string, string> = {
-        dialogue: "border-blue-200",
-        narration: "border-gray-200",
-        monologue: "border-purple-200",
-        description: "border-green-200"
+        dialogue: "border-dialogue",
+        narration: "border-narration",
+        monologue: "border-monologue",
+        description: "border-description"
     };
-    return map[seg.segment_type] || "border-gray-200";
+    return map[seg.segment_type] || "border-narration";
 }
 
 function statusColor(status: string) {
@@ -243,4 +241,162 @@ function statusLabel(status: string) {
     return map[status] || status;
 }
 </script>
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.script-editor-wrap {
+    display: flex;
+    height: calc(100vh - 300px);
+    min-height: 400px;
+}
+
+.chapter-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--color-border);
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.chapter-item {
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    font-size: 13px;
+
+    &:hover {
+        background-color: var(--color-fill-2);
+    }
+
+    &.active {
+        background-color: rgb(var(--primary-1));
+        color: rgb(var(--primary-6));
+        font-weight: 500;
+    }
+}
+
+.chapter-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chapter-meta {
+    font-size: 12px;
+    color: var(--color-text-3);
+    margin-top: 2px;
+}
+
+.segment-main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    min-width: 0;
+}
+
+.empty-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-text-3);
+}
+
+.segment-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    h3 {
+        font-size: 16px;
+        font-weight: 500;
+        margin: 0;
+    }
+}
+
+.loading-area {
+    display: flex;
+    justify-content: center;
+    padding: 40px 0;
+}
+
+.segment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.segment-card {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 12px;
+    transition: box-shadow 0.2s;
+
+    &:hover {
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    &.border-dialogue {
+        border-color: rgb(var(--primary-3));
+    }
+    &.border-narration {
+        border-color: var(--color-border);
+    }
+    &.border-monologue {
+        border-color: rgb(var(--purple-3));
+    }
+    &.border-description {
+        border-color: rgb(var(--green-3));
+    }
+}
+
+.segment-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.segment-num {
+    flex-shrink: 0;
+    width: 32px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--color-text-3);
+    padding-top: 4px;
+}
+
+.segment-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.segment-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.version-label {
+    font-size: 12px;
+    color: var(--color-text-3);
+}
+
+.segment-textarea {
+    :deep(.arco-textarea) {
+        border: none;
+        background-color: var(--color-fill-1);
+        border-radius: 4px;
+    }
+}
+
+.original-text {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--color-text-3);
+    background-color: rgb(var(--warning-1));
+    padding: 4px;
+    border-radius: 4px;
+}
+</style>
