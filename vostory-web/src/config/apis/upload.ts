@@ -21,7 +21,8 @@ export function uploadReferenceAudio(option: RequestOption): any {
         }
     })
         .then((res: any) => {
-            onSuccess(res);
+            fileItem.url = res.url;
+            onSuccess(res.url);
             return res;
         })
         .catch((err) => {
