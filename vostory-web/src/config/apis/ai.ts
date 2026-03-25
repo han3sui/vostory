@@ -143,7 +143,7 @@ export function testTTSProvider(data: {
     api_key?: string;
     custom_params?: Record<string, any>;
 }): Promise<TTSProviderTestResult> {
-    return request({ url: "/api/v1/ai/tts-provider/test", method: "post", data });
+    return request({ url: "/api/v1/ai/tts-provider/test", method: "post", data, timeout: 0 });
 }
 
 // ============= Prompt 模板相关接口 =============

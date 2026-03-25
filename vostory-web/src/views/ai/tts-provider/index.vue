@@ -202,7 +202,7 @@ async function handleToggle(row: TTSProviderDetailType) {
 }
 
 async function handleTest(row: TTSProviderDetailType) {
-    const loading = Message.loading("正在测试连通性...");
+    const loading = Message.loading({ content: "正在测试连通性...", duration: 0 });
     try {
         const result = await testTTSProvider({
             provider_type: row.provider_type,
