@@ -139,7 +139,7 @@ func (s *vsPromptTemplateService) SeedDefaults(ctx context.Context) error {
 		{
 			Name:         "默认角色抽取",
 			TemplateType: "character_extract",
-			Content:      "请从以下小说文本中抽取所有出现的角色。对于每个角色，请提供：\n1. 角色名称\n2. 可能的别名/称呼\n3. 性别（male/female/unknown）\n4. 角色层级（main=主角/supporting=配角/minor=路人）\n5. 简要描述\n\n请以JSON数组格式返回结果。\n\n---\n{{content}}",
+			Content:      "你是一个专业的小说文本分析助手。请从以下小说文本中抽取所有出现的角色。\n\n要求：\n1. 识别所有有名字的角色（包括只出现一次的）\n2. 不要把地名、物品名当作角色\n3. 同一个角色的不同称呼要合并为一个角色\n\n请严格以JSON格式返回，不要包含任何其他文字，结构如下：\n{\"characters\":[{\"name\":\"角色主要名称\",\"aliases\":[\"别名1\",\"称呼2\"],\"gender\":\"male|female|unknown\",\"level\":\"main|supporting|minor\",\"description\":\"一句话角色描述\"}]}\n\n---\n{{content}}",
 			Description:  "从小说文本中自动抽取角色信息",
 		},
 		{

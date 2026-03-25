@@ -83,6 +83,7 @@ var serviceSet = wire.NewSet(
 	service.NewVsPronunciationDictService,
 	service.NewVsPreciseFillService,
 	service.NewVsChapterSplitService,
+	service.NewVsCharacterExtractService,
 	cache.NewUserCache,
 	mqtt.NewMqttClient,
 	kafka.NewKafkaProducer,
@@ -115,6 +116,7 @@ var handlerSet = wire.NewSet(
 	handler.NewVsPronunciationDictHandler,
 	handler.NewVsPreciseFillHandler,
 	handler.NewVsChapterSplitHandler,
+	handler.NewVsCharacterExtractHandler,
 )
 
 var jobSet = wire.NewSet(

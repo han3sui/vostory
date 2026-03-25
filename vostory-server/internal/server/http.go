@@ -51,6 +51,7 @@ func NewHTTPServer(
 	vsPronunciationDictHandler *handler.VsPronunciationDictHandler,
 	vsPreciseFillHandler *handler.VsPreciseFillHandler,
 	vsChapterSplitHandler *handler.VsChapterSplitHandler,
+	vsCharacterExtractHandler *handler.VsCharacterExtractHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -283,6 +284,7 @@ func NewHTTPServer(
 				characterRouter.DELETE("/:id", vsCharacterHandler.Delete)
 				characterRouter.PUT("/:id/enable", vsCharacterHandler.Enable)
 				characterRouter.PUT("/:id/disable", vsCharacterHandler.Disable)
+				characterRouter.POST("/extract/:project_id", vsCharacterExtractHandler.Extract)
 			}
 
 			voiceProfileRouter := strictAuthRouter.Group("/voice-profile")

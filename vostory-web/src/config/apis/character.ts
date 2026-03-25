@@ -66,3 +66,15 @@ export function disableCharacter(id: number) {
 export function getCharactersByProject(projectId: number): Promise<CharacterOptionType[]> {
     return request({ url: `/api/v1/common/character/project/${projectId}` });
 }
+
+export type CharacterExtractResult = {
+    extracted_count: number;
+    new_count: number;
+    skipped_count: number;
+    input_tokens: number;
+    output_tokens: number;
+};
+
+export function extractCharacters(projectId: number): Promise<CharacterExtractResult> {
+    return request({ url: `/api/v1/character/extract/${projectId}`, method: "post" });
+}

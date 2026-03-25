@@ -37,7 +37,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { Modal } from "@arco-design/web-vue";
+import { Message, Modal } from "@arco-design/web-vue";
 import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
 import {
     getCharacterList,
@@ -46,6 +46,7 @@ import {
     deleteCharacter,
     enableCharacter,
     disableCharacter,
+    extractCharacters,
     CharacterDetailType
 } from "@/config/apis/character";
 import { cloneDeep } from "lodash-es";
@@ -74,6 +75,7 @@ function levelColor(l: string) {
 
 const table = ref();
 const filterData = ref<Record<string, any>>({});
+const extracting = ref(false);
 
 const getFilterConfig = computed(() => {
     return [
@@ -126,6 +128,13 @@ const tableConfig = computed(() => {
         ],
         trBtns: [
             {
+                label: "智能提取角色",
+                type: "outline",
+                loading: extracting.value,
+                if: () => hasPermission("character:extract"),
+                handler: handleExtract
+            },
+            {
                 label: "添加角色",
                 type: "primary",
                 if: () => hasPermission("character:add"),
@@ -175,6 +184,29 @@ function onEdit(v: Record<string, any> | null) {
                 await addCharacter(data);
             }
             table.value.refresh();
+        }
+    });
+}
+
+async function handleExtract() {
+    Modal.confirm({
+        title: "智能提取角色",
+        content: "将使用 LLM 从全书文本中自动识别角色，已存在的角色会自动跳过。是否继续？",
+        okText: "开始提取",
+        cancelText: "取消",
+        onBeforeOk: async () => {
+            extracting.value = true;
+            try {
+                const res = await extractCharacters(props.projectId);
+                Message.success(
+                    `提取完成：识别 ${res.extracted_count} 个角色，新增 ${res.new_count} 个，跳过 ${res.skipped_count} 个`
+                );
+                table.value.refresh();
+            } catch {
+                Message.error("角色提取失败，请检查项目是否已配置 LLM 提供商");
+            } finally {
+                extracting.value = false;
+            }
         }
     });
 }
