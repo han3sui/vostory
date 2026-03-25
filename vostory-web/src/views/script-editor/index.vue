@@ -112,6 +112,19 @@
                                         {{ statusLabel(seg.status) }}
                                     </a-tag>
                                     <span class="version-label">v{{ seg.version }}</span>
+
+                                    <a-button
+                                        type="text"
+                                        size="mini"
+                                        :loading="synthesizingId === seg.id"
+                                        @click="handleSynthesize(seg)"
+                                    >
+                                        <template #icon><icon-sound /></template>
+                                        试听
+                                    </a-button>
+                                    <a-button v-if="seg.has_audio" type="text" size="mini" @click="playAudio(seg)">
+                                        <template #icon><icon-play-arrow /></template>
+                                    </a-button>
                                 </div>
 
                                 <a-textarea
@@ -139,6 +152,7 @@
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
 import { Modal } from "@arco-design/web-vue";
+import { IconSound, IconPlayArrow } from "@arco-design/web-vue/es/icon";
 import {
     getSegmentsByChapter,
     updateScriptSegment,
@@ -146,6 +160,7 @@ import {
     ScriptSegmentDetailType
 } from "@/config/apis/script-segment";
 import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
+import { synthesizeSegment } from "@/config/apis/tts";
 import { hasPermission } from "@/views/utils";
 import request from "@/packages/request";
 
@@ -159,6 +174,8 @@ const characterOptions = ref<CharacterOptionType[]>([]);
 const loadingSegments = ref(false);
 const aligning = ref(false);
 const splitting = ref(false);
+const synthesizingId = ref<number | null>(null);
+let currentAudioEl: HTMLAudioElement | null = null;
 
 async function loadChapters() {
     chapters.value = [];
@@ -256,6 +273,33 @@ async function handleSplit() {
     } else {
         doSplit();
     }
+}
+
+async function handleSynthesize(seg: ScriptSegmentDetailType) {
+    synthesizingId.value = seg.id;
+    try {
+        const result = await synthesizeSegment(seg.id);
+        seg.audio_url = result.audio_url;
+        seg.has_audio = true;
+        seg.status = "generated";
+        Message.success("合成完成");
+        playAudio(seg);
+    } catch {
+        Message.error("TTS 合成失败");
+    } finally {
+        synthesizingId.value = null;
+    }
+}
+
+function playAudio(seg: ScriptSegmentDetailType) {
+    if (currentAudioEl) {
+        currentAudioEl.pause();
+        currentAudioEl = null;
+    }
+    if (!seg.audio_url) return;
+    const audio = new Audio(seg.audio_url);
+    currentAudioEl = audio;
+    audio.play().catch(() => Message.warning("音频播放失败"));
 }
 
 function segmentBorderClass(seg: ScriptSegmentDetailType) {

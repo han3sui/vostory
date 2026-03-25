@@ -14,6 +14,8 @@ export type ScriptSegmentDetailType = {
     emotion_strength: string;
     status: string;
     version: number;
+    has_audio: boolean;
+    audio_url: string;
     created_at: string;
     updated_at: string;
 };

@@ -52,6 +52,8 @@ func NewHTTPServer(
 	vsPreciseFillHandler *handler.VsPreciseFillHandler,
 	vsChapterSplitHandler *handler.VsChapterSplitHandler,
 	vsCharacterExtractHandler *handler.VsCharacterExtractHandler,
+	vsVoiceEmotionHandler *handler.VsVoiceEmotionHandler,
+	vsTTSSynthesizeHandler *handler.VsTTSSynthesizeHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -115,6 +117,7 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/character/project/:project_id", vsCharacterHandler.GetByProject)
 			noStrictAuthRouter.GET("/common/voice-profile/project/:project_id", vsVoiceProfileHandler.GetByProject)
 			noStrictAuthRouter.GET("/common/pronunciation-dict/:workspace_id/:project_id", vsPronunciationDictHandler.GetEffective)
+			noStrictAuthRouter.GET("/common/voice-emotion/profile/:voice_profile_id", vsVoiceEmotionHandler.GetByVoiceProfile)
 		}
 
 		// 3. 授权路由：需要登录 + 权限验证（白名单模式）
@@ -297,6 +300,21 @@ func NewHTTPServer(
 				voiceProfileRouter.DELETE("/:id", vsVoiceProfileHandler.Delete)
 				voiceProfileRouter.PUT("/:id/enable", vsVoiceProfileHandler.Enable)
 				voiceProfileRouter.PUT("/:id/disable", vsVoiceProfileHandler.Disable)
+			}
+
+			voiceEmotionRouter := strictAuthRouter.Group("/voice-emotion")
+			{
+				voiceEmotionRouter.GET("/:id", vsVoiceEmotionHandler.Get)
+				voiceEmotionRouter.GET("/list", vsVoiceEmotionHandler.List)
+				voiceEmotionRouter.POST("", vsVoiceEmotionHandler.Create)
+				voiceEmotionRouter.PUT("/:id", vsVoiceEmotionHandler.Update)
+				voiceEmotionRouter.DELETE("/:id", vsVoiceEmotionHandler.Delete)
+			}
+
+			ttsRouter := strictAuthRouter.Group("/tts")
+			{
+				ttsRouter.POST("/synthesize/:segment_id", vsTTSSynthesizeHandler.Synthesize)
+				ttsRouter.GET("/audio/:segment_id", vsTTSSynthesizeHandler.GetAudio)
 			}
 
 			pronunciationDictRouter := strictAuthRouter.Group("/pronunciation-dict")

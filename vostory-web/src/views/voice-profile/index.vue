@@ -15,6 +15,15 @@
                 </a-table-column>
             </template>
         </arco-table>
+
+        <a-drawer
+            v-model:visible="emotionDrawerVisible"
+            :title="`情绪音频 - ${emotionDrawerProfileName}`"
+            :width="600"
+            :footer="false"
+        >
+            <VoiceEmotionManager v-if="emotionDrawerProfileId" :voice-profile-id="emotionDrawerProfileId" />
+        </a-drawer>
     </div>
 </template>
 <script lang="ts" setup>
@@ -38,11 +47,15 @@ import {
 } from "@/config/apis/voice-profile";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import { cloneDeep } from "lodash-es";
+import VoiceEmotionManager from "@/views/voice-emotion/index.vue";
 
 const props = defineProps<{ projectId: number }>();
 
 const table = ref();
 const filterData = ref<Record<string, any>>({});
+const emotionDrawerVisible = ref(false);
+const emotionDrawerProfileId = ref<number>(0);
+const emotionDrawerProfileName = ref("");
 
 const getFilterConfig = computed(() => {
     return [
@@ -72,6 +85,12 @@ const tableConfig = computed(() => {
             tableHelper.slot("statusSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
             tableHelper.btns("操作", [
+                {
+                    label: "情绪音频",
+                    handler(row: Record<string, any>) {
+                        handleEmotionDrawer(row as VoiceProfileDetailType);
+                    }
+                },
                 {
                     label: "编辑",
                     if: () => hasPermission("voice-profile:edit"),
@@ -138,6 +157,12 @@ function handleDelete(id: number) {
         Message.success("删除成功");
         table.value.refresh();
     });
+}
+
+function handleEmotionDrawer(row: VoiceProfileDetailType) {
+    emotionDrawerProfileId.value = row.id;
+    emotionDrawerProfileName.value = row.name;
+    emotionDrawerVisible.value = true;
 }
 
 async function handleToggleStatus(record: VoiceProfileDetailType, enabled: boolean) {

@@ -21,13 +21,15 @@ type VsScriptSegmentService interface {
 func NewVsScriptSegmentService(
 	service *Service,
 	repo repository.VsScriptSegmentRepository,
+	audioClipRepo repository.VsAudioClipRepository,
 ) VsScriptSegmentService {
-	return &vsScriptSegmentService{Service: service, repo: repo}
+	return &vsScriptSegmentService{Service: service, repo: repo, audioClipRepo: audioClipRepo}
 }
 
 type vsScriptSegmentService struct {
 	*Service
-	repo repository.VsScriptSegmentRepository
+	repo          repository.VsScriptSegmentRepository
+	audioClipRepo repository.VsAudioClipRepository
 }
 
 func (s *vsScriptSegmentService) Create(ctx context.Context, request *v1.VsScriptSegmentCreateRequest) error {
@@ -114,9 +116,21 @@ func (s *vsScriptSegmentService) FindByChapterID(ctx context.Context, chapterID 
 		return nil, err
 	}
 
+	segmentIDs := make([]uint64, 0, len(segments))
+	for _, seg := range segments {
+		segmentIDs = append(segmentIDs, seg.SegmentID)
+	}
+
+	audioMap, _ := s.audioClipRepo.FindCurrentBySegmentIDs(ctx, segmentIDs)
+
 	var responses []*v1.VsScriptSegmentDetailResponse
 	for _, seg := range segments {
-		responses = append(responses, s.convertToDetailResponse(seg))
+		resp := s.convertToDetailResponse(seg)
+		if clip, ok := audioMap[seg.SegmentID]; ok {
+			resp.HasAudio = true
+			resp.AudioURL = clip.AudioURL
+		}
+		responses = append(responses, resp)
 	}
 	return responses, nil
 }
