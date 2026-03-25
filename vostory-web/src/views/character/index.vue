@@ -202,8 +202,6 @@ async function handleExtract() {
                     `提取完成：识别 ${res.extracted_count} 个角色，新增 ${res.new_count} 个，跳过 ${res.skipped_count} 个`
                 );
                 table.value.refresh();
-            } catch {
-                Message.error("角色提取失败，请检查项目是否已配置 LLM 提供商");
             } finally {
                 extracting.value = false;
             }
