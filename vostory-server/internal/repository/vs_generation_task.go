@@ -17,6 +17,7 @@ type VsGenerationTaskRepository interface {
 	ResetStatus(ctx context.Context, id uint64, status string) error
 	SetStarted(ctx context.Context, id uint64) error
 	SetCompleted(ctx context.Context, id uint64) error
+	IncrementCompleted(ctx context.Context, id uint64) (int64, error)
 }
 
 func NewVsGenerationTaskRepository(repository *Repository) VsGenerationTaskRepository {
@@ -103,4 +104,18 @@ func (r *vsGenerationTaskRepository) SetCompleted(ctx context.Context, id uint64
 			"progress":     100,
 			"completed_at": &now,
 		}).Error
+}
+
+func (r *vsGenerationTaskRepository) IncrementCompleted(ctx context.Context, id uint64) (int64, error) {
+	result := r.db.WithContext(ctx).Model(&model.VsGenerationTask{}).
+		Where("task_id = ?", id).
+		Update("completed_batches", r.db.Raw("completed_batches + 1"))
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	var task model.VsGenerationTask
+	if err := r.db.WithContext(ctx).Select("completed_batches").Where("task_id = ?", id).First(&task).Error; err != nil {
+		return 0, err
+	}
+	return int64(task.CompletedBatches), nil
 }

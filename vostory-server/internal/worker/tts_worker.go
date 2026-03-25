@@ -3,10 +3,8 @@ package worker
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
-	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/service"
 	"iot-alert-center/pkg/log"
@@ -59,8 +57,10 @@ func (w *TTSWorker) Stop() {
 	w.logger.Info("TTSWorker stopped")
 }
 
-func (w *TTSWorker) Enqueue(ctx context.Context, taskID uint64) error {
-	return w.rdb.LPush(ctx, redisQueueKey, taskID).Err()
+// EnqueueSegment pushes a "taskID:segmentID" message into the queue.
+func (w *TTSWorker) EnqueueSegment(ctx context.Context, taskID, segmentID uint64) error {
+	msg := fmt.Sprintf("%d:%d", taskID, segmentID)
+	return w.rdb.LPush(ctx, redisQueueKey, msg).Err()
 }
 
 func (w *TTSWorker) recoverTasks(ctx context.Context) {
@@ -83,9 +83,31 @@ func (w *TTSWorker) recoverTasks(ctx context.Context) {
 				continue
 			}
 		}
-		if err := w.rdb.LPush(ctx, redisQueueKey, task.TaskID).Err(); err != nil {
-			w.logger.Error("recover: enqueue failed",
-				zap.Uint64("task_id", task.TaskID), zap.Error(err))
+
+		_ = w.taskRepo.SetStarted(ctx, task.TaskID)
+
+		segments, err := w.segmentRepo.FindByChapterIDAndStatus(ctx, *task.ChapterID, "queued")
+		if err != nil || len(segments) == 0 {
+			allSegs, _ := w.segmentRepo.FindByChapterID(ctx, *task.ChapterID)
+			for _, seg := range allSegs {
+				if seg.CharacterID == nil {
+					continue
+				}
+				if seg.Status == "queued" || seg.Status == "processing" {
+					_ = w.segmentRepo.UpdateStatus(ctx, seg.SegmentID, "queued")
+					if err := w.rdb.LPush(ctx, redisQueueKey, fmt.Sprintf("%d:%d", task.TaskID, seg.SegmentID)).Err(); err != nil {
+						w.logger.Error("recover: enqueue segment failed",
+							zap.Uint64("task_id", task.TaskID), zap.Uint64("segment_id", seg.SegmentID), zap.Error(err))
+					}
+				}
+			}
+		} else {
+			for _, seg := range segments {
+				if err := w.rdb.LPush(ctx, redisQueueKey, fmt.Sprintf("%d:%d", task.TaskID, seg.SegmentID)).Err(); err != nil {
+					w.logger.Error("recover: enqueue segment failed",
+						zap.Uint64("task_id", task.TaskID), zap.Uint64("segment_id", seg.SegmentID), zap.Error(err))
+				}
+			}
 		}
 	}
 }
@@ -111,96 +133,41 @@ func (w *TTSWorker) consumeLoop(ctx context.Context) {
 			continue
 		}
 
-		var taskID uint64
-		if _, err := fmt.Sscanf(result[1], "%d", &taskID); err != nil {
-			w.logger.Error("parse task_id failed", zap.String("raw", result[1]), zap.Error(err))
+		var taskID, segmentID uint64
+		if _, err := fmt.Sscanf(result[1], "%d:%d", &taskID, &segmentID); err != nil {
+			w.logger.Error("parse message failed", zap.String("raw", result[1]), zap.Error(err))
 			continue
 		}
 
-		w.executeTask(ctx, taskID)
+		w.processSegment(ctx, taskID, segmentID)
 	}
 }
 
-func (w *TTSWorker) executeTask(ctx context.Context, taskID uint64) {
+func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64) {
+	_ = w.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
+
+	_, err := w.ttsSvc.SynthesizeSegment(ctx, segmentID)
+
+	if err != nil {
+		w.logger.Warn("segment synthesis failed",
+			zap.Uint64("task_id", taskID), zap.Uint64("segment_id", segmentID), zap.Error(err))
+	}
+
+	completed, err := w.taskRepo.IncrementCompleted(ctx, taskID)
+	if err != nil {
+		w.logger.Error("increment completed failed", zap.Uint64("task_id", taskID), zap.Error(err))
+		return
+	}
+
 	task, err := w.taskRepo.FindByID(ctx, taskID)
 	if err != nil {
-		w.logger.Error("task not found", zap.Uint64("task_id", taskID), zap.Error(err))
 		return
 	}
 
-	if task.Status != "pending" {
-		w.logger.Warn("skip non-pending task",
-			zap.Uint64("task_id", taskID), zap.String("status", task.Status))
-		return
-	}
+	progress := int(completed) * 100 / task.TotalBatches
+	_ = w.taskRepo.UpdateProgress(ctx, taskID, int(completed), progress)
 
-	_ = w.taskRepo.SetStarted(ctx, taskID)
-
-	var eligible []*model.VsScriptSegment
-
-	if len(task.SegmentIDs) > 0 {
-		for _, segID := range task.SegmentIDs {
-			seg, err := w.segmentRepo.FindByID(ctx, segID)
-			if err != nil {
-				w.logger.Warn("segment not found", zap.Uint64("segment_id", segID), zap.Error(err))
-				continue
-			}
-			eligible = append(eligible, seg)
-		}
-	} else {
-		if task.ChapterID == nil {
-			_ = w.taskRepo.UpdateStatus(ctx, taskID, "failed", "任务缺少章节ID")
-			return
-		}
-		segments, err := w.segmentRepo.FindByChapterID(ctx, *task.ChapterID)
-		if err != nil {
-			_ = w.taskRepo.UpdateStatus(ctx, taskID, "failed", "获取片段失败: "+err.Error())
-			return
-		}
-		for _, seg := range segments {
-			if seg.CharacterID == nil || seg.Status == "processing" {
-				continue
-			}
-			eligible = append(eligible, seg)
-		}
-	}
-
-	if len(eligible) == 0 {
-		_ = w.taskRepo.UpdateStatus(ctx, taskID, "failed", "没有可生成的片段")
-		return
-	}
-
-	total := len(eligible)
-	var completed int32
-	var failedCount int32
-
-	for _, seg := range eligible {
-		if ctx.Err() != nil {
-			_ = w.taskRepo.UpdateStatus(ctx, taskID, "pending", "服务关闭，任务中断")
-			return
-		}
-
-		_, err := w.ttsSvc.SynthesizeSegment(ctx, seg.SegmentID)
-		if err != nil {
-			atomic.AddInt32(&failedCount, 1)
-			w.logger.Warn("batch segment failed",
-				zap.Uint64("segment_id", seg.SegmentID), zap.Error(err))
-		}
-
-		done := int(atomic.AddInt32(&completed, 1))
-		progress := done * 100 / total
-		_ = w.taskRepo.UpdateProgress(ctx, taskID, done, progress)
-	}
-
-	if failedCount > 0 {
-		errMsg := fmt.Sprintf("%d 个片段合成失败", failedCount)
-		if failedCount == int32(total) {
-			_ = w.taskRepo.UpdateStatus(ctx, taskID, "failed", errMsg)
-		} else {
-			_ = w.taskRepo.SetCompleted(ctx, taskID)
-			_ = w.taskRepo.UpdateStatus(ctx, taskID, "completed", errMsg)
-		}
-	} else {
+	if int(completed) >= task.TotalBatches {
 		_ = w.taskRepo.SetCompleted(ctx, taskID)
 	}
 }

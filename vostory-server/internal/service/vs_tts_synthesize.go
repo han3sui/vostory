@@ -289,6 +289,18 @@ func (s *vsTTSSynthesizeService) createAudioClip(
 	return clip, nil
 }
 
+func (s *vsTTSSynthesizeService) enqueueSegments(ctx context.Context, task *model.VsGenerationTask, segmentIDs []uint64) error {
+	for _, segID := range segmentIDs {
+		_ = s.segmentRepo.UpdateStatus(ctx, segID, "queued")
+
+		msg := fmt.Sprintf("%d:%d", task.TaskID, segID)
+		if err := s.rdb.LPush(ctx, "vs:tts:queue", msg).Err(); err != nil {
+			return fmt.Errorf("片段 %d 入队失败: %w", segID, err)
+		}
+	}
+	return nil
+}
+
 func (s *vsTTSSynthesizeService) SingleGenerate(ctx context.Context, segmentID uint64) (*v1.BatchGenerateResponse, error) {
 	segment, err := s.segmentRepo.FindByID(ctx, segmentID)
 	if err != nil {
@@ -302,7 +314,7 @@ func (s *vsTTSSynthesizeService) SingleGenerate(ctx context.Context, segmentID u
 	task := &model.VsGenerationTask{
 		ChapterID:    &chapterID,
 		TaskType:     "tts_generate",
-		Status:       "pending",
+		Status:       "running",
 		TotalBatches: 1,
 		SegmentIDs:   model.Uint64Array{segmentID},
 	}
@@ -310,12 +322,10 @@ func (s *vsTTSSynthesizeService) SingleGenerate(ctx context.Context, segmentID u
 		return nil, fmt.Errorf("创建生成任务失败: %w", err)
 	}
 
-	if err := s.rdb.LPush(ctx, "vs:tts:queue", task.TaskID).Err(); err != nil {
-		_ = s.taskRepo.UpdateStatus(ctx, task.TaskID, "failed", "入队失败: "+err.Error())
+	if err := s.enqueueSegments(ctx, task, []uint64{segmentID}); err != nil {
+		_ = s.taskRepo.UpdateStatus(ctx, task.TaskID, "failed", err.Error())
 		return nil, fmt.Errorf("任务入队失败: %w", err)
 	}
-
-	_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
 
 	return &v1.BatchGenerateResponse{
 		TaskID:       task.TaskID,
@@ -337,7 +347,7 @@ func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID ui
 
 	var eligible []*model.VsScriptSegment
 	for _, seg := range segments {
-		if seg.CharacterID == nil || seg.Status == "processing" {
+		if seg.CharacterID == nil || seg.Status == "queued" || seg.Status == "processing" {
 			continue
 		}
 		eligible = append(eligible, seg)
@@ -347,18 +357,24 @@ func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID ui
 		return nil, fmt.Errorf("没有可生成的片段（请确保片段已关联角色）")
 	}
 
+	segIDs := make([]uint64, len(eligible))
+	for i, seg := range eligible {
+		segIDs[i] = seg.SegmentID
+	}
+
 	task := &model.VsGenerationTask{
 		ChapterID:    &chapterID,
 		TaskType:     "tts_generate",
-		Status:       "pending",
+		Status:       "running",
 		TotalBatches: len(eligible),
+		SegmentIDs:   model.Uint64Array(segIDs),
 	}
 	if err := s.taskRepo.Create(ctx, task); err != nil {
 		return nil, fmt.Errorf("创建生成任务失败: %w", err)
 	}
 
-	if err := s.rdb.LPush(ctx, "vs:tts:queue", task.TaskID).Err(); err != nil {
-		_ = s.taskRepo.UpdateStatus(ctx, task.TaskID, "failed", "入队失败: "+err.Error())
+	if err := s.enqueueSegments(ctx, task, segIDs); err != nil {
+		_ = s.taskRepo.UpdateStatus(ctx, task.TaskID, "failed", err.Error())
 		return nil, fmt.Errorf("任务入队失败: %w", err)
 	}
 

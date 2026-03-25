@@ -221,6 +221,7 @@ function canGenerate(seg: ScriptSegmentDetailType): boolean {
 function disableReason(seg: ScriptSegmentDetailType): string {
     if (!seg.content?.trim()) return "片段内容为空";
     if (!seg.character_id) return "未指定说话人角色";
+    if (seg.status === "queued") return "已在队列中等待生成";
     if (seg.status === "processing") return "正在生成中";
     return "";
 }
@@ -345,7 +346,7 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
     if (!canGenerate(seg)) return;
 
     synthesizingId.value = seg.id;
-    seg.status = "processing";
+    seg.status = "queued";
     try {
         const result = await synthesizeSegment(seg.id);
         pollSingleTask(result.task_id, seg);
@@ -400,7 +401,7 @@ async function handleBatchGenerate() {
         onOk: async () => {
             batchGenerating.value = true;
             batchProgress.value = { total: 0, completed: 0, status: "pending" };
-            todo.forEach((seg) => (seg.status = "processing"));
+            todo.forEach((seg) => (seg.status = "queued"));
 
             try {
                 const result = await batchGenerate(selectedChapterId.value!);
@@ -408,7 +409,7 @@ async function handleBatchGenerate() {
                 startBatchPolling(result.task_id);
             } catch (e: any) {
                 batchGenerating.value = false;
-                todo.forEach((seg) => (seg.status = "failed"));
+                todo.forEach((seg) => { if (seg.status === "queued") seg.status = "failed"; });
                 const msg = e?.response?.data?.message || e?.message || "";
                 if (msg.includes("已有正在运行的生成任务")) {
                     Message.warning("该章节已有正在运行的批量生成任务，请等待完成");
@@ -433,6 +434,7 @@ function startBatchPolling(taskId: number) {
     stopBatchPolling();
     batchGenerating.value = true;
 
+    let pollCount = 0;
     batchPollTimer = setInterval(async () => {
         try {
             const progress = await getTaskProgress(taskId);
@@ -441,6 +443,11 @@ function startBatchPolling(taskId: number) {
                 completed: progress.completed_count,
                 status: progress.status
             };
+
+            pollCount++;
+            if (selectedChapterId.value && pollCount % 3 === 0) {
+                segments.value = await getSegmentsByChapter(selectedChapterId.value);
+            }
 
             if (progress.status === "completed" || progress.status === "failed") {
                 stopBatchPolling();
@@ -528,6 +535,7 @@ function statusColor(status: string) {
     const map: Record<string, string> = {
         raw: "gray",
         edited: "blue",
+        queued: "cyan",
         processing: "orangered",
         generated: "green",
         failed: "red"
@@ -539,6 +547,7 @@ function statusLabel(status: string) {
     const map: Record<string, string> = {
         raw: "原始",
         edited: "已编辑",
+        queued: "队列中",
         processing: "生成中",
         generated: "已生成",
         failed: "生成失败"
