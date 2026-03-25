@@ -195,44 +195,44 @@ func NewHTTPServer(
 					logininforRouter.GET("/list", sysLogininforHandler.List)
 				}
 
-			sysApiRouter := systemRouter.Group("/api")
-			{
-				sysApiRouter.GET("/list", sysApiHandler.ListSysApi)
-				sysApiRouter.GET("/tag/list", sysApiHandler.ListTag)
-			}
+				sysApiRouter := systemRouter.Group("/api")
+				{
+					sysApiRouter.GET("/list", sysApiHandler.ListSysApi)
+					sysApiRouter.GET("/tag/list", sysApiHandler.ListTag)
+				}
 
-			dictTypeRouter := systemRouter.Group("/dict/type")
-			{
-				dictTypeRouter.GET("/:id", sysDictTypeHandler.Get)
-				dictTypeRouter.GET("/list", sysDictTypeHandler.List)
-				dictTypeRouter.POST("", sysDictTypeHandler.Create)
-				dictTypeRouter.PUT("/:id", sysDictTypeHandler.Update)
-				dictTypeRouter.DELETE("/:id", sysDictTypeHandler.Delete)
-				dictTypeRouter.PUT("/:id/enable", sysDictTypeHandler.Enable)
-				dictTypeRouter.PUT("/:id/disable", sysDictTypeHandler.Disable)
-			}
+				dictTypeRouter := systemRouter.Group("/dict/type")
+				{
+					dictTypeRouter.GET("/:id", sysDictTypeHandler.Get)
+					dictTypeRouter.GET("/list", sysDictTypeHandler.List)
+					dictTypeRouter.POST("", sysDictTypeHandler.Create)
+					dictTypeRouter.PUT("/:id", sysDictTypeHandler.Update)
+					dictTypeRouter.DELETE("/:id", sysDictTypeHandler.Delete)
+					dictTypeRouter.PUT("/:id/enable", sysDictTypeHandler.Enable)
+					dictTypeRouter.PUT("/:id/disable", sysDictTypeHandler.Disable)
+				}
 
-			dictDataRouter := systemRouter.Group("/dict/data")
-			{
-				dictDataRouter.GET("/:id", sysDictDataHandler.Get)
-				dictDataRouter.GET("/list", sysDictDataHandler.List)
-				dictDataRouter.GET("/type/:dictType", sysDictDataHandler.ListByType)
-				dictDataRouter.POST("", sysDictDataHandler.Create)
-				dictDataRouter.PUT("/:id", sysDictDataHandler.Update)
-				dictDataRouter.DELETE("/:id", sysDictDataHandler.Delete)
-				dictDataRouter.PUT("/:id/enable", sysDictDataHandler.Enable)
-				dictDataRouter.PUT("/:id/disable", sysDictDataHandler.Disable)
-			}
+				dictDataRouter := systemRouter.Group("/dict/data")
+				{
+					dictDataRouter.GET("/:id", sysDictDataHandler.Get)
+					dictDataRouter.GET("/list", sysDictDataHandler.List)
+					dictDataRouter.GET("/type/:dictType", sysDictDataHandler.ListByType)
+					dictDataRouter.POST("", sysDictDataHandler.Create)
+					dictDataRouter.PUT("/:id", sysDictDataHandler.Update)
+					dictDataRouter.DELETE("/:id", sysDictDataHandler.Delete)
+					dictDataRouter.PUT("/:id/enable", sysDictDataHandler.Enable)
+					dictDataRouter.PUT("/:id/disable", sysDictDataHandler.Disable)
+				}
 
-			operlogRouter := systemRouter.Group("/operlog")
-			{
-				operlogRouter.GET("/:id", sysOperLogHandler.Get)
-				operlogRouter.GET("/list", sysOperLogHandler.List)
-				operlogRouter.DELETE("/:id", sysOperLogHandler.Delete)
-				operlogRouter.DELETE("/clean", sysOperLogHandler.Clean)
-			}
+				operlogRouter := systemRouter.Group("/operlog")
+				{
+					operlogRouter.GET("/:id", sysOperLogHandler.Get)
+					operlogRouter.GET("/list", sysOperLogHandler.List)
+					operlogRouter.DELETE("/:id", sysOperLogHandler.Delete)
+					operlogRouter.DELETE("/clean", sysOperLogHandler.Clean)
+				}
 
-		}
+			}
 
 			workspaceRouter := strictAuthRouter.Group("/workspace")
 			{
@@ -263,7 +263,7 @@ func NewHTTPServer(
 				chapterRouter.PUT("/:id", vsChapterHandler.Update)
 				chapterRouter.DELETE("/:id", vsChapterHandler.Delete)
 				chapterRouter.POST("/:chapter_id/align", vsPreciseFillHandler.AlignChapter)
-			chapterRouter.POST("/:chapter_id/split", vsChapterSplitHandler.Split)
+				chapterRouter.POST("/:chapter_id/split", vsChapterSplitHandler.Split)
 			}
 
 			scriptSegmentRouter := strictAuthRouter.Group("/script-segment")

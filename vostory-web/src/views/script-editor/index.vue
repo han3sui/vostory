@@ -17,9 +17,7 @@
 
         <!-- 右侧片段编辑区 -->
         <div class="segment-main">
-            <div v-if="!selectedChapterId" class="empty-placeholder">
-                请选择章节
-            </div>
+            <div v-if="!selectedChapterId" class="empty-placeholder">请选择章节</div>
             <template v-else>
                 <div class="segment-header">
                     <h3>{{ currentChapter?.title }}</h3>
@@ -50,12 +48,7 @@
                 </div>
 
                 <div v-else class="segment-list">
-                    <div
-                        v-for="seg in segments"
-                        :key="seg.id"
-                        class="segment-card"
-                        :class="segmentBorderClass(seg)"
-                    >
+                    <div v-for="seg in segments" :key="seg.id" class="segment-card" :class="segmentBorderClass(seg)">
                         <div class="segment-row">
                             <div class="segment-num">#{{ seg.segment_num }}</div>
                             <div class="segment-body">
@@ -246,8 +239,6 @@ async function handleSplit() {
             }
             Message.success(msg);
             segments.value = await getSegmentsByChapter(selectedChapterId.value!);
-        } catch {
-            Message.error("智能切割失败，请检查项目是否已配置 LLM 提供商");
         } finally {
             splitting.value = false;
         }

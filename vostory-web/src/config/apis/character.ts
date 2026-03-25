@@ -80,5 +80,10 @@ export function extractCharacters(projectId: number): Promise<CharacterExtractRe
 }
 
 export function extractFromText(projectId: number, text: string): Promise<CharacterExtractResult> {
-    return request({ url: "/api/v1/character/extract-from-text", method: "post", data: { project_id: projectId, text } });
+    return request({
+        url: "/api/v1/character/extract-from-text",
+        method: "post",
+        data: { project_id: projectId, text },
+        timeout: 0
+    });
 }

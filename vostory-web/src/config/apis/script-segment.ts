@@ -66,5 +66,5 @@ export type ChapterSplitResult = {
 };
 
 export function splitChapter(chapterId: number): Promise<ChapterSplitResult> {
-    return request({ url: `/api/v1/chapter/${chapterId}/split`, method: "post" });
+    return request({ url: `/api/v1/chapter/${chapterId}/split`, method: "post", timeout: 0 });
 }
