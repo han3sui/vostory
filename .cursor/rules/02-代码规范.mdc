@@ -155,3 +155,11 @@ Wire 配置按层分组：`repositorySet`、`serviceSet`、`handlerSet`、`jobSe
 
 业务路由在 `strictAuthRouter` 下按模块分组（如 `/system/post`、`/system/dept`）。
 
+---
+
+## 扩展规范
+
+- **新增后端模块**的完整步骤和示例，详见 `.cursor/rules/03-新增模块.mdc`
+- **新增前端模块**的完整步骤和示例，详见 `.cursor/rules/04-前端模块.mdc`
+- **各阶段技术注意点**（ID 策略、LLM 调用协议、前端组件用法等），详见 `docs/tech-notes.md`
+

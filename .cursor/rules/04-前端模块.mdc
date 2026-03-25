@@ -581,6 +581,55 @@ export function onSelectItem(config: { checkType: "checkbox" | "radio" }) {
 9. **日期处理**: 统一使用 `dayjs`
 10. **树形表格**: `pagination: false` + `scroll: { y: "70vh" }` + 展开/折叠按钮
 
+## 常见易错点
+
+### ArcoModalFormShow 参数结构
+
+```typescript
+// 正确写法
+ArcoModalFormShow({
+    modalConfig: { title: "标题" },
+    value: formData,
+    formConfig: [...],
+    ok: async (data) => { ... }
+});
+
+// 错误写法（以下字段不存在）
+ArcoModalFormShow({
+    title: "标题",        // ❌ 应放在 modalConfig.title
+    data: formData,       // ❌ 应该是 value
+    onBeforeOk: ...       // ❌ 应该是 ok
+});
+```
+
+### ruleHelper 方法名和格式
+
+```typescript
+// 正确：方法名是 require，且必须包裹在数组中
+rules: [ruleHelper.require("请输入")]
+
+// 错误
+rules: ruleHelper.required("请输入")  // ❌ 方法名是 require 不是 required
+rules: ruleHelper.require("请输入")   // ❌ 缺少数组包裹
+```
+
+### 表格操作按钮位置
+
+新增按钮应放在 `tableConfig` 的 `trBtns` 配置中，不要在 `#tlBtns` 插槽里手写 `<a-button>`：
+
+```typescript
+tableHelper.create({
+    trBtns: [
+        {
+            label: "新增",
+            if: () => hasPermission("xxx:add"),
+            handler: () => { handleAdd(); }
+        }
+    ],
+    columns: [...]
+});
+```
+
 ## 其他
 
 当你对页面有不确定的地方的时候，优先参考同级目录下其他文件的实现方式。

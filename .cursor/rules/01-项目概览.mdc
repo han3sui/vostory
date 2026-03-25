@@ -8,7 +8,7 @@ alwaysApply: true
 
 VoStory 是一个面向团队协作的 AI 有声小说 / 广播剧制作平台，基于 Vue 3 + Golang 构建。当前阶段为 MVP，基础框架已搭建完成，正在推进核心业务模块开发。
 
-产品目标详见 `docs/README.md`，MVP 方案详见 `docs/mvp-plan.md`。
+产品目标详见 `docs/README.md`，MVP 方案详见 `docs/mvp-plan.md`，技术注意点详见 `docs/tech-notes.md`。
 
 ## 仓库结构
 
@@ -99,7 +99,7 @@ vostory-web/src/
 
 按 `docs/mvp-plan.md` 的开发阶段推进：
 
-#### 第 1 阶段：打通主链路（当前阶段）
+#### 第 1 阶段：打通主链路（当前阶段）  <!-- 技术注意点见 docs/tech-notes.md「第 1 阶段」 -->
 
 **核心业务**：
 
@@ -117,14 +117,14 @@ vostory-web/src/
 - [x] **Prompt 模板管理**：内置默认模板 + 用户自定义，按类型分（character_extract / dialogue_parse / emotion_tag 等）（前后端完成）
 - [x] **LLM 调用日志**：记录 Prompt 版本、模型、耗时、输入输出摘要（前后端完成）
 
-#### 第 2 阶段：可编辑
+#### 第 2 阶段：可编辑  <!-- 技术注意点见 docs/tech-notes.md「第 2 阶段」 -->
 
 - [x] 脚本编辑页（片段级编辑、修正说话人、调整类型/情绪/强度）（前后端完成）
 - [x] 角色编辑页（绑定声音配置 VoiceProfile CRUD、编辑别名）（前后端完成）
 - [x] 发音词典（项目级 + 全局级，有效词典合并查询）（前后端完成）
 - [x] 精准填充（LLM 输出对齐回原文，精确匹配 + 模糊匹配）（前后端完成）
 
-#### 第 3 阶段：可生成
+#### 第 3 阶段：可生成  <!-- 技术注意点见 docs/tech-notes.md「第 3 阶段」 -->
 
 - [ ] TTS 适配层（统一接口，支持多厂商切换）
 - [ ] 情绪 + 强度双维度传参、多情绪参考音频
