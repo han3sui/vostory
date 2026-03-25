@@ -187,7 +187,8 @@ const getData = computed(() => {
     };
 });
 
-function onEdit(v: Record<string, any> | null) {
+async function onEdit(v: Record<string, any> | null) {
+    await loadVoiceProfiles();
     const tempValue = cloneDeep(v);
     ArcoModalFormShow({
         modalConfig: {
