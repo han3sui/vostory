@@ -1,4 +1,5 @@
 import request from "@/packages/request";
+import envHelper from "@/utils/helper/env";
 
 export type TTSSynthesizeResult = {
     clip_id: number;
@@ -42,5 +43,6 @@ export function getTaskProgress(taskId: number): Promise<TaskProgressResult> {
 }
 
 export function getTTSStreamURL(clipId: number): string {
-    return `/api/v1/tts/stream/${clipId}`;
+    const base = envHelper.get("VITE_APP_API_URL") || "";
+    return `${base}/api/v1/tts/stream/${clipId}`;
 }

@@ -17,7 +17,7 @@
                     </div>
                     <div class="emotion-card-body">
                         <div class="audio-url" :title="item.reference_audio_url">
-                            {{ item.reference_audio_url || '未设置' }}
+                            {{ item.reference_audio_url ? extractFilenameFromPath(item.reference_audio_url) : '未设置' }}
                         </div>
                         <div v-if="item.reference_text" class="ref-text">{{ item.reference_text }}</div>
                     </div>
@@ -65,7 +65,7 @@
                         </a-upload>
                         <div v-if="formData.reference_audio_url" class="uploaded-file-info">
                             <icon-check-circle style="color: rgb(var(--green-6)); margin-right: 4px" />
-                            <span class="file-name">{{ formData.reference_audio_url.split('/').pop() }}</span>
+                            <span class="file-name">{{ extractFilenameFromPath(formData.reference_audio_url as string) }}</span>
                         </div>
                     </div>
                 </a-form-item>
@@ -86,7 +86,7 @@ import {
     deleteVoiceEmotion,
     VoiceEmotionDetailType
 } from "@/config/apis/voice-emotion";
-import { uploadReferenceAudio } from "@/config/apis/upload";
+import { uploadReferenceAudio, extractFilenameFromPath } from "@/config/apis/upload";
 
 const props = defineProps<{ voiceProfileId: number }>();
 

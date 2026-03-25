@@ -30,15 +30,13 @@
             <template #audioSlot>
                 <a-table-column title="参考音频">
                     <template #cell="{ record }">
-                        <template v-if="record.reference_audio_url">
-                            <a-button type="text" size="mini" @click="playAudio(record)">
-                                <template #icon>
-                                    <icon-play-arrow v-if="playingId !== record.id" />
-                                    <icon-pause v-else />
-                                </template>
-                                {{ playingId === record.id ? "停止" : "试听" }}
-                            </a-button>
-                        </template>
+                        <a-button v-if="record.reference_audio_url" type="text" size="mini" @click="playAudio(record)">
+                            <template #icon>
+                                <icon-play-arrow v-if="playingId !== record.id" />
+                                <icon-pause v-else />
+                            </template>
+                            {{ playingId === record.id ? "停止" : "试听" }}
+                        </a-button>
                         <span v-else style="color: var(--color-text-3)">未上传</span>
                     </template>
                 </a-table-column>
@@ -59,7 +57,7 @@ import {
     VoiceAssetDetailType
 } from "@/config/apis/voice-asset";
 import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
-import { uploadReferenceAudio } from "@/config/apis/upload";
+import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceAudioBlob } from "@/config/apis/upload";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 
@@ -84,21 +82,41 @@ async function loadTTSProviders() {
 }
 onMounted(loadTTSProviders);
 
-function playAudio(record: VoiceAssetDetailType) {
+let currentBlobURL = "";
+
+async function playAudio(record: VoiceAssetDetailType) {
     if (playingId.value === record.id) {
         currentAudio?.pause();
         currentAudio = null;
         playingId.value = 0;
+        if (currentBlobURL) {
+            URL.revokeObjectURL(currentBlobURL);
+            currentBlobURL = "";
+        }
         return;
     }
     currentAudio?.pause();
-    currentAudio = new Audio(record.reference_audio_url);
-    playingId.value = record.id;
-    currentAudio.play();
-    currentAudio.onended = () => {
+    if (currentBlobURL) {
+        URL.revokeObjectURL(currentBlobURL);
+        currentBlobURL = "";
+    }
+    try {
+        playingId.value = record.id;
+        currentBlobURL = await fetchReferenceAudioBlob("voice-asset", record.id);
+        currentAudio = new Audio(currentBlobURL);
+        currentAudio.play();
+        currentAudio.onended = () => {
+            playingId.value = 0;
+            currentAudio = null;
+            if (currentBlobURL) {
+                URL.revokeObjectURL(currentBlobURL);
+                currentBlobURL = "";
+            }
+        };
+    } catch {
         playingId.value = 0;
-        currentAudio = null;
-    };
+        Message.error("播放失败");
+    }
 }
 
 const getFilterConfig = computed(() => {
@@ -179,6 +197,9 @@ const getData = computed(() => {
 
 function onEdit(v: Record<string, any> | null) {
     const tempValue = cloneDeep(v);
+    if (tempValue?.reference_audio_url) {
+        tempValue.reference_audio_url = pathToFileList(tempValue.reference_audio_url);
+    }
     ArcoModalFormShow({
         modalConfig: {
             title: tempValue ? "编辑音色" : "添加音色",
@@ -207,6 +228,7 @@ function onEdit(v: Record<string, any> | null) {
             })
         ],
         ok: async (data: any) => {
+            data.reference_audio_url = extractUploadUrl(data.reference_audio_url);
             if (tempValue) {
                 await updateVoiceAsset(data);
             } else {

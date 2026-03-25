@@ -124,7 +124,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsVoiceAssetRepository := repository.NewVsVoiceAssetRepository(repositoryRepository)
 	vsVoiceAssetService := service.NewVsVoiceAssetService(serviceService, vsVoiceAssetRepository)
 	vsVoiceAssetHandler := handler.NewVsVoiceAssetHandler(handlerHandler, vsVoiceAssetService)
-	vsCommonUploadHandler := handler.NewVsCommonUploadHandler(handlerHandler)
+	vsCommonUploadHandler := handler.NewVsCommonUploadHandler(handlerHandler, vsVoiceAssetRepository, vsVoiceProfileRepository, vsVoiceEmotionRepository)
 	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler, sysDictTypeHandler, sysDictDataHandler, sysOperLogHandler, sysOperLogService, vsLLMProviderHandler, vsTTSProviderHandler, vsPromptTemplateHandler, vsWorkspaceHandler, vsProjectHandler, vsChapterHandler, vsScriptSegmentHandler, vsCharacterHandler, vsFileImportHandler, vsLLMLogHandler, vsVoiceProfileHandler, vsPronunciationDictHandler, vsPreciseFillHandler, vsChapterSplitHandler, vsCharacterExtractHandler, vsVoiceEmotionHandler, vsTTSSynthesizeHandler, vsVoiceAssetHandler, vsCommonUploadHandler)
 	jobJob := job.NewJob(transaction, logger, sidSid, viperViper)
 	userJob := job.NewUserJob(jobJob)

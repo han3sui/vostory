@@ -48,7 +48,7 @@ import {
 } from "@/config/apis/voice-profile";
 import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
 import { getVoiceAssetList, VoiceAssetDetailType } from "@/config/apis/voice-asset";
-import { uploadReferenceAudio } from "@/config/apis/upload";
+import { uploadReferenceAudio, extractUploadUrl, pathToFileList } from "@/config/apis/upload";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import { cloneDeep } from "lodash-es";
 import VoiceEmotionManager from "@/views/voice-emotion/index.vue";
@@ -164,6 +164,7 @@ function handleAdd() {
         value: { project_id: props.projectId },
         formConfig: getFormConfig(false),
         ok: async (data: any) => {
+            data.reference_audio_url = extractUploadUrl(data.reference_audio_url);
             await addVoiceProfile(data);
             Message.success("新增成功");
             table.value.refresh();
@@ -172,11 +173,16 @@ function handleAdd() {
 }
 
 function handleEdit(row: VoiceProfileDetailType) {
+    const editValue = cloneDeep(row) as any;
+    if (editValue.reference_audio_url) {
+        editValue.reference_audio_url = pathToFileList(editValue.reference_audio_url);
+    }
     ArcoModalFormShow({
         modalConfig: { title: "编辑声音配置" },
-        value: cloneDeep(row),
+        value: editValue,
         formConfig: getFormConfig(true),
         ok: async (data: any) => {
+            data.reference_audio_url = extractUploadUrl(data.reference_audio_url);
             await updateVoiceProfile(data);
             Message.success("更新成功");
             table.value.refresh();
