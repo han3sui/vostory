@@ -113,8 +113,8 @@ vostory-web/src/
 
 **基础设施（同步完成）**：
 
-- [x] **AI 服务配置模块**：LLMProvider / TTSProvider 的 CRUD、连通性测试、运行时切换（后端完成）
-- [x] **Prompt 模板管理**：内置默认模板 + 用户自定义，按类型分（character_extract / dialogue_parse / emotion_tag 等）（后端完成）
+- [x] **AI 服务配置模块**：LLMProvider / TTSProvider 的 CRUD、连通性测试、运行时切换（前后端完成）
+- [x] **Prompt 模板管理**：内置默认模板 + 用户自定义，按类型分（character_extract / dialogue_parse / emotion_tag 等）（前后端完成）
 - [ ] **LLM 调用日志**：记录 Prompt 版本、模型、耗时、输入输出摘要
 
 #### 第 2 阶段：可编辑
