@@ -34,6 +34,25 @@
                 </a-table-column>
             </template>
         </arco-table>
+        <a-modal
+            v-model:visible="showSmartImportModal"
+            title="智能录入角色"
+            :ok-loading="smartImporting"
+            ok-text="开始识别"
+            :ok-button-props="{ disabled: !smartImportText.trim() }"
+            width="680px"
+            @before-ok="handleSmartImport"
+        >
+            <a-typography-paragraph>
+                粘贴角色介绍文字，LLM 将自动识别角色名称、性别、层级、性格描述等信息并录入角色库。已存在的角色会自动跳过。
+            </a-typography-paragraph>
+            <a-textarea
+                v-model="smartImportText"
+                placeholder="请粘贴角色介绍文字，例如：&#10;张三：男，主角，性格沉稳冷静，外表俊朗&#10;李四：女，配角，活泼开朗，是张三的青梅竹马"
+                :auto-size="{ minRows: 8, maxRows: 16 }"
+                allow-clear
+            />
+        </a-modal>
     </div>
 </template>
 <script lang="ts" setup>
@@ -47,6 +66,7 @@ import {
     enableCharacter,
     disableCharacter,
     extractCharacters,
+    extractFromText,
     CharacterDetailType
 } from "@/config/apis/character";
 import { cloneDeep } from "lodash-es";
@@ -76,6 +96,9 @@ function levelColor(l: string) {
 const table = ref();
 const filterData = ref<Record<string, any>>({});
 const extracting = ref(false);
+const showSmartImportModal = ref(false);
+const smartImportText = ref("");
+const smartImporting = ref(false);
 
 const getFilterConfig = computed(() => {
     return [
@@ -128,11 +151,14 @@ const tableConfig = computed(() => {
         ],
         trBtns: [
             {
-                label: "智能提取角色",
+                label: "智能录入",
                 type: "outline",
-                loading: extracting.value,
-                if: () => hasPermission("character:extract"),
-                handler: handleExtract
+                loading: smartImporting.value,
+                if: () => hasPermission("character:add"),
+                handler: () => {
+                    smartImportText.value = "";
+                    showSmartImportModal.value = true;
+                }
             },
             {
                 label: "添加角色",
@@ -207,6 +233,25 @@ async function handleExtract() {
             }
         }
     });
+}
+
+async function handleSmartImport(done: (closed: boolean) => void) {
+    if (!smartImportText.value.trim()) {
+        Message.warning("请输入角色描述文字");
+        done(false);
+        return;
+    }
+    smartImporting.value = true;
+    try {
+        const res = await extractFromText(props.projectId, smartImportText.value);
+        Message.success(`识别完成：发现 ${res.extracted_count} 个角色，新增 ${res.new_count} 个，跳过 ${res.skipped_count} 个`);
+        table.value.refresh();
+        done(true);
+    } catch {
+        done(false);
+    } finally {
+        smartImporting.value = false;
+    }
 }
 
 async function handleToggle(row: CharacterDetailType) {

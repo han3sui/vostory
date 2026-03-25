@@ -285,6 +285,7 @@ func NewHTTPServer(
 				characterRouter.PUT("/:id/enable", vsCharacterHandler.Enable)
 				characterRouter.PUT("/:id/disable", vsCharacterHandler.Disable)
 				characterRouter.POST("/extract/:project_id", vsCharacterExtractHandler.Extract)
+				characterRouter.POST("/extract-from-text", vsCharacterExtractHandler.ExtractFromText)
 			}
 
 			voiceProfileRouter := strictAuthRouter.Group("/voice-profile")

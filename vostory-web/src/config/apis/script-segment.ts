@@ -60,6 +60,7 @@ export function getSegmentsByChapter(chapterId: number): Promise<ScriptSegmentDe
 export type ChapterSplitResult = {
     scene_count: number;
     segment_count: number;
+    new_characters: number;
     input_tokens: number;
     output_tokens: number;
 };

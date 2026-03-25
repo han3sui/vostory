@@ -18,6 +18,7 @@ const maxExtractChars = 30000
 
 type VsCharacterExtractService interface {
 	ExtractCharacters(ctx context.Context, projectID uint64) (*v1.CharacterExtractResponse, error)
+	ExtractFromText(ctx context.Context, req *v1.CharacterExtractFromTextRequest) (*v1.CharacterExtractResponse, error)
 }
 
 func NewVsCharacterExtractService(
@@ -130,6 +131,80 @@ func (s *vsCharacterExtractService) ExtractCharacters(ctx context.Context, proje
 		return nil, fmt.Errorf("解析 LLM 返回结果失败: %w", err)
 	}
 
+	resp, err := s.saveCharacters(ctx, projectID, result)
+	if err != nil {
+		return nil, err
+	}
+	resp.InputTokens = chatResp.InputTokens
+	resp.OutputTokens = chatResp.OutputTokens
+	return resp, nil
+}
+
+func (s *vsCharacterExtractService) ExtractFromText(ctx context.Context, req *v1.CharacterExtractFromTextRequest) (*v1.CharacterExtractResponse, error) {
+	project, err := s.projectRepo.FindByID(ctx, req.ProjectID)
+	if err != nil {
+		return nil, fmt.Errorf("项目不存在")
+	}
+
+	provider, err := s.resolveProvider(ctx, project)
+	if err != nil {
+		return nil, err
+	}
+
+	promptContent, templateID, err := s.resolvePrompt(ctx, project)
+	if err != nil {
+		return nil, err
+	}
+
+	prompt := strings.ReplaceAll(promptContent, "{{content}}", req.Text)
+
+	start := time.Now()
+	chatResp, err := s.llmClient.ChatCompletion(ctx, &llm.ChatRequest{
+		BaseURL: provider.APIBaseURL,
+		APIKey:  provider.APIKey,
+		Model:   provider.DefaultModel,
+		Messages: []llm.Message{
+			{Role: "user", Content: prompt},
+		},
+		CustomParams: provider.CustomParams,
+	})
+	costTime := time.Since(start).Milliseconds()
+
+	logEntry := &model.VsLLMLog{
+		ProjectID:  &req.ProjectID,
+		ProviderID: provider.ProviderID,
+		TemplateID: templateID,
+		ModelName:  provider.DefaultModel,
+		CostTime:   costTime,
+		Status:     0,
+		BaseModel: model.BaseModel{
+			CreatedBy: s.getLoginName(ctx),
+		},
+	}
+
+	if err != nil {
+		logEntry.Status = 1
+		logEntry.ErrorMessage = err.Error()
+		logEntry.InputSummary = truncate(prompt, 500)
+		_ = s.llmLogRepo.Create(ctx, logEntry)
+		return nil, fmt.Errorf("LLM 调用失败: %w", err)
+	}
+
+	logEntry.InputTokens = chatResp.InputTokens
+	logEntry.OutputTokens = chatResp.OutputTokens
+	logEntry.InputSummary = truncate(prompt, 500)
+	logEntry.OutputSummary = truncate(chatResp.Content, 500)
+	_ = s.llmLogRepo.Create(ctx, logEntry)
+
+	result, err := s.parseLLMResponse(chatResp.Content)
+	if err != nil {
+		return nil, fmt.Errorf("解析 LLM 返回结果失败: %w", err)
+	}
+
+	return s.saveCharacters(ctx, req.ProjectID, result)
+}
+
+func (s *vsCharacterExtractService) saveCharacters(ctx context.Context, projectID uint64, result *llmExtractResult) (*v1.CharacterExtractResponse, error) {
 	existing, _ := s.characterRepo.FindByProjectID(ctx, projectID)
 	existingNames := make(map[string]bool)
 	for _, c := range existing {
@@ -185,8 +260,6 @@ func (s *vsCharacterExtractService) ExtractCharacters(ctx context.Context, proje
 		ExtractedCount: len(result.Characters),
 		NewCount:       newCount,
 		SkippedCount:   skippedCount,
-		InputTokens:    chatResp.InputTokens,
-		OutputTokens:   chatResp.OutputTokens,
 	}, nil
 }
 

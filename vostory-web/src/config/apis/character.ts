@@ -78,3 +78,7 @@ export type CharacterExtractResult = {
 export function extractCharacters(projectId: number): Promise<CharacterExtractResult> {
     return request({ url: `/api/v1/character/extract/${projectId}`, method: "post" });
 }
+
+export function extractFromText(projectId: number, text: string): Promise<CharacterExtractResult> {
+    return request({ url: "/api/v1/character/extract-from-text", method: "post", data: { project_id: projectId, text } });
+}

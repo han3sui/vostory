@@ -240,9 +240,11 @@ async function handleSplit() {
         splitting.value = true;
         try {
             const res = await splitChapter(selectedChapterId.value!);
-            Message.success(
-                `智能切割完成：${res.scene_count} 个场景，${res.segment_count} 个片段`
-            );
+            let msg = `智能切割完成：${res.scene_count} 个场景，${res.segment_count} 个片段`;
+            if (res.new_characters > 0) {
+                msg += `，自动发现 ${res.new_characters} 个新角色`;
+            }
+            Message.success(msg);
             segments.value = await getSegmentsByChapter(selectedChapterId.value!);
         } catch {
             Message.error("智能切割失败，请检查项目是否已配置 LLM 提供商");

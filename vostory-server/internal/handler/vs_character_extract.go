@@ -43,3 +43,29 @@ func (h *VsCharacterExtractHandler) Extract(ctx *gin.Context) {
 	}
 	v1.HandleSuccess(ctx, result)
 }
+
+// ExtractFromText godoc
+// @Summary      LLM 智能录入角色
+// @Description  用户提供一段文字描述，调用 LLM 提取角色信息并录入角色库
+// @Tags         角色管理
+// @Accept       json
+// @Produce      json
+// @Param        body  body      v1.CharacterExtractFromTextRequest  true  "请求参数"
+// @Success      200   {object}  v1.Response
+// @Failure      400   {object}  v1.Response
+// @Failure      500   {object}  v1.Response
+// @Router       /api/v1/character/extract-from-text [post]
+// @Id        character:extract_from_text
+func (h *VsCharacterExtractHandler) ExtractFromText(ctx *gin.Context) {
+	var req v1.CharacterExtractFromTextRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "参数错误: "+err.Error()), nil)
+		return
+	}
+	result, err := h.svc.ExtractFromText(ctx, &req)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, result)
+}

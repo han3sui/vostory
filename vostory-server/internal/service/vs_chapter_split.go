@@ -160,6 +160,7 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 
 	var totalScenes int
 	var totalSegments int
+	var newCharacters int
 
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("chapter_id = ?", chapterID).Delete(&model.VsScriptSegment{}).Error; err != nil {
@@ -190,6 +191,31 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 			segments := make([]*model.VsScriptSegment, 0, len(sc.Segments))
 			for _, seg := range sc.Segments {
 				segmentNum++
+
+				var charID *uint64
+				charName := strings.TrimSpace(seg.Character)
+				if charName != "" {
+					charID = resolveCharacterID(charMap, charName)
+					if charID == nil {
+						newChar := &model.VsCharacter{
+							ProjectID: project.ProjectID,
+							Name:      charName,
+							Level:     "minor",
+							Gender:    "unknown",
+							Status:    "0",
+							BaseModel: model.BaseModel{
+								CreatedBy: loginName,
+								DeptID:    deptID,
+							},
+						}
+						if err := tx.Create(newChar).Error; err == nil {
+							charMap[strings.ToLower(charName)] = newChar.CharacterID
+							charID = &newChar.CharacterID
+							newCharacters++
+						}
+					}
+				}
+
 				segment := &model.VsScriptSegment{
 					SceneID:         scene.SceneID,
 					ChapterID:       chapterID,
@@ -197,7 +223,7 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 					SegmentType:     normalizeSegmentType(seg.Type),
 					Content:         seg.Content,
 					OriginalContent: seg.Content,
-					CharacterID:     resolveCharacterID(charMap, seg.Character),
+					CharacterID:     charID,
 					EmotionType:     normalizeEmotion(seg.Emotion),
 					EmotionStrength: normalizeStrength(seg.EmotionStrength),
 					Status:          "raw",
@@ -225,10 +251,11 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 	}
 
 	return &v1.ChapterSplitResponse{
-		SceneCount:   totalScenes,
-		SegmentCount: totalSegments,
-		InputTokens:  chatResp.InputTokens,
-		OutputTokens: chatResp.OutputTokens,
+		SceneCount:    totalScenes,
+		SegmentCount:  totalSegments,
+		NewCharacters: newCharacters,
+		InputTokens:   chatResp.InputTokens,
+		OutputTokens:  chatResp.OutputTokens,
 	}, nil
 }
 
