@@ -18,6 +18,7 @@ import (
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/server"
 	"iot-alert-center/internal/service"
+	"iot-alert-center/internal/worker"
 	"iot-alert-center/pkg/app"
 	"iot-alert-center/pkg/eventbus"
 	"iot-alert-center/pkg/jwt"
@@ -119,7 +120,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsVoiceEmotionService := service.NewVsVoiceEmotionService(serviceService, vsVoiceEmotionRepository)
 	vsVoiceEmotionHandler := handler.NewVsVoiceEmotionHandler(handlerHandler, vsVoiceEmotionService)
 	vsGenerationTaskRepository := repository.NewVsGenerationTaskRepository(repositoryRepository)
-	vsTTSSynthesizeService := service.NewVsTTSSynthesizeService(serviceService, vsScriptSegmentRepository, vsCharacterRepository, vsVoiceProfileRepository, vsVoiceEmotionRepository, vsPronunciationDictRepository, vsAudioClipRepository, vsTTSProviderRepository, vsProjectRepository, vsGenerationTaskRepository)
+	vsTTSSynthesizeService := service.NewVsTTSSynthesizeService(serviceService, vsScriptSegmentRepository, vsCharacterRepository, vsVoiceProfileRepository, vsVoiceEmotionRepository, vsPronunciationDictRepository, vsAudioClipRepository, vsTTSProviderRepository, vsProjectRepository, vsGenerationTaskRepository, client)
 	vsTTSSynthesizeHandler := handler.NewVsTTSSynthesizeHandler(handlerHandler, vsTTSSynthesizeService)
 	vsVoiceAssetRepository := repository.NewVsVoiceAssetRepository(repositoryRepository)
 	vsVoiceAssetService := service.NewVsVoiceAssetService(serviceService, vsVoiceAssetRepository)
@@ -128,7 +129,8 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler, sysDictTypeHandler, sysDictDataHandler, sysOperLogHandler, sysOperLogService, vsLLMProviderHandler, vsTTSProviderHandler, vsPromptTemplateHandler, vsWorkspaceHandler, vsProjectHandler, vsChapterHandler, vsScriptSegmentHandler, vsCharacterHandler, vsFileImportHandler, vsLLMLogHandler, vsVoiceProfileHandler, vsPronunciationDictHandler, vsPreciseFillHandler, vsChapterSplitHandler, vsCharacterExtractHandler, vsVoiceEmotionHandler, vsTTSSynthesizeHandler, vsVoiceAssetHandler, vsCommonUploadHandler)
 	jobJob := job.NewJob(transaction, logger, sidSid, viperViper)
 	userJob := job.NewUserJob(jobJob)
-	jobServer := server.NewJobServer(logger, viperViper, userJob)
+	ttsWorker := worker.NewTTSWorker(client, logger, vsGenerationTaskRepository, vsScriptSegmentRepository, vsTTSSynthesizeService)
+	jobServer := server.NewJobServer(logger, viperViper, userJob, ttsWorker)
 	appApp := newApp(httpServer, jobServer)
 	return appApp, func() {
 	}, nil
@@ -141,6 +143,8 @@ var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repositor
 var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, service.NewSysDeptService, service.NewSysMenuService, service.NewSysRoleService, service.NewSysUserService, service.NewSysLogininforService, service.NewSysApiService, service.NewSysDictTypeService, service.NewSysDictDataService, service.NewSysOperLogService, service.NewVsLLMProviderService, service.NewVsTTSProviderService, service.NewVsPromptTemplateService, service.NewVsWorkspaceService, service.NewVsProjectService, service.NewVsChapterService, service.NewVsScriptSegmentService, service.NewVsCharacterService, service.NewVsFileImportService, service.NewVsLLMLogService, service.NewVsVoiceProfileService, service.NewVsPronunciationDictService, service.NewVsPreciseFillService, service.NewVsChapterSplitService, service.NewVsCharacterExtractService, service.NewVsVoiceEmotionService, service.NewVsTTSSynthesizeService, service.NewVsVoiceAssetService, cache.NewUserCache, mqtt.NewMqttClient, kafka.NewKafkaProducer, resty.NewRestyClient)
 
 var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler, handler.NewSysDictTypeHandler, handler.NewSysDictDataHandler, handler.NewSysOperLogHandler, handler.NewVsLLMProviderHandler, handler.NewVsTTSProviderHandler, handler.NewVsPromptTemplateHandler, handler.NewVsWorkspaceHandler, handler.NewVsProjectHandler, handler.NewVsChapterHandler, handler.NewVsScriptSegmentHandler, handler.NewVsCharacterHandler, handler.NewVsFileImportHandler, handler.NewVsLLMLogHandler, handler.NewVsVoiceProfileHandler, handler.NewVsPronunciationDictHandler, handler.NewVsPreciseFillHandler, handler.NewVsChapterSplitHandler, handler.NewVsCharacterExtractHandler, handler.NewVsVoiceEmotionHandler, handler.NewVsTTSSynthesizeHandler, handler.NewVsVoiceAssetHandler, handler.NewVsCommonUploadHandler)
+
+var workerSet = wire.NewSet(worker.NewTTSWorker)
 
 var jobSet = wire.NewSet(job.NewJob, job.NewUserJob)
 

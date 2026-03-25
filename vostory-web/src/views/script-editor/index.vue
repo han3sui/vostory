@@ -188,7 +188,7 @@ import {
     ScriptSegmentDetailType
 } from "@/config/apis/script-segment";
 import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
-import { synthesizeSegment, batchGenerate, getTaskProgress, getTTSStreamURL } from "@/config/apis/tts";
+import { synthesizeSegment, batchGenerate, getTaskProgress, getActiveTask, getSegmentAudio, getTTSStreamURL } from "@/config/apis/tts";
 import { hasPermission } from "@/views/utils";
 import request from "@/packages/request";
 import storage from "@/utils/tools/storage";
@@ -207,6 +207,7 @@ const synthesizingId = ref<number | null>(null);
 const batchGenerating = ref(false);
 const batchProgress = ref({ total: 0, completed: 0, status: "" });
 let batchPollTimer: ReturnType<typeof setInterval> | null = null;
+const singlePollTimers: ReturnType<typeof setInterval>[] = [];
 const playingId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
 let currentBlobURL: string | null = null;
@@ -243,6 +244,8 @@ onMounted(loadChapters);
 watch(() => props.projectId, loadChapters);
 
 async function selectChapter(ch: any) {
+    stopBatchPolling();
+
     selectedChapterId.value = ch.id;
     currentChapter.value = ch;
     loadingSegments.value = true;
@@ -250,6 +253,21 @@ async function selectChapter(ch: any) {
         segments.value = await getSegmentsByChapter(ch.id);
     } finally {
         loadingSegments.value = false;
+    }
+
+    try {
+        const active = await getActiveTask(ch.id);
+        if (active && (active.status === "pending" || active.status === "running")) {
+            batchGenerating.value = true;
+            batchProgress.value = {
+                total: active.total_count,
+                completed: active.completed_count,
+                status: active.status
+            };
+            startBatchPolling(active.task_id);
+        }
+    } catch {
+        // 无活跃任务则忽略
     }
 }
 
@@ -330,15 +348,40 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
     seg.status = "processing";
     try {
         const result = await synthesizeSegment(seg.id);
-        seg.clip_id = result.clip_id;
-        seg.has_audio = true;
-        seg.status = "generated";
-        Message.success(`#${seg.segment_num} 生成完成`);
+        pollSingleTask(result.task_id, seg);
     } catch {
         seg.status = "failed";
-    } finally {
         synthesizingId.value = null;
     }
+}
+
+function pollSingleTask(taskId: number, seg: ScriptSegmentDetailType) {
+    const timer = setInterval(async () => {
+        try {
+            const progress = await getTaskProgress(taskId);
+            if (progress.status === "completed" || progress.status === "failed") {
+                clearInterval(timer);
+                synthesizingId.value = null;
+
+                if (progress.status === "completed") {
+                    const audio = await getSegmentAudio(seg.id).catch(() => null);
+                    if (audio) {
+                        seg.clip_id = audio.clip_id;
+                        seg.has_audio = true;
+                    }
+                    seg.status = "generated";
+                    Message.success(`#${seg.segment_num} 生成完成`);
+                } else {
+                    seg.status = "failed";
+                    Message.error(`#${seg.segment_num} 生成失败${progress.error_message ? "：" + progress.error_message : ""}`);
+                }
+            }
+        } catch {
+            // 轮询失败不中断
+        }
+    }, 1500);
+
+    singlePollTimers.push(timer);
 }
 
 async function handleBatchGenerate() {
@@ -363,17 +406,32 @@ async function handleBatchGenerate() {
                 const result = await batchGenerate(selectedChapterId.value!);
                 batchProgress.value = { total: result.total_count, completed: 0, status: "running" };
                 startBatchPolling(result.task_id);
-            } catch {
+            } catch (e: any) {
                 batchGenerating.value = false;
                 todo.forEach((seg) => (seg.status = "failed"));
-                Message.error("批量生成启动失败");
+                const msg = e?.response?.data?.message || e?.message || "";
+                if (msg.includes("已有正在运行的生成任务")) {
+                    Message.warning("该章节已有正在运行的批量生成任务，请等待完成");
+                } else {
+                    Message.error("批量生成启动失败");
+                }
             }
         }
     });
 }
 
+function stopBatchPolling() {
+    if (batchPollTimer) {
+        clearInterval(batchPollTimer);
+        batchPollTimer = null;
+    }
+    batchGenerating.value = false;
+    batchProgress.value = { total: 0, completed: 0, status: "" };
+}
+
 function startBatchPolling(taskId: number) {
-    if (batchPollTimer) clearInterval(batchPollTimer);
+    stopBatchPolling();
+    batchGenerating.value = true;
 
     batchPollTimer = setInterval(async () => {
         try {
@@ -385,11 +443,8 @@ function startBatchPolling(taskId: number) {
             };
 
             if (progress.status === "completed" || progress.status === "failed") {
-                clearInterval(batchPollTimer!);
-                batchPollTimer = null;
-                batchGenerating.value = false;
+                stopBatchPolling();
 
-                // 刷新片段列表以获取最新状态和 clip_id
                 if (selectedChapterId.value) {
                     segments.value = await getSegmentsByChapter(selectedChapterId.value);
                 }
@@ -407,10 +462,9 @@ function startBatchPolling(taskId: number) {
 }
 
 onUnmounted(() => {
-    if (batchPollTimer) {
-        clearInterval(batchPollTimer);
-        batchPollTimer = null;
-    }
+    stopBatchPolling();
+    singlePollTimers.forEach((t) => clearInterval(t));
+    singlePollTimers.length = 0;
     stopAudio();
 });
 

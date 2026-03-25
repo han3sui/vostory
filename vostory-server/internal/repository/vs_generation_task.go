@@ -10,8 +10,11 @@ import (
 type VsGenerationTaskRepository interface {
 	Create(ctx context.Context, task *model.VsGenerationTask) error
 	FindByID(ctx context.Context, id uint64) (*model.VsGenerationTask, error)
+	FindActiveByChapterID(ctx context.Context, chapterID uint64) (*model.VsGenerationTask, error)
+	FindAllByStatuses(ctx context.Context, statuses []string) ([]*model.VsGenerationTask, error)
 	UpdateProgress(ctx context.Context, id uint64, completed int, progress int) error
 	UpdateStatus(ctx context.Context, id uint64, status string, errMsg string) error
+	ResetStatus(ctx context.Context, id uint64, status string) error
 	SetStarted(ctx context.Context, id uint64) error
 	SetCompleted(ctx context.Context, id uint64) error
 }
@@ -34,6 +37,33 @@ func (r *vsGenerationTaskRepository) FindByID(ctx context.Context, id uint64) (*
 		return nil, err
 	}
 	return &task, nil
+}
+
+func (r *vsGenerationTaskRepository) FindActiveByChapterID(ctx context.Context, chapterID uint64) (*model.VsGenerationTask, error) {
+	var task model.VsGenerationTask
+	err := r.db.WithContext(ctx).
+		Where("chapter_id = ? AND status IN ?", chapterID, []string{"pending", "running"}).
+		Order("task_id DESC").
+		First(&task).Error
+	if err != nil {
+		return nil, err
+	}
+	return &task, nil
+}
+
+func (r *vsGenerationTaskRepository) FindAllByStatuses(ctx context.Context, statuses []string) ([]*model.VsGenerationTask, error) {
+	var tasks []*model.VsGenerationTask
+	err := r.db.WithContext(ctx).
+		Where("status IN ?", statuses).
+		Order("task_id ASC").
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *vsGenerationTaskRepository) ResetStatus(ctx context.Context, id uint64, status string) error {
+	return r.db.WithContext(ctx).Model(&model.VsGenerationTask{}).
+		Where("task_id = ?", id).
+		Update("status", status).Error
 }
 
 func (r *vsGenerationTaskRepository) UpdateProgress(ctx context.Context, id uint64, completed int, progress int) error {

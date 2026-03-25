@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/service"
@@ -20,8 +21,8 @@ func NewVsTTSSynthesizeHandler(handler *Handler, svc service.VsTTSSynthesizeServ
 }
 
 // Synthesize godoc
-// @Summary      合成单个片段语音
-// @Description  根据片段ID调用TTS合成语音
+// @Summary      合成单个片段语音（异步队列）
+// @Description  将单个片段加入TTS生成队列，返回任务ID用于轮询进度
 // @Tags         TTS合成
 // @Param        segment_id  path  int  true  "片段ID"
 // @Success      200  {object}  v1.Response
@@ -36,7 +37,7 @@ func (h *VsTTSSynthesizeHandler) Synthesize(ctx *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.SynthesizeSegment(ctx, segmentID)
+	result, err := h.svc.SingleGenerate(ctx, segmentID)
 	if err != nil {
 		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
 		return
@@ -89,6 +90,10 @@ func (h *VsTTSSynthesizeHandler) BatchGenerate(ctx *gin.Context) {
 
 	result, err := h.svc.BatchGenerate(ctx, req.ChapterID)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "CONFLICT:") {
+			v1.HandleError(ctx, http.StatusConflict, v1.NewError(409, strings.TrimPrefix(err.Error(), "CONFLICT:")), nil)
+			return
+		}
 		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
 		return
 	}
@@ -147,4 +152,29 @@ func (h *VsTTSSynthesizeHandler) StreamAudio(ctx *gin.Context) {
 	ctx.Header("Content-Type", contentType)
 	ctx.Header("Content-Disposition", "inline")
 	ctx.File(filePath)
+}
+
+// GetActiveTask godoc
+// @Summary      查询章节活跃任务
+// @Description  查询指定章节当前正在运行或等待中的生成任务
+// @Tags         TTS合成
+// @Param        chapter_id  path  int  true  "章节ID"
+// @Success      200  {object}  v1.Response
+// @Failure      400  {object}  v1.Response
+// @Router       /api/v1/tts/chapter/{chapter_id}/active-task [get]
+// @Id        tts:activeTask
+func (h *VsTTSSynthesizeHandler) GetActiveTask(ctx *gin.Context) {
+	chapterID := cast.ToUint64(ctx.Param("chapter_id"))
+	if chapterID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "chapter_id is required"), nil)
+		return
+	}
+
+	result, err := h.svc.GetActiveTaskByChapter(ctx, chapterID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+
+	v1.HandleSuccess(ctx, result)
 }

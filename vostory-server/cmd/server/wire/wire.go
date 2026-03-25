@@ -13,6 +13,7 @@ import (
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/server"
 	"iot-alert-center/internal/service"
+	"iot-alert-center/internal/worker"
 	"iot-alert-center/pkg/app"
 	"iot-alert-center/pkg/eventbus"
 	"iot-alert-center/pkg/jwt"
@@ -130,6 +131,10 @@ var handlerSet = wire.NewSet(
 	handler.NewVsCommonUploadHandler,
 )
 
+var workerSet = wire.NewSet(
+	worker.NewTTSWorker,
+)
+
 var jobSet = wire.NewSet(
 	job.NewJob,
 	job.NewUserJob,
@@ -161,6 +166,7 @@ func NewWire(*viper.Viper, *log.Logger, *eventbus.EventBus) (*app.App, func(), e
 		repositorySet,
 		serviceSet,
 		handlerSet,
+		workerSet,
 		jobSet,
 		serverSet,
 		sid.NewSid,

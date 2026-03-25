@@ -26,8 +26,8 @@ export type TaskProgressResult = {
     completed_at?: string;
 };
 
-export function synthesizeSegment(segmentId: number): Promise<TTSSynthesizeResult> {
-    return request({ url: `/api/v1/tts/synthesize/${segmentId}`, method: "post", timeout: 0 });
+export function synthesizeSegment(segmentId: number): Promise<BatchGenerateResult> {
+    return request({ url: `/api/v1/tts/synthesize/${segmentId}`, method: "post" });
 }
 
 export function getSegmentAudio(segmentId: number): Promise<TTSSynthesizeResult> {
@@ -40,6 +40,10 @@ export function batchGenerate(chapterId: number): Promise<BatchGenerateResult> {
 
 export function getTaskProgress(taskId: number): Promise<TaskProgressResult> {
     return request({ url: `/api/v1/tts/task/${taskId}` });
+}
+
+export function getActiveTask(chapterId: number): Promise<TaskProgressResult | null> {
+    return request({ url: `/api/v1/tts/chapter/${chapterId}/active-task` });
 }
 
 export function getTTSStreamURL(clipId: number): string {

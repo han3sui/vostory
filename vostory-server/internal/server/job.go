@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"iot-alert-center/internal/job"
+	"iot-alert-center/internal/worker"
 	"iot-alert-center/pkg/log"
 	"sync"
 
@@ -13,6 +14,7 @@ type JobServer struct {
 	log       *log.Logger
 	conf      *viper.Viper
 	userJob   job.UserJob
+	ttsWorker *worker.TTSWorker
 	jobsMutex sync.Mutex
 }
 
@@ -25,11 +27,13 @@ func NewJobServer(
 	log *log.Logger,
 	conf *viper.Viper,
 	userJob job.UserJob,
+	ttsWorker *worker.TTSWorker,
 ) *JobServer {
 	return &JobServer{
-		log:     log,
-		conf:    conf,
-		userJob: userJob,
+		log:       log,
+		conf:      conf,
+		userJob:   userJob,
+		ttsWorker: ttsWorker,
 	}
 }
 
@@ -39,7 +43,8 @@ func (j *JobServer) Start(ctx context.Context) error {
 
 	go j.userJob.KafkaConsumer(ctx)
 
-	// 等待上下文取消
+	j.ttsWorker.Start(ctx)
+
 	<-ctx.Done()
 	return nil
 }
@@ -47,6 +52,8 @@ func (j *JobServer) Start(ctx context.Context) error {
 func (j *JobServer) Stop(ctx context.Context) error {
 	j.jobsMutex.Lock()
 	defer j.jobsMutex.Unlock()
+
+	j.ttsWorker.Stop()
 
 	j.log.Info("所有Job已停止")
 	return nil

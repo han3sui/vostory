@@ -6,14 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/tts"
 
-	"go.uber.org/zap"
+	"github.com/redis/go-redis/v9"
 )
 
 // IndexTTS2 8-dim emotion vector order:
@@ -37,8 +36,10 @@ var strengthAlphaMap = map[string]float64{
 type VsTTSSynthesizeService interface {
 	SynthesizeSegment(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error)
 	GetSegmentAudio(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error)
+	SingleGenerate(ctx context.Context, segmentID uint64) (*v1.BatchGenerateResponse, error)
 	BatchGenerate(ctx context.Context, chapterID uint64) (*v1.BatchGenerateResponse, error)
 	GetTaskProgress(ctx context.Context, taskID uint64) (*v1.TaskProgressResponse, error)
+	GetActiveTaskByChapter(ctx context.Context, chapterID uint64) (*v1.TaskProgressResponse, error)
 	GetAudioClipFile(ctx context.Context, clipID uint64) (filePath string, contentType string, err error)
 }
 
@@ -53,6 +54,7 @@ func NewVsTTSSynthesizeService(
 	ttsProviderRepo repository.VsTTSProviderRepository,
 	projectRepo repository.VsProjectRepository,
 	taskRepo repository.VsGenerationTaskRepository,
+	rdb *redis.Client,
 ) VsTTSSynthesizeService {
 	return &vsTTSSynthesizeService{
 		Service:               service,
@@ -65,6 +67,7 @@ func NewVsTTSSynthesizeService(
 		ttsProviderRepo:       ttsProviderRepo,
 		projectRepo:           projectRepo,
 		taskRepo:              taskRepo,
+		rdb:                   rdb,
 	}
 }
 
@@ -79,6 +82,7 @@ type vsTTSSynthesizeService struct {
 	ttsProviderRepo       repository.VsTTSProviderRepository
 	projectRepo           repository.VsProjectRepository
 	taskRepo              repository.VsGenerationTaskRepository
+	rdb                   *redis.Client
 }
 
 func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error) {
@@ -285,7 +289,47 @@ func (s *vsTTSSynthesizeService) createAudioClip(
 	return clip, nil
 }
 
+func (s *vsTTSSynthesizeService) SingleGenerate(ctx context.Context, segmentID uint64) (*v1.BatchGenerateResponse, error) {
+	segment, err := s.segmentRepo.FindByID(ctx, segmentID)
+	if err != nil {
+		return nil, fmt.Errorf("片段不存在: %w", err)
+	}
+	if segment.CharacterID == nil {
+		return nil, fmt.Errorf("该片段未关联角色，无法合成")
+	}
+
+	chapterID := segment.ChapterID
+	task := &model.VsGenerationTask{
+		ChapterID:    &chapterID,
+		TaskType:     "tts_generate",
+		Status:       "pending",
+		TotalBatches: 1,
+		SegmentIDs:   model.Uint64Array{segmentID},
+	}
+	if err := s.taskRepo.Create(ctx, task); err != nil {
+		return nil, fmt.Errorf("创建生成任务失败: %w", err)
+	}
+
+	if err := s.rdb.LPush(ctx, "vs:tts:queue", task.TaskID).Err(); err != nil {
+		_ = s.taskRepo.UpdateStatus(ctx, task.TaskID, "failed", "入队失败: "+err.Error())
+		return nil, fmt.Errorf("任务入队失败: %w", err)
+	}
+
+	_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
+
+	return &v1.BatchGenerateResponse{
+		TaskID:       task.TaskID,
+		TotalCount:   1,
+		SkippedCount: 0,
+	}, nil
+}
+
 func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID uint64) (*v1.BatchGenerateResponse, error) {
+	activeTask, _ := s.taskRepo.FindActiveByChapterID(ctx, chapterID)
+	if activeTask != nil {
+		return nil, fmt.Errorf("CONFLICT:该章节已有正在运行的生成任务（ID: %d），请等待完成", activeTask.TaskID)
+	}
+
 	segments, err := s.segmentRepo.FindByChapterID(ctx, chapterID)
 	if err != nil {
 		return nil, fmt.Errorf("获取章节片段失败: %w", err)
@@ -293,10 +337,7 @@ func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID ui
 
 	var eligible []*model.VsScriptSegment
 	for _, seg := range segments {
-		if seg.CharacterID == nil {
-			continue
-		}
-		if seg.Status == "processing" {
+		if seg.CharacterID == nil || seg.Status == "processing" {
 			continue
 		}
 		eligible = append(eligible, seg)
@@ -316,7 +357,10 @@ func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID ui
 		return nil, fmt.Errorf("创建生成任务失败: %w", err)
 	}
 
-	go s.executeBatchGenerate(task.TaskID, eligible)
+	if err := s.rdb.LPush(ctx, "vs:tts:queue", task.TaskID).Err(); err != nil {
+		_ = s.taskRepo.UpdateStatus(ctx, task.TaskID, "failed", "入队失败: "+err.Error())
+		return nil, fmt.Errorf("任务入队失败: %w", err)
+	}
 
 	return &v1.BatchGenerateResponse{
 		TaskID:       task.TaskID,
@@ -325,39 +369,22 @@ func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID ui
 	}, nil
 }
 
-func (s *vsTTSSynthesizeService) executeBatchGenerate(taskID uint64, segments []*model.VsScriptSegment) {
-	ctx := context.Background()
-	total := len(segments)
-	var completed int32
-	var failedCount int32
-
-	_ = s.taskRepo.SetStarted(ctx, taskID)
-
-	for _, seg := range segments {
-		_, err := s.SynthesizeSegment(ctx, seg.SegmentID)
-		if err != nil {
-			atomic.AddInt32(&failedCount, 1)
-			s.logger.Warn("批量生成片段失败",
-				zap.Uint64("segment_id", seg.SegmentID),
-				zap.Error(err))
-		}
-
-		done := int(atomic.AddInt32(&completed, 1))
-		progress := done * 100 / total
-		_ = s.taskRepo.UpdateProgress(ctx, taskID, done, progress)
+func (s *vsTTSSynthesizeService) GetActiveTaskByChapter(ctx context.Context, chapterID uint64) (*v1.TaskProgressResponse, error) {
+	task, err := s.taskRepo.FindActiveByChapterID(ctx, chapterID)
+	if err != nil {
+		return nil, nil
 	}
-
-	if atomic.LoadInt32(&failedCount) > 0 {
-		errMsg := fmt.Sprintf("%d 个片段合成失败", failedCount)
-		if atomic.LoadInt32(&failedCount) == int32(total) {
-			_ = s.taskRepo.UpdateStatus(ctx, taskID, "failed", errMsg)
-		} else {
-			_ = s.taskRepo.SetCompleted(ctx, taskID)
-			_ = s.taskRepo.UpdateStatus(ctx, taskID, "completed", errMsg)
-		}
-	} else {
-		_ = s.taskRepo.SetCompleted(ctx, taskID)
-	}
+	return &v1.TaskProgressResponse{
+		TaskID:         task.TaskID,
+		Status:         task.Status,
+		Progress:       task.Progress,
+		TotalCount:     task.TotalBatches,
+		CompletedCount: task.CompletedBatches,
+		FailedCount:    0,
+		ErrorMessage:   task.ErrorMessage,
+		StartedAt:      task.StartedAt,
+		CompletedAt:    task.CompletedAt,
+	}, nil
 }
 
 func (s *vsTTSSynthesizeService) GetTaskProgress(ctx context.Context, taskID uint64) (*v1.TaskProgressResponse, error) {
