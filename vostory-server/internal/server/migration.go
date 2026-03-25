@@ -23,6 +23,7 @@ func NewMigrateServer(db *gorm.DB, log *log.Logger) *MigrateServer {
 }
 func (m *MigrateServer) Start(ctx context.Context) error {
 	if err := m.db.AutoMigrate(
+		// 系统管理表
 		&model.SysDept{},
 		&model.SysMenu{},
 		&model.SysPost{},
@@ -37,6 +38,25 @@ func (m *MigrateServer) Start(ctx context.Context) error {
 		&model.SysDictType{},
 		&model.SysDictData{},
 		&model.SysOperLog{},
+		// VoStory 业务表
+		&model.VsWorkspace{},
+		&model.VsProject{},
+		&model.VsChapter{},
+		&model.VsScene{},
+		&model.VsScriptSegment{},
+		&model.VsCharacter{},
+		&model.VsVoiceAsset{},
+		&model.VsVoiceProfile{},
+		&model.VsVoiceEmotion{},
+		&model.VsPronunciationDict{},
+		&model.VsGenerationTask{},
+		&model.VsTaskBatch{},
+		&model.VsAudioClip{},
+		&model.VsExportJob{},
+		&model.VsLLMProvider{},
+		&model.VsTTSProvider{},
+		&model.VsPromptTemplate{},
+		&model.VsLLMLog{},
 	); err != nil {
 		m.log.Error("user migrate error", zap.Error(err))
 		return err
