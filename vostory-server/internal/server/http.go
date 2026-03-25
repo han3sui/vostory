@@ -37,6 +37,9 @@ func NewHTTPServer(
 	sysDictDataHandler *handler.SysDictDataHandler,
 	sysOperLogHandler *handler.SysOperLogHandler,
 	sysOperLogService service.SysOperLogService,
+	vsLLMProviderHandler *handler.VsLLMProviderHandler,
+	vsTTSProviderHandler *handler.VsTTSProviderHandler,
+	vsPromptTemplateHandler *handler.VsPromptTemplateHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -92,6 +95,7 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/role/options", sysRoleHandler.GetRoleOptions)
 			noStrictAuthRouter.GET("/common/dept/options", sysDeptHandler.GetDeptOptionsTree)
 			noStrictAuthRouter.GET("/common/dict/data/type/:dictType", sysDictDataHandler.ListByType)
+			noStrictAuthRouter.GET("/common/prompt-template/type/:type", vsPromptTemplateHandler.ListByType)
 		}
 
 		// 3. 授权路由：需要登录 + 权限验证（白名单模式）
@@ -210,6 +214,44 @@ func NewHTTPServer(
 			}
 
 		}
+
+			aiRouter := strictAuthRouter.Group("/ai")
+			{
+				llmProviderRouter := aiRouter.Group("/llm-provider")
+				{
+					llmProviderRouter.GET("/:id", vsLLMProviderHandler.Get)
+					llmProviderRouter.GET("/list", vsLLMProviderHandler.List)
+					llmProviderRouter.POST("", vsLLMProviderHandler.Create)
+					llmProviderRouter.PUT("/:id", vsLLMProviderHandler.Update)
+					llmProviderRouter.DELETE("/:id", vsLLMProviderHandler.Delete)
+					llmProviderRouter.PUT("/:id/enable", vsLLMProviderHandler.Enable)
+					llmProviderRouter.PUT("/:id/disable", vsLLMProviderHandler.Disable)
+					llmProviderRouter.POST("/test", vsLLMProviderHandler.TestConnection)
+				}
+
+				ttsProviderRouter := aiRouter.Group("/tts-provider")
+				{
+					ttsProviderRouter.GET("/:id", vsTTSProviderHandler.Get)
+					ttsProviderRouter.GET("/list", vsTTSProviderHandler.List)
+					ttsProviderRouter.POST("", vsTTSProviderHandler.Create)
+					ttsProviderRouter.PUT("/:id", vsTTSProviderHandler.Update)
+					ttsProviderRouter.DELETE("/:id", vsTTSProviderHandler.Delete)
+					ttsProviderRouter.PUT("/:id/enable", vsTTSProviderHandler.Enable)
+					ttsProviderRouter.PUT("/:id/disable", vsTTSProviderHandler.Disable)
+					ttsProviderRouter.POST("/test", vsTTSProviderHandler.TestConnection)
+				}
+
+				promptTemplateRouter := aiRouter.Group("/prompt-template")
+				{
+					promptTemplateRouter.GET("/:id", vsPromptTemplateHandler.Get)
+					promptTemplateRouter.GET("/list", vsPromptTemplateHandler.List)
+					promptTemplateRouter.POST("", vsPromptTemplateHandler.Create)
+					promptTemplateRouter.PUT("/:id", vsPromptTemplateHandler.Update)
+					promptTemplateRouter.DELETE("/:id", vsPromptTemplateHandler.Delete)
+					promptTemplateRouter.PUT("/:id/enable", vsPromptTemplateHandler.Enable)
+					promptTemplateRouter.PUT("/:id/disable", vsPromptTemplateHandler.Disable)
+				}
+			}
 		}
 
 	}
