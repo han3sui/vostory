@@ -29,7 +29,7 @@ func (m *ProviderParams) Scan(value interface{}) error {
 // VsLLMProvider LLM 服务商配置
 type VsLLMProvider struct {
 	BaseModel
-	ProviderID   uint64         `json:"provider_id" gorm:"primaryKey;comment:提供商ID"`
+	ProviderID   uint64         `json:"provider_id" gorm:"primaryKey;autoIncrement;comment:提供商ID"`
 	Name         string         `json:"name" gorm:"size:100;not null;comment:显示名称"`
 	ProviderType string         `json:"provider_type" gorm:"size:30;not null;comment:提供商类型（openai/deepseek/anthropic/gemini/ollama/azure/aliyun/custom）"`
 	APIBaseURL   string         `json:"api_base_url" gorm:"size:500;not null;comment:API地址"`

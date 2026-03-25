@@ -33,13 +33,7 @@ type vsVoiceProfileService struct {
 }
 
 func (s *vsVoiceProfileService) Create(ctx context.Context, request *v1.VsVoiceProfileCreateRequest) error {
-	id, err := s.sid.GenUint64()
-	if err != nil {
-		return fmt.Errorf("生成ID失败: %w", err)
-	}
-
 	profile := &model.VsVoiceProfile{
-		VoiceProfileID:    id,
 		ProjectID:         request.ProjectID,
 		Name:              request.Name,
 		VoiceAssetID:      request.VoiceAssetID,

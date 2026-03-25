@@ -18,7 +18,7 @@ func (l *StringList) Scan(value interface{}) error {
 // VsCharacter 角色
 type VsCharacter struct {
 	BaseModel
-	CharacterID    uint64     `json:"character_id" gorm:"primaryKey;comment:角色ID"`
+	CharacterID    uint64     `json:"character_id" gorm:"primaryKey;autoIncrement;comment:角色ID"`
 	ProjectID      uint64     `json:"project_id" gorm:"not null;index;uniqueIndex:uk_project_character_name;comment:所属项目"`
 	Name           string     `json:"name" gorm:"size:100;not null;uniqueIndex:uk_project_character_name;comment:角色名称"`
 	Aliases        StringList `json:"aliases" gorm:"type:text;comment:别名列表"`

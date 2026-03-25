@@ -32,13 +32,7 @@ type vsChapterService struct {
 }
 
 func (s *vsChapterService) Create(ctx context.Context, request *v1.VsChapterCreateRequest) error {
-	id, err := s.sid.GenUint64()
-	if err != nil {
-		return fmt.Errorf("生成ID失败: %w", err)
-	}
-
 	chapter := &model.VsChapter{
-		ChapterID:  id,
 		ProjectID:  request.ProjectID,
 		Title:      request.Title,
 		ChapterNum: request.ChapterNum,

@@ -5,7 +5,7 @@ import "time"
 // VsGenerationTask 生成任务
 type VsGenerationTask struct {
 	BaseModel
-	TaskID           uint64     `json:"task_id" gorm:"primaryKey;comment:任务ID"`
+	TaskID           uint64     `json:"task_id" gorm:"primaryKey;autoIncrement;comment:任务ID"`
 	ProjectID        uint64     `json:"project_id" gorm:"not null;index;index:idx_project_type_status;comment:所属项目"`
 	ChapterID        *uint64    `json:"chapter_id" gorm:"index;comment:关联章节"`
 	TaskType         string     `json:"task_type" gorm:"size:30;not null;index:idx_project_type_status;comment:任务类型（text_parse/character_extract/emotion_tag/tts_generate/audio_merge）"`

@@ -40,13 +40,7 @@ type vsTTSProviderService struct {
 }
 
 func (s *vsTTSProviderService) Create(ctx context.Context, request *v1.VsTTSProviderCreateRequest) error {
-	id, err := s.sid.GenUint64()
-	if err != nil {
-		return fmt.Errorf("生成ID失败: %w", err)
-	}
-
 	provider := &model.VsTTSProvider{
-		ProviderID:        id,
 		Name:              request.Name,
 		ProviderType:      request.ProviderType,
 		APIBaseURL:        request.APIBaseURL,

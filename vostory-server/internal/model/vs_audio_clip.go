@@ -3,7 +3,7 @@ package model
 // VsAudioClip 音频片段
 type VsAudioClip struct {
 	BaseModel
-	ClipID          uint64  `json:"clip_id" gorm:"primaryKey;comment:音频片段ID"`
+	ClipID          uint64  `json:"clip_id" gorm:"primaryKey;autoIncrement;comment:音频片段ID"`
 	SegmentID       uint64  `json:"segment_id" gorm:"not null;index;comment:关联脚本片段"`
 	TaskID          *uint64 `json:"task_id" gorm:"comment:生成该音频的任务ID"`
 	AudioURL        string  `json:"audio_url" gorm:"size:500;not null;comment:音频文件路径"`

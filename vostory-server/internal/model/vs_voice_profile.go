@@ -18,7 +18,7 @@ func (m *TTSParamsMap) Scan(value interface{}) error {
 // VsVoiceProfile 声音配置（项目级）
 type VsVoiceProfile struct {
 	BaseModel
-	VoiceProfileID    uint64       `json:"voice_profile_id" gorm:"primaryKey;comment:声音配置ID"`
+	VoiceProfileID    uint64       `json:"voice_profile_id" gorm:"primaryKey;autoIncrement;comment:声音配置ID"`
 	ProjectID         uint64       `json:"project_id" gorm:"not null;index;comment:所属项目"`
 	VoiceAssetID      *uint64      `json:"voice_asset_id" gorm:"comment:引用的全局声音资产"`
 	Name              string       `json:"name" gorm:"size:100;not null;comment:配置名称"`

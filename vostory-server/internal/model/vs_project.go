@@ -20,7 +20,7 @@ func (m *PromptTemplateIDMap) Scan(value interface{}) error {
 // VsProject 项目
 type VsProject struct {
 	BaseModel
-	ProjectID         uint64            `json:"project_id" gorm:"primaryKey;comment:项目ID"`
+	ProjectID         uint64            `json:"project_id" gorm:"primaryKey;autoIncrement;comment:项目ID"`
 	WorkspaceID       uint64            `json:"workspace_id" gorm:"not null;index;comment:所属工作空间"`
 	Name              string            `json:"name" gorm:"size:200;not null;comment:项目名称"`
 	Description       string            `json:"description" gorm:"size:1000;comment:项目描述"`

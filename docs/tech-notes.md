@@ -6,16 +6,12 @@
 
 ## 第 1 阶段：主链路
 
-### ID 策略：双 ID 方案
+### ID 策略：统一自增
 
-- **业务表**（`vs_*`）：使用 `uint64` Sonyflake（雪花 ID），字段名如 `ProjectID`、`ChapterID`
-- **系统表**（`sys_*`）：保持 `uint` 自增 ID
-
-不建议将系统表切换为雪花 ID，原因：
-
-1. 改动面巨大（JWT payload、前端 store、所有关联查询）
-2. 系统表数据量小、低频写入，自增 ID 完全够用
-3. 前端 JavaScript `number` 精度问题（超过 `2^53` 会丢精度），业务表已用 `string` 传输规避
+- **所有表**（`vs_*` 业务表 + `sys_*` 系统表）：统一使用 `uint64` 自增主键
+- GORM tag：`gorm:"primaryKey;autoIncrement;comment:xxxID"`
+- 不再使用 Sonyflake 雪花 ID，service 层 Create 方法中无需手动生成 ID
+- `uint64` 自增 ID 在 JS 安全整数范围内（`2^53`），前端无需特殊处理
 
 ### 文件导入
 

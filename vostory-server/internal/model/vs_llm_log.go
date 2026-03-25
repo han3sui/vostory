@@ -3,7 +3,7 @@ package model
 // VsLLMLog LLM 调用日志
 type VsLLMLog struct {
 	BaseModel
-	LogID         uint64  `json:"log_id" gorm:"primaryKey;comment:日志ID"`
+	LogID         uint64  `json:"log_id" gorm:"primaryKey;autoIncrement;comment:日志ID"`
 	ProjectID     *uint64 `json:"project_id" gorm:"index;comment:关联项目"`
 	TaskID        *uint64 `json:"task_id" gorm:"comment:关联任务"`
 	ProviderID    uint64  `json:"provider_id" gorm:"comment:使用的LLM提供商"`

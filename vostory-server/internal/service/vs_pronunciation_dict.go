@@ -31,13 +31,7 @@ type vsPronunciationDictService struct {
 }
 
 func (s *vsPronunciationDictService) Create(ctx context.Context, request *v1.VsPronunciationDictCreateRequest) error {
-	id, err := s.sid.GenUint64()
-	if err != nil {
-		return fmt.Errorf("生成ID失败: %w", err)
-	}
-
 	dict := &model.VsPronunciationDict{
-		DictID:      id,
 		WorkspaceID: request.WorkspaceID,
 		ProjectID:   request.ProjectID,
 		Word:        request.Word,

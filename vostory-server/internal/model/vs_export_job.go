@@ -5,7 +5,7 @@ import "time"
 // VsExportJob 导出任务
 type VsExportJob struct {
 	BaseModel
-	ExportJobID  uint64     `json:"export_job_id" gorm:"primaryKey;comment:导出任务ID"`
+	ExportJobID  uint64     `json:"export_job_id" gorm:"primaryKey;autoIncrement;comment:导出任务ID"`
 	ProjectID    uint64     `json:"project_id" gorm:"not null;index;comment:所属项目"`
 	ChapterID    *uint64    `json:"chapter_id" gorm:"comment:导出的章节（NULL表示整项目）"`
 	ExportType   string     `json:"export_type" gorm:"size:20;not null;comment:导出类型（chapter/project）"`

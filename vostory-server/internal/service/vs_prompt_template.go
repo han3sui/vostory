@@ -37,13 +37,7 @@ type vsPromptTemplateService struct {
 }
 
 func (s *vsPromptTemplateService) Create(ctx context.Context, request *v1.VsPromptTemplateCreateRequest) error {
-	id, err := s.sid.GenUint64()
-	if err != nil {
-		return fmt.Errorf("生成ID失败: %w", err)
-	}
-
 	template := &model.VsPromptTemplate{
-		TemplateID:   id,
 		Name:         request.Name,
 		TemplateType: request.TemplateType,
 		Content:      request.Content,
@@ -183,13 +177,7 @@ func (s *vsPromptTemplateService) SeedDefaults(ctx context.Context) error {
 			continue
 		}
 
-		id, err := s.sid.GenUint64()
-		if err != nil {
-			return fmt.Errorf("生成ID失败: %w", err)
-		}
-
 		template := &model.VsPromptTemplate{
-			TemplateID:   id,
 			Name:         d.Name,
 			TemplateType: d.TemplateType,
 			Content:      d.Content,

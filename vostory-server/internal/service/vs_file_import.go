@@ -160,17 +160,11 @@ func (s *vsFileImportService) ParseTxt(ctx context.Context, projectID uint64) (i
 	totalWords := 0
 
 	for i, ch := range chapters {
-		id, err := s.sid.GenUint64()
-		if err != nil {
-			return 0, 0, fmt.Errorf("生成ID失败: %w", err)
-		}
-
 		content := ch.content.String()
 		wordCount := utf8.RuneCountInString(content)
 		totalWords += wordCount
 
 		chapter := &model.VsChapter{
-			ChapterID:  id,
 			ProjectID:  projectID,
 			Title:      ch.title,
 			ChapterNum: i + 1,

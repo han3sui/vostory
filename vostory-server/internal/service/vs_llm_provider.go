@@ -43,13 +43,7 @@ type vsLLMProviderService struct {
 }
 
 func (s *vsLLMProviderService) Create(ctx context.Context, request *v1.VsLLMProviderCreateRequest) error {
-	id, err := s.sid.GenUint64()
-	if err != nil {
-		return fmt.Errorf("生成ID失败: %w", err)
-	}
-
 	provider := &model.VsLLMProvider{
-		ProviderID:   id,
 		Name:         request.Name,
 		ProviderType: request.ProviderType,
 		APIBaseURL:   request.APIBaseURL,

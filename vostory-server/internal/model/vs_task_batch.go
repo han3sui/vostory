@@ -5,7 +5,7 @@ import "time"
 // VsTaskBatch 任务批次
 type VsTaskBatch struct {
 	BaseModel
-	BatchID        uint64     `json:"batch_id" gorm:"primaryKey;comment:批次ID"`
+	BatchID        uint64     `json:"batch_id" gorm:"primaryKey;autoIncrement;comment:批次ID"`
 	TaskID         uint64     `json:"task_id" gorm:"not null;index;uniqueIndex:uk_task_batch_index;comment:所属任务"`
 	BatchIndex     int        `json:"batch_index" gorm:"not null;uniqueIndex:uk_task_batch_index;comment:批次序号"`
 	InputText      string     `json:"input_text" gorm:"type:text;comment:输入文本"`

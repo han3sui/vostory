@@ -3,7 +3,7 @@ package model
 // VsChapter 章节
 type VsChapter struct {
 	BaseModel
-	ChapterID  uint64 `json:"chapter_id" gorm:"primaryKey;comment:章节ID"`
+	ChapterID  uint64 `json:"chapter_id" gorm:"primaryKey;autoIncrement;comment:章节ID"`
 	ProjectID  uint64 `json:"project_id" gorm:"not null;index;uniqueIndex:uk_project_chapter_num;comment:所属项目"`
 	Title      string `json:"title" gorm:"size:200;comment:章节标题"`
 	ChapterNum int    `json:"chapter_num" gorm:"not null;uniqueIndex:uk_project_chapter_num;comment:章节序号"`

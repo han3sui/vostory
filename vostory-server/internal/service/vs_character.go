@@ -33,13 +33,7 @@ type vsCharacterService struct {
 }
 
 func (s *vsCharacterService) Create(ctx context.Context, request *v1.VsCharacterCreateRequest) error {
-	id, err := s.sid.GenUint64()
-	if err != nil {
-		return fmt.Errorf("生成ID失败: %w", err)
-	}
-
 	character := &model.VsCharacter{
-		CharacterID:    id,
 		ProjectID:      request.ProjectID,
 		Name:           request.Name,
 		Aliases:        model.StringList(request.Aliases),

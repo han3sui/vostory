@@ -3,7 +3,7 @@ package model
 // VsPromptTemplate Prompt 模板
 type VsPromptTemplate struct {
 	BaseModel
-	TemplateID   uint64 `json:"template_id" gorm:"primaryKey;comment:模板ID"`
+	TemplateID   uint64 `json:"template_id" gorm:"primaryKey;autoIncrement;comment:模板ID"`
 	Name         string `json:"name" gorm:"size:100;not null;uniqueIndex:uk_template_type_name;comment:模板名称"`
 	TemplateType string `json:"template_type" gorm:"size:30;not null;uniqueIndex:uk_template_type_name;comment:模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）"`
 	Content      string `json:"content" gorm:"type:text;not null;comment:Prompt内容"`

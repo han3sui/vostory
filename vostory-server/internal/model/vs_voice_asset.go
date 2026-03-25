@@ -3,7 +3,7 @@ package model
 // VsVoiceAsset 全局声音资产
 type VsVoiceAsset struct {
 	BaseModel
-	VoiceAssetID      uint64     `json:"voice_asset_id" gorm:"primaryKey;comment:声音资产ID"`
+	VoiceAssetID      uint64     `json:"voice_asset_id" gorm:"primaryKey;autoIncrement;comment:声音资产ID"`
 	WorkspaceID       uint64     `json:"workspace_id" gorm:"not null;index;comment:所属工作空间"`
 	Name              string     `json:"name" gorm:"size:100;not null;comment:音色名称"`
 	Gender            string     `json:"gender" gorm:"size:10;comment:性别（male/female/unknown）"`

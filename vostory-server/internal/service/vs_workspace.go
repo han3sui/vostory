@@ -36,13 +36,7 @@ type vsWorkspaceService struct {
 }
 
 func (s *vsWorkspaceService) Create(ctx context.Context, request *v1.VsWorkspaceCreateRequest) error {
-	id, err := s.sid.GenUint64()
-	if err != nil {
-		return fmt.Errorf("生成ID失败: %w", err)
-	}
-
 	workspace := &model.VsWorkspace{
-		WorkspaceID: id,
 		Name:        request.Name,
 		Description: request.Description,
 		OwnerID:     ctx.Value("user_id").(uint),
