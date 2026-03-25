@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -137,12 +139,48 @@ func (s *vsLLMProviderService) Disable(ctx context.Context, id uint64) error {
 	return s.repo.Disable(ctx, id)
 }
 
+// TestConnection 通过发送一次最小的 Chat Completions 请求来测试连通性。
+// 所有厂商（包括小米 MiMo、DeepSeek、通义千问等）都兼容 OpenAI Chat Completions 协议，
+// 而 /v1/models 端点并非所有厂商都支持，因此用真实对话请求更可靠。
 func (s *vsLLMProviderService) TestConnection(_ context.Context, request *v1.VsLLMProviderTestRequest) *v1.VsLLMProviderTestResponse {
 	start := time.Now()
 
-	url := strings.TrimRight(request.APIBaseURL, "/") + "/v1/models"
+	baseURL := strings.TrimRight(request.APIBaseURL, "/")
+	chatURL := baseURL + "/chat/completions"
+	if !strings.Contains(baseURL, "/v1") {
+		chatURL = baseURL + "/v1/chat/completions"
+	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	modelName := request.Model
+	if modelName == "" {
+		modelName = "gpt-3.5-turbo"
+	}
+
+	reqBody := map[string]interface{}{
+		"model": modelName,
+		"messages": []map[string]string{
+			{"role": "user", "content": "hi"},
+		},
+		"max_tokens": 1,
+		"stream":     false,
+	}
+
+	for k, v := range request.CustomParams {
+		if k != "model" && k != "messages" && k != "stream" {
+			reqBody[k] = v
+		}
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return &v1.VsLLMProviderTestResponse{
+			Success:  false,
+			Message:  fmt.Sprintf("构建请求体失败: %v", err),
+			Duration: time.Since(start).Milliseconds(),
+		}
+	}
+
+	req, err := http.NewRequest("POST", chatURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return &v1.VsLLMProviderTestResponse{
 			Success:  false,
@@ -151,11 +189,12 @@ func (s *vsLLMProviderService) TestConnection(_ context.Context, request *v1.VsL
 		}
 	}
 
+	req.Header.Set("Content-Type", "application/json")
 	if request.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+request.APIKey)
 	}
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return &v1.VsLLMProviderTestResponse{
@@ -166,19 +205,29 @@ func (s *vsLLMProviderService) TestConnection(_ context.Context, request *v1.VsL
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 
 	if resp.StatusCode == http.StatusOK {
+		var result map[string]interface{}
+		if err := json.Unmarshal(respBody, &result); err == nil {
+			if choices, ok := result["choices"].([]interface{}); ok && len(choices) > 0 {
+				return &v1.VsLLMProviderTestResponse{
+					Success:  true,
+					Message:  fmt.Sprintf("连接成功，模型 %s 响应正常", modelName),
+					Duration: time.Since(start).Milliseconds(),
+				}
+			}
+		}
 		return &v1.VsLLMProviderTestResponse{
 			Success:  true,
-			Message:  "连接成功",
+			Message:  "连接成功（HTTP 200）",
 			Duration: time.Since(start).Milliseconds(),
 		}
 	}
 
 	return &v1.VsLLMProviderTestResponse{
 		Success:  false,
-		Message:  fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body)),
+		Message:  fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(respBody)),
 		Duration: time.Since(start).Milliseconds(),
 	}
 }

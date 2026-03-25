@@ -186,7 +186,7 @@ async function handleToggle(row: LLMProviderDetailType) {
 }
 
 async function handleTest(row: LLMProviderDetailType) {
-    const loading = Message.loading("正在测试连通性...");
+    const loading = Message.loading({ content: "正在测试连通性...", duration: 0 });
     try {
         const result = await testLLMProvider({
             provider_type: row.provider_type,
@@ -196,7 +196,7 @@ async function handleTest(row: LLMProviderDetailType) {
         });
         loading.close();
         if (result.success) {
-            Message.success(`连接成功（耗时 ${result.duration}ms）`);
+            Message.success(`${result.message}（耗时 ${result.duration}ms）`);
         } else {
             Message.error(`连接失败：${result.message}`);
         }
