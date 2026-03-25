@@ -5,8 +5,8 @@ type VsScriptSegment struct {
 	BaseModel
 	SegmentID       uint64  `json:"segment_id" gorm:"primaryKey;comment:片段ID"`
 	SceneID         uint64  `json:"scene_id" gorm:"not null;index;comment:所属场景"`
-	ChapterID       uint64  `json:"chapter_id" gorm:"not null;index;comment:所属章节（冗余，便于按章节查询）"`
-	SegmentNum      int     `json:"segment_num" gorm:"not null;comment:片段序号"`
+	ChapterID       uint64  `json:"chapter_id" gorm:"not null;index;index:idx_chapter_segment_num;comment:所属章节（冗余，便于按章节查询）"`
+	SegmentNum      int     `json:"segment_num" gorm:"not null;index:idx_chapter_segment_num;comment:片段序号"`
 	SegmentType     string  `json:"segment_type" gorm:"size:20;not null;comment:片段类型（dialogue/narration/monologue/description）"`
 	Content         string  `json:"content" gorm:"type:text;not null;comment:片段文本内容"`
 	OriginalContent string  `json:"original_content" gorm:"type:text;comment:原始文本（精准填充对齐前）"`

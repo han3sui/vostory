@@ -6,8 +6,8 @@ import "time"
 type VsTaskBatch struct {
 	BaseModel
 	BatchID        uint64     `json:"batch_id" gorm:"primaryKey;comment:批次ID"`
-	TaskID         uint64     `json:"task_id" gorm:"not null;index;comment:所属任务"`
-	BatchIndex     int        `json:"batch_index" gorm:"not null;comment:批次序号"`
+	TaskID         uint64     `json:"task_id" gorm:"not null;index;uniqueIndex:uk_task_batch_index;comment:所属任务"`
+	BatchIndex     int        `json:"batch_index" gorm:"not null;uniqueIndex:uk_task_batch_index;comment:批次序号"`
 	InputText      string     `json:"input_text" gorm:"type:text;comment:输入文本"`
 	InputWordCount int        `json:"input_word_count" gorm:"default:0;comment:输入字数"`
 	OutputResult   string     `json:"output_result" gorm:"type:text;comment:输出结果（JSON）"`

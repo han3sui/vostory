@@ -6,10 +6,10 @@ import "time"
 type VsGenerationTask struct {
 	BaseModel
 	TaskID           uint64     `json:"task_id" gorm:"primaryKey;comment:任务ID"`
-	ProjectID        uint64     `json:"project_id" gorm:"not null;index;comment:所属项目"`
+	ProjectID        uint64     `json:"project_id" gorm:"not null;index;index:idx_project_type_status;comment:所属项目"`
 	ChapterID        *uint64    `json:"chapter_id" gorm:"index;comment:关联章节"`
-	TaskType         string     `json:"task_type" gorm:"size:30;not null;comment:任务类型（text_parse/character_extract/emotion_tag/tts_generate/audio_merge）"`
-	Status           string     `json:"status" gorm:"size:20;default:'pending';comment:任务状态（pending/running/completed/failed/cancelled）"`
+	TaskType         string     `json:"task_type" gorm:"size:30;not null;index:idx_project_type_status;comment:任务类型（text_parse/character_extract/emotion_tag/tts_generate/audio_merge）"`
+	Status           string     `json:"status" gorm:"size:20;default:'pending';index:idx_project_type_status;comment:任务状态（pending/running/completed/failed/cancelled）"`
 	Progress         int        `json:"progress" gorm:"default:0;comment:进度百分比（0-100）"`
 	TotalBatches     int        `json:"total_batches" gorm:"default:0;comment:总批次数"`
 	CompletedBatches int        `json:"completed_batches" gorm:"default:0;comment:已完成批次数"`
