@@ -54,6 +54,7 @@ var repositorySet = wire.NewSet(
 	repository.NewVsLLMLogRepository,
 	repository.NewVsVoiceProfileRepository,
 	repository.NewVsPronunciationDictRepository,
+	repository.NewVsSceneRepository,
 )
 
 var serviceSet = wire.NewSet(
@@ -81,6 +82,7 @@ var serviceSet = wire.NewSet(
 	service.NewVsVoiceProfileService,
 	service.NewVsPronunciationDictService,
 	service.NewVsPreciseFillService,
+	service.NewVsChapterSplitService,
 	cache.NewUserCache,
 	mqtt.NewMqttClient,
 	kafka.NewKafkaProducer,
@@ -112,6 +114,7 @@ var handlerSet = wire.NewSet(
 	handler.NewVsVoiceProfileHandler,
 	handler.NewVsPronunciationDictHandler,
 	handler.NewVsPreciseFillHandler,
+	handler.NewVsChapterSplitHandler,
 )
 
 var jobSet = wire.NewSet(

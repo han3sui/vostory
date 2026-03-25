@@ -25,6 +25,15 @@
                     <h3>{{ currentChapter?.title }}</h3>
                     <a-space>
                         <a-button
+                            v-if="hasPermission('chapter:split')"
+                            type="primary"
+                            size="small"
+                            :loading="splitting"
+                            @click="handleSplit"
+                        >
+                            智能切割
+                        </a-button>
+                        <a-button
                             v-if="hasPermission('chapter:align')"
                             type="outline"
                             size="small"
@@ -136,9 +145,11 @@
 </template>
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
+import { Modal } from "@arco-design/web-vue";
 import {
     getSegmentsByChapter,
     updateScriptSegment,
+    splitChapter,
     ScriptSegmentDetailType
 } from "@/config/apis/script-segment";
 import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
@@ -154,6 +165,7 @@ const segments = ref<ScriptSegmentDetailType[]>([]);
 const characterOptions = ref<CharacterOptionType[]>([]);
 const loadingSegments = ref(false);
 const aligning = ref(false);
+const splitting = ref(false);
 
 async function loadChapters() {
     chapters.value = [];
@@ -218,6 +230,38 @@ async function handleAlign() {
         Message.error("精准填充失败");
     } finally {
         aligning.value = false;
+    }
+}
+
+async function handleSplit() {
+    if (!selectedChapterId.value) return;
+
+    const doSplit = async () => {
+        splitting.value = true;
+        try {
+            const res = await splitChapter(selectedChapterId.value!);
+            Message.success(
+                `智能切割完成：${res.scene_count} 个场景，${res.segment_count} 个片段`
+            );
+            segments.value = await getSegmentsByChapter(selectedChapterId.value!);
+        } catch {
+            Message.error("智能切割失败，请检查项目是否已配置 LLM 提供商");
+        } finally {
+            splitting.value = false;
+        }
+    };
+
+    if (segments.value.length > 0) {
+        Modal.warning({
+            title: "确认重新切割",
+            content: `当前章节已有 ${segments.value.length} 个片段，重新切割将覆盖现有数据，是否继续？`,
+            okText: "确认切割",
+            cancelText: "取消",
+            hideCancel: false,
+            onOk: doSplit
+        });
+    } else {
+        doSplit();
     }
 }
 

@@ -50,6 +50,7 @@ func NewHTTPServer(
 	vsVoiceProfileHandler *handler.VsVoiceProfileHandler,
 	vsPronunciationDictHandler *handler.VsPronunciationDictHandler,
 	vsPreciseFillHandler *handler.VsPreciseFillHandler,
+	vsChapterSplitHandler *handler.VsChapterSplitHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -261,6 +262,7 @@ func NewHTTPServer(
 				chapterRouter.PUT("/:id", vsChapterHandler.Update)
 				chapterRouter.DELETE("/:id", vsChapterHandler.Delete)
 				chapterRouter.POST("/:chapter_id/align", vsPreciseFillHandler.AlignChapter)
+			chapterRouter.POST("/:chapter_id/split", vsChapterSplitHandler.Split)
 			}
 
 			scriptSegmentRouter := strictAuthRouter.Group("/script-segment")

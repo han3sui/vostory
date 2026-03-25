@@ -145,8 +145,8 @@ func (s *vsPromptTemplateService) SeedDefaults(ctx context.Context) error {
 		{
 			Name:         "默认对白解析",
 			TemplateType: "dialogue_parse",
-			Content:      "请将以下小说文本拆分为脚本片段。对于每个片段，请标注：\n1. 片段类型：dialogue（对白）、narration（旁白）、monologue（内心独白）、description（场景描述）\n2. 说话人（对白和独白需要标注）\n3. 片段文本内容\n\n请以JSON数组格式返回结果，保持原文顺序。\n\n---\n{{content}}",
-			Description:  "将小说文本拆分为对白、旁白等脚本片段",
+			Content:      "你是一个专业的小说文本分析助手。请将以下章节文本进行结构化切分。\n\n要求：\n1. 识别场景切换（基于时间跳跃、地点变化、视角切换）\n2. 在每个场景内，将文本切分为独立片段\n3. 每个片段标注类型：dialogue(对白)、narration(旁白)、monologue(独白)、description(描述)\n4. 对白和独白片段需识别说话人名称\n5. 标注每个片段的情绪：neutral/happy/sad/angry/fear/surprise/disgust\n6. 标注情绪强度：light/medium/strong\n\n请严格以JSON格式返回，不要包含任何其他文字，结构如下：\n{\"scenes\":[{\"title\":\"场景标题\",\"description\":\"场景简述\",\"segments\":[{\"type\":\"dialogue|narration|monologue|description\",\"content\":\"片段文本内容\",\"character\":\"说话人名称（非对白/独白时为空字符串）\",\"emotion\":\"neutral|happy|sad|angry|fear|surprise|disgust\",\"emotion_strength\":\"light|medium|strong\"}]}]}\n\n---\n{{content}}",
+			Description:  "将章节文本按场景和片段进行结构化切分，识别类型、说话人和情绪",
 		},
 		{
 			Name:         "默认情绪标注",

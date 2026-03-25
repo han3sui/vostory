@@ -56,3 +56,14 @@ export function deleteScriptSegment(id: number) {
 export function getSegmentsByChapter(chapterId: number): Promise<ScriptSegmentDetailType[]> {
     return request({ url: `/api/v1/common/script-segment/chapter/${chapterId}` });
 }
+
+export type ChapterSplitResult = {
+    scene_count: number;
+    segment_count: number;
+    input_tokens: number;
+    output_tokens: number;
+};
+
+export function splitChapter(chapterId: number): Promise<ChapterSplitResult> {
+    return request({ url: `/api/v1/chapter/${chapterId}/split`, method: "post" });
+}
