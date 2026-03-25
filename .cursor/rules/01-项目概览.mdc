@@ -105,7 +105,7 @@ vostory-web/src/
 
 - [x] **数据库表设计**：Workspace、Project、Chapter、Scene、ScriptSegment、Character、VoiceProfile、VoiceAsset、PronunciationDictionary、GenerationTask、TaskBatch、AudioClip、ExportJob、LLMProvider、TTSProvider、PromptTemplate、LLMLog
 - [x] **工作空间模块**：团队/组织空间管理（前后端完成）
-- [ ] **项目管理模块**：创建项目、项目列表、项目状态
+- [x] **项目管理模块**：创建项目、项目列表、项目状态（前后端完成）
 - [ ] **文件导入**：txt / docx / epub 上传与解析
 - [ ] **章节管理模块**：章节切分、排序、状态
 - [ ] **脚本片段模块**：旁白/对白/独白识别、片段存储（含情绪类型和情绪强度）

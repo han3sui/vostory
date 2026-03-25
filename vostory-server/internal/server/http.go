@@ -41,6 +41,7 @@ func NewHTTPServer(
 	vsTTSProviderHandler *handler.VsTTSProviderHandler,
 	vsPromptTemplateHandler *handler.VsPromptTemplateHandler,
 	vsWorkspaceHandler *handler.VsWorkspaceHandler,
+	vsProjectHandler *handler.VsProjectHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -98,6 +99,7 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/dict/data/type/:dictType", sysDictDataHandler.ListByType)
 			noStrictAuthRouter.GET("/common/prompt-template/type/:type", vsPromptTemplateHandler.ListByType)
 			noStrictAuthRouter.GET("/common/workspace/options", vsWorkspaceHandler.GetOptions)
+			noStrictAuthRouter.GET("/common/project/workspace/:workspace_id", vsProjectHandler.GetByWorkspace)
 		}
 
 		// 3. 授权路由：需要登录 + 权限验证（白名单模式）
@@ -226,6 +228,15 @@ func NewHTTPServer(
 				workspaceRouter.DELETE("/:id", vsWorkspaceHandler.Delete)
 				workspaceRouter.PUT("/:id/enable", vsWorkspaceHandler.Enable)
 				workspaceRouter.PUT("/:id/disable", vsWorkspaceHandler.Disable)
+			}
+
+			projectRouter := strictAuthRouter.Group("/project")
+			{
+				projectRouter.GET("/:id", vsProjectHandler.Get)
+				projectRouter.GET("/list", vsProjectHandler.List)
+				projectRouter.POST("", vsProjectHandler.Create)
+				projectRouter.PUT("/:id", vsProjectHandler.Update)
+				projectRouter.DELETE("/:id", vsProjectHandler.Delete)
 			}
 
 			aiRouter := strictAuthRouter.Group("/ai")
