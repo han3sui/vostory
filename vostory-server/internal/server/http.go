@@ -45,6 +45,8 @@ func NewHTTPServer(
 	vsChapterHandler *handler.VsChapterHandler,
 	vsScriptSegmentHandler *handler.VsScriptSegmentHandler,
 	vsCharacterHandler *handler.VsCharacterHandler,
+	vsFileImportHandler *handler.VsFileImportHandler,
+	vsLLMLogHandler *handler.VsLLMLogHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -243,6 +245,8 @@ func NewHTTPServer(
 				projectRouter.POST("", vsProjectHandler.Create)
 				projectRouter.PUT("/:id", vsProjectHandler.Update)
 				projectRouter.DELETE("/:id", vsProjectHandler.Delete)
+				projectRouter.POST("/import/upload", vsFileImportHandler.Upload)
+				projectRouter.POST("/import/:project_id/parse", vsFileImportHandler.Parse)
 			}
 
 			chapterRouter := strictAuthRouter.Group("/chapter")
@@ -309,6 +313,13 @@ func NewHTTPServer(
 					promptTemplateRouter.DELETE("/:id", vsPromptTemplateHandler.Delete)
 					promptTemplateRouter.PUT("/:id/enable", vsPromptTemplateHandler.Enable)
 					promptTemplateRouter.PUT("/:id/disable", vsPromptTemplateHandler.Disable)
+				}
+
+				llmLogRouter := aiRouter.Group("/llm-log")
+				{
+					llmLogRouter.GET("/:id", vsLLMLogHandler.Get)
+					llmLogRouter.GET("/list", vsLLMLogHandler.List)
+					llmLogRouter.DELETE("/:id", vsLLMLogHandler.Delete)
 				}
 			}
 		}

@@ -42,6 +42,16 @@ const routers: RouteConfig[] = [
                     permission: () => hasPermission("ai:prompt-template:list")
                 },
                 component: () => import("@/views/ai/prompt-template/index.vue")
+            },
+            {
+                path: "/ai/llm-log",
+                name: "ai-llm-log",
+                meta: {
+                    title: "LLM 调用日志",
+                    sort: 4,
+                    permission: () => hasPermission("ai:llm-log:list")
+                },
+                component: () => import("@/views/ai/llm-log/index.vue")
             }
         ]
     }

@@ -52,6 +52,16 @@ const routers: RouteConfig[] = [
                     permission: () => hasPermission("character:list")
                 },
                 component: () => import("@/views/character/index.vue")
+            },
+            {
+                path: "/project/import",
+                name: "project-import",
+                meta: {
+                    title: "文件导入",
+                    sort: 5,
+                    permission: () => hasPermission("project:import:upload")
+                },
+                component: () => import("@/views/project/import/index.vue")
             }
         ]
     }
