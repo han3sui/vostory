@@ -62,6 +62,36 @@ const routers: RouteConfig[] = [
                     permission: () => hasPermission("project:import:upload")
                 },
                 component: () => import("@/views/project/import/index.vue")
+            },
+            {
+                path: "/project/script-editor",
+                name: "project-script-editor",
+                meta: {
+                    title: "脚本编辑",
+                    sort: 6,
+                    permission: () => hasPermission("script-segment:list")
+                },
+                component: () => import("@/views/script-editor/index.vue")
+            },
+            {
+                path: "/project/voice-profile",
+                name: "project-voice-profile",
+                meta: {
+                    title: "声音配置",
+                    sort: 7,
+                    permission: () => hasPermission("voice-profile:list")
+                },
+                component: () => import("@/views/voice-profile/index.vue")
+            },
+            {
+                path: "/project/pronunciation-dict",
+                name: "project-pronunciation-dict",
+                meta: {
+                    title: "发音词典",
+                    sort: 8,
+                    permission: () => hasPermission("pronunciation-dict:list")
+                },
+                component: () => import("@/views/pronunciation-dict/index.vue")
             }
         ]
     }

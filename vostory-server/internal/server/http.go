@@ -47,6 +47,9 @@ func NewHTTPServer(
 	vsCharacterHandler *handler.VsCharacterHandler,
 	vsFileImportHandler *handler.VsFileImportHandler,
 	vsLLMLogHandler *handler.VsLLMLogHandler,
+	vsVoiceProfileHandler *handler.VsVoiceProfileHandler,
+	vsPronunciationDictHandler *handler.VsPronunciationDictHandler,
+	vsPreciseFillHandler *handler.VsPreciseFillHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -108,6 +111,8 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/chapter/project/:project_id", vsChapterHandler.GetByProject)
 			noStrictAuthRouter.GET("/common/script-segment/chapter/:chapter_id", vsScriptSegmentHandler.GetByChapter)
 			noStrictAuthRouter.GET("/common/character/project/:project_id", vsCharacterHandler.GetByProject)
+			noStrictAuthRouter.GET("/common/voice-profile/project/:project_id", vsVoiceProfileHandler.GetByProject)
+			noStrictAuthRouter.GET("/common/pronunciation-dict/:workspace_id/:project_id", vsPronunciationDictHandler.GetEffective)
 		}
 
 		// 3. 授权路由：需要登录 + 权限验证（白名单模式）
@@ -256,6 +261,7 @@ func NewHTTPServer(
 				chapterRouter.POST("", vsChapterHandler.Create)
 				chapterRouter.PUT("/:id", vsChapterHandler.Update)
 				chapterRouter.DELETE("/:id", vsChapterHandler.Delete)
+				chapterRouter.POST("/:chapter_id/align", vsPreciseFillHandler.AlignChapter)
 			}
 
 			scriptSegmentRouter := strictAuthRouter.Group("/script-segment")
@@ -276,6 +282,26 @@ func NewHTTPServer(
 				characterRouter.DELETE("/:id", vsCharacterHandler.Delete)
 				characterRouter.PUT("/:id/enable", vsCharacterHandler.Enable)
 				characterRouter.PUT("/:id/disable", vsCharacterHandler.Disable)
+			}
+
+			voiceProfileRouter := strictAuthRouter.Group("/voice-profile")
+			{
+				voiceProfileRouter.GET("/:id", vsVoiceProfileHandler.Get)
+				voiceProfileRouter.GET("/list", vsVoiceProfileHandler.List)
+				voiceProfileRouter.POST("", vsVoiceProfileHandler.Create)
+				voiceProfileRouter.PUT("/:id", vsVoiceProfileHandler.Update)
+				voiceProfileRouter.DELETE("/:id", vsVoiceProfileHandler.Delete)
+				voiceProfileRouter.PUT("/:id/enable", vsVoiceProfileHandler.Enable)
+				voiceProfileRouter.PUT("/:id/disable", vsVoiceProfileHandler.Disable)
+			}
+
+			pronunciationDictRouter := strictAuthRouter.Group("/pronunciation-dict")
+			{
+				pronunciationDictRouter.GET("/:id", vsPronunciationDictHandler.Get)
+				pronunciationDictRouter.GET("/list", vsPronunciationDictHandler.List)
+				pronunciationDictRouter.POST("", vsPronunciationDictHandler.Create)
+				pronunciationDictRouter.PUT("/:id", vsPronunciationDictHandler.Update)
+				pronunciationDictRouter.DELETE("/:id", vsPronunciationDictHandler.Delete)
 			}
 
 			aiRouter := strictAuthRouter.Group("/ai")
