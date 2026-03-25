@@ -9,7 +9,7 @@ const routers: RouteConfig[] = [
         meta: {
             title: "工作空间",
             icon: "menu-workspace",
-            sort: 0
+            sort: 50
         },
         component: Layout,
         children: [

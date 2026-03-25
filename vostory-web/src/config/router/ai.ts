@@ -9,7 +9,7 @@ const routers: RouteConfig[] = [
         meta: {
             title: "AI 配置",
             icon: "menu-ai",
-            sort: 1
+            sort: 20
         },
         component: Layout,
         children: [
@@ -18,7 +18,7 @@ const routers: RouteConfig[] = [
                 name: "ai-llm-provider",
                 meta: {
                     title: "LLM 提供商",
-                    sort: 1,
+                    sort: 4,
                     permission: () => hasPermission("ai:llm-provider:list")
                 },
                 component: () => import("@/views/ai/llm-provider/index.vue")
@@ -28,7 +28,7 @@ const routers: RouteConfig[] = [
                 name: "ai-tts-provider",
                 meta: {
                     title: "TTS 提供商",
-                    sort: 2,
+                    sort: 3,
                     permission: () => hasPermission("ai:tts-provider:list")
                 },
                 component: () => import("@/views/ai/tts-provider/index.vue")
@@ -38,7 +38,7 @@ const routers: RouteConfig[] = [
                 name: "ai-prompt-template",
                 meta: {
                     title: "Prompt 模板",
-                    sort: 3,
+                    sort: 2,
                     permission: () => hasPermission("ai:prompt-template:list")
                 },
                 component: () => import("@/views/ai/prompt-template/index.vue")
@@ -48,7 +48,7 @@ const routers: RouteConfig[] = [
                 name: "ai-llm-log",
                 meta: {
                     title: "LLM 调用日志",
-                    sort: 4,
+                    sort: 1,
                     permission: () => hasPermission("ai:llm-log:list")
                 },
                 component: () => import("@/views/ai/llm-log/index.vue")
