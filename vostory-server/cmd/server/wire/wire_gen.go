@@ -87,7 +87,16 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsProjectRepository := repository.NewVsProjectRepository(repositoryRepository)
 	vsProjectService := service.NewVsProjectService(serviceService, vsProjectRepository)
 	vsProjectHandler := handler.NewVsProjectHandler(handlerHandler, vsProjectService)
-	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler, sysDictTypeHandler, sysDictDataHandler, sysOperLogHandler, sysOperLogService, vsLLMProviderHandler, vsTTSProviderHandler, vsPromptTemplateHandler, vsWorkspaceHandler, vsProjectHandler)
+	vsChapterRepository := repository.NewVsChapterRepository(repositoryRepository)
+	vsChapterService := service.NewVsChapterService(serviceService, vsChapterRepository)
+	vsChapterHandler := handler.NewVsChapterHandler(handlerHandler, vsChapterService)
+	vsScriptSegmentRepository := repository.NewVsScriptSegmentRepository(repositoryRepository)
+	vsScriptSegmentService := service.NewVsScriptSegmentService(serviceService, vsScriptSegmentRepository)
+	vsScriptSegmentHandler := handler.NewVsScriptSegmentHandler(handlerHandler, vsScriptSegmentService)
+	vsCharacterRepository := repository.NewVsCharacterRepository(repositoryRepository)
+	vsCharacterService := service.NewVsCharacterService(serviceService, vsCharacterRepository)
+	vsCharacterHandler := handler.NewVsCharacterHandler(handlerHandler, vsCharacterService)
+	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler, sysDictTypeHandler, sysDictDataHandler, sysOperLogHandler, sysOperLogService, vsLLMProviderHandler, vsTTSProviderHandler, vsPromptTemplateHandler, vsWorkspaceHandler, vsProjectHandler, vsChapterHandler, vsScriptSegmentHandler, vsCharacterHandler)
 	jobJob := job.NewJob(transaction, logger, sidSid, viperViper)
 	userJob := job.NewUserJob(jobJob)
 	jobServer := server.NewJobServer(logger, viperViper, userJob)
@@ -98,11 +107,11 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 
 // wire.go:
 
-var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repository.NewRepository, repository.NewTransaction, repository.NewSysPostRepository, repository.NewSysDeptRepository, repository.NewSysMenuRepository, repository.NewSysRoleRepository, repository.NewSysRoleDeptRepository, repository.NewSysRoleMenuRepository, repository.NewSysUserRoleRepository, repository.NewSysUserPostRepository, repository.NewSysUserRepository, repository.NewSysLogininforRepository, repository.NewSysApiRepository, repository.NewSysDictTypeRepository, repository.NewSysDictDataRepository, repository.NewSysOperLogRepository, repository.NewVsLLMProviderRepository, repository.NewVsTTSProviderRepository, repository.NewVsPromptTemplateRepository, repository.NewVsWorkspaceRepository, repository.NewVsProjectRepository)
+var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repository.NewRepository, repository.NewTransaction, repository.NewSysPostRepository, repository.NewSysDeptRepository, repository.NewSysMenuRepository, repository.NewSysRoleRepository, repository.NewSysRoleDeptRepository, repository.NewSysRoleMenuRepository, repository.NewSysUserRoleRepository, repository.NewSysUserPostRepository, repository.NewSysUserRepository, repository.NewSysLogininforRepository, repository.NewSysApiRepository, repository.NewSysDictTypeRepository, repository.NewSysDictDataRepository, repository.NewSysOperLogRepository, repository.NewVsLLMProviderRepository, repository.NewVsTTSProviderRepository, repository.NewVsPromptTemplateRepository, repository.NewVsWorkspaceRepository, repository.NewVsProjectRepository, repository.NewVsChapterRepository, repository.NewVsScriptSegmentRepository, repository.NewVsCharacterRepository)
 
-var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, service.NewSysDeptService, service.NewSysMenuService, service.NewSysRoleService, service.NewSysUserService, service.NewSysLogininforService, service.NewSysApiService, service.NewSysDictTypeService, service.NewSysDictDataService, service.NewSysOperLogService, service.NewVsLLMProviderService, service.NewVsTTSProviderService, service.NewVsPromptTemplateService, service.NewVsWorkspaceService, service.NewVsProjectService, cache.NewUserCache, mqtt.NewMqttClient, kafka.NewKafkaProducer, resty.NewRestyClient)
+var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, service.NewSysDeptService, service.NewSysMenuService, service.NewSysRoleService, service.NewSysUserService, service.NewSysLogininforService, service.NewSysApiService, service.NewSysDictTypeService, service.NewSysDictDataService, service.NewSysOperLogService, service.NewVsLLMProviderService, service.NewVsTTSProviderService, service.NewVsPromptTemplateService, service.NewVsWorkspaceService, service.NewVsProjectService, service.NewVsChapterService, service.NewVsScriptSegmentService, service.NewVsCharacterService, cache.NewUserCache, mqtt.NewMqttClient, kafka.NewKafkaProducer, resty.NewRestyClient)
 
-var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler, handler.NewSysDictTypeHandler, handler.NewSysDictDataHandler, handler.NewSysOperLogHandler, handler.NewVsLLMProviderHandler, handler.NewVsTTSProviderHandler, handler.NewVsPromptTemplateHandler, handler.NewVsWorkspaceHandler, handler.NewVsProjectHandler)
+var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler, handler.NewSysDictTypeHandler, handler.NewSysDictDataHandler, handler.NewSysOperLogHandler, handler.NewVsLLMProviderHandler, handler.NewVsTTSProviderHandler, handler.NewVsPromptTemplateHandler, handler.NewVsWorkspaceHandler, handler.NewVsProjectHandler, handler.NewVsChapterHandler, handler.NewVsScriptSegmentHandler, handler.NewVsCharacterHandler)
 
 var jobSet = wire.NewSet(job.NewJob, job.NewUserJob)
 

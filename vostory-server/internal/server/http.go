@@ -42,6 +42,9 @@ func NewHTTPServer(
 	vsPromptTemplateHandler *handler.VsPromptTemplateHandler,
 	vsWorkspaceHandler *handler.VsWorkspaceHandler,
 	vsProjectHandler *handler.VsProjectHandler,
+	vsChapterHandler *handler.VsChapterHandler,
+	vsScriptSegmentHandler *handler.VsScriptSegmentHandler,
+	vsCharacterHandler *handler.VsCharacterHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -100,6 +103,9 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/prompt-template/type/:type", vsPromptTemplateHandler.ListByType)
 			noStrictAuthRouter.GET("/common/workspace/options", vsWorkspaceHandler.GetOptions)
 			noStrictAuthRouter.GET("/common/project/workspace/:workspace_id", vsProjectHandler.GetByWorkspace)
+			noStrictAuthRouter.GET("/common/chapter/project/:project_id", vsChapterHandler.GetByProject)
+			noStrictAuthRouter.GET("/common/script-segment/chapter/:chapter_id", vsScriptSegmentHandler.GetByChapter)
+			noStrictAuthRouter.GET("/common/character/project/:project_id", vsCharacterHandler.GetByProject)
 		}
 
 		// 3. 授权路由：需要登录 + 权限验证（白名单模式）
@@ -237,6 +243,35 @@ func NewHTTPServer(
 				projectRouter.POST("", vsProjectHandler.Create)
 				projectRouter.PUT("/:id", vsProjectHandler.Update)
 				projectRouter.DELETE("/:id", vsProjectHandler.Delete)
+			}
+
+			chapterRouter := strictAuthRouter.Group("/chapter")
+			{
+				chapterRouter.GET("/:id", vsChapterHandler.Get)
+				chapterRouter.GET("/list", vsChapterHandler.List)
+				chapterRouter.POST("", vsChapterHandler.Create)
+				chapterRouter.PUT("/:id", vsChapterHandler.Update)
+				chapterRouter.DELETE("/:id", vsChapterHandler.Delete)
+			}
+
+			scriptSegmentRouter := strictAuthRouter.Group("/script-segment")
+			{
+				scriptSegmentRouter.GET("/:id", vsScriptSegmentHandler.Get)
+				scriptSegmentRouter.GET("/list", vsScriptSegmentHandler.List)
+				scriptSegmentRouter.POST("", vsScriptSegmentHandler.Create)
+				scriptSegmentRouter.PUT("/:id", vsScriptSegmentHandler.Update)
+				scriptSegmentRouter.DELETE("/:id", vsScriptSegmentHandler.Delete)
+			}
+
+			characterRouter := strictAuthRouter.Group("/character")
+			{
+				characterRouter.GET("/:id", vsCharacterHandler.Get)
+				characterRouter.GET("/list", vsCharacterHandler.List)
+				characterRouter.POST("", vsCharacterHandler.Create)
+				characterRouter.PUT("/:id", vsCharacterHandler.Update)
+				characterRouter.DELETE("/:id", vsCharacterHandler.Delete)
+				characterRouter.PUT("/:id/enable", vsCharacterHandler.Enable)
+				characterRouter.PUT("/:id/disable", vsCharacterHandler.Disable)
 			}
 
 			aiRouter := strictAuthRouter.Group("/ai")

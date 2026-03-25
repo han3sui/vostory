@@ -22,6 +22,36 @@ const routers: RouteConfig[] = [
                     permission: () => hasPermission("project:list")
                 },
                 component: () => import("@/views/project/index.vue")
+            },
+            {
+                path: "/project/chapter",
+                name: "project-chapter",
+                meta: {
+                    title: "章节管理",
+                    sort: 2,
+                    permission: () => hasPermission("chapter:list")
+                },
+                component: () => import("@/views/chapter/index.vue")
+            },
+            {
+                path: "/project/script-segment",
+                name: "project-script-segment",
+                meta: {
+                    title: "脚本片段",
+                    sort: 3,
+                    permission: () => hasPermission("script-segment:list")
+                },
+                component: () => import("@/views/script-segment/index.vue")
+            },
+            {
+                path: "/project/character",
+                name: "project-character",
+                meta: {
+                    title: "角色管理",
+                    sort: 4,
+                    permission: () => hasPermission("character:list")
+                },
+                component: () => import("@/views/character/index.vue")
             }
         ]
     }
