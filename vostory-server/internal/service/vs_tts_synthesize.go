@@ -505,11 +505,22 @@ func (s *vsTTSSynthesizeService) BatchUnlockByChapter(ctx context.Context, chapt
 }
 
 func (s *vsTTSSynthesizeService) CancelChapterQueue(ctx context.Context, chapterID uint64) (int64, error) {
-	task, _ := s.taskRepo.FindActiveByChapterID(ctx, chapterID)
-	if task == nil {
+	tasks, err := s.taskRepo.FindActiveListByChapterID(ctx, chapterID)
+	if err != nil {
+		return 0, err
+	}
+	if len(tasks) == 0 {
 		return 0, nil
 	}
-	return s.cancelTaskQueuedSegments(ctx, task)
+	var totalAffected int64
+	for _, task := range tasks {
+		affected, err := s.cancelTaskQueuedSegments(ctx, task)
+		if err != nil {
+			continue
+		}
+		totalAffected += affected
+	}
+	return totalAffected, nil
 }
 
 func (s *vsTTSSynthesizeService) CancelProjectQueue(ctx context.Context, projectID uint64) (int64, error) {
@@ -537,11 +548,9 @@ func (s *vsTTSSynthesizeService) cancelTaskQueuedSegments(ctx context.Context, t
 	if err != nil {
 		return 0, err
 	}
-	if affected == 0 {
-		return 0, nil
+	if affected > 0 {
+		_ = s.taskRepo.ReduceTotalBatches(ctx, task.TaskID, int(affected))
 	}
-
-	_ = s.taskRepo.ReduceTotalBatches(ctx, task.TaskID, int(affected))
 
 	// 重新读取 task，判断是否已全部处理完毕
 	updated, err := s.taskRepo.FindByID(ctx, task.TaskID)
@@ -549,7 +558,7 @@ func (s *vsTTSSynthesizeService) cancelTaskQueuedSegments(ctx context.Context, t
 		return affected, nil
 	}
 	processed := updated.CompletedBatches + updated.FailedBatches
-	if updated.TotalBatches > 0 && processed >= updated.TotalBatches {
+	if processed >= updated.TotalBatches {
 		if updated.FailedBatches > 0 {
 			_ = s.taskRepo.SetFailed(ctx, task.TaskID,
 				fmt.Sprintf("%d/%d segments failed", updated.FailedBatches, updated.TotalBatches))

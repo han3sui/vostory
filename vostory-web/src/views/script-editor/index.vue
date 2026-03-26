@@ -250,6 +250,7 @@ import storage from "@/utils/tools/storage";
 const props = defineProps<{ projectId: number }>();
 
 const onTTSEvent = inject<(handler: (evt: TTSSegmentEvent) => void) => () => void>("onTTSEvent");
+const refreshProjectTTSQueue = inject<() => Promise<void>>("refreshProjectTTSQueue");
 
 const selectedChapterId = ref<number>();
 const currentChapter = ref<any>(null);
@@ -512,6 +513,7 @@ async function handleCancelQueue() {
     try {
         const res = await cancelChapterQueue(selectedChapterId.value);
         segments.value.forEach((s) => { if (s.status === "queued") s.status = "cancelled"; });
+        if (refreshProjectTTSQueue) await refreshProjectTTSQueue();
         Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
     } catch {
         Message.error("取消失败");

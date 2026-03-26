@@ -190,12 +190,20 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 	}
 
 	processed := task.CompletedBatches + task.FailedBatches
-	progress := processed * 100 / task.TotalBatches
+	progress := 0
+	if task.TotalBatches <= 0 {
+		progress = 100
+	} else {
+		progress = processed * 100 / task.TotalBatches
+		if progress > 100 {
+			progress = 100
+		}
+	}
 	_ = w.taskRepo.UpdateProgress(ctx, taskID, task.CompletedBatches, progress)
 
 	taskDone := false
 	taskStatus := task.Status
-	if processed >= task.TotalBatches {
+	if task.TotalBatches <= 0 || processed >= task.TotalBatches {
 		taskDone = true
 		if task.FailedBatches > 0 {
 			taskStatus = "failed"

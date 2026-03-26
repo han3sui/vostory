@@ -129,6 +129,11 @@ async function loadActiveTasks(pid: number) {
     }
 }
 
+async function refreshProjectTTSQueue() {
+    if (!projectId.value) return;
+    await loadActiveTasks(projectId.value);
+}
+
 function handleSSEEvent(evt: TTSSegmentEvent) {
     ttsEventHandlers.value.forEach((fn) => fn(evt));
 
@@ -214,5 +219,6 @@ watch(
 onUnmounted(disconnectProjectSSE);
 
 provide("onTTSEvent", onTTSEvent);
+provide("refreshProjectTTSQueue", refreshProjectTTSQueue);
 </script>
 <style lang="scss" scoped></style>
