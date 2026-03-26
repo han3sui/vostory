@@ -59,13 +59,13 @@ import {
     ProjectTaskProgress
 } from "@/config/apis/tts";
 import storage from "@/utils/tools/storage";
-import ProjectImport from "@/views/project/import/index.vue";
-import ProjectChapter from "@/views/chapter/index.vue";
-import ProjectScriptEditor from "@/views/script-editor/index.vue";
-import ProjectScriptSegment from "@/views/script-segment/index.vue";
-import ProjectCharacter from "@/views/character/index.vue";
-import ProjectVoiceProfile from "@/views/voice-profile/index.vue";
-import ProjectPronunciationDict from "@/views/pronunciation-dict/index.vue";
+import ProjectImport from "./components/import/index.vue";
+import ProjectChapter from "./components/chapter/index.vue";
+import ProjectScriptEditor from "./components/script-editor/index.vue";
+import ProjectScriptSegment from "./components/script-segment/index.vue";
+import ProjectCharacter from "./components/character/index.vue";
+import ProjectVoiceProfile from "./components/voice-profile/index.vue";
+import ProjectPronunciationDict from "./components/pronunciation-dict/index.vue";
 
 const route = useRoute();
 const router = useRouter();
