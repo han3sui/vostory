@@ -26,8 +26,8 @@ const formConfig = computed(() => {
             apiTagList.value.map((item) => ({ label: item, value: item })),
             {
                 span: 6,
-                allowSearch:true
-            },
+                allowSearch: true
+            }
         )
     ];
 });

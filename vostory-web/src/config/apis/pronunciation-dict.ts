@@ -46,6 +46,9 @@ export function deletePronunciationDict(id: number) {
     return request({ url: `/api/v1/pronunciation-dict/${id}`, method: "delete" });
 }
 
-export function getEffectivePronunciationDict(workspaceId: number, projectId: number): Promise<PronunciationDictDetailType[]> {
+export function getEffectivePronunciationDict(
+    workspaceId: number,
+    projectId: number
+): Promise<PronunciationDictDetailType[]> {
     return request({ url: `/api/v1/common/pronunciation-dict/${workspaceId}/${projectId}` });
 }

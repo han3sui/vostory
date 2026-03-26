@@ -19,13 +19,7 @@
 <script lang="ts" setup>
 import { Modal } from "@arco-design/web-vue";
 import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
-import {
-    getProjectList,
-    addProject,
-    updateProject,
-    deleteProject,
-    ProjectDetailType
-} from "@/config/apis/project";
+import { getProjectList, addProject, updateProject, deleteProject, ProjectDetailType } from "@/config/apis/project";
 import { getWorkspaceOptions, WorkspaceOptionType } from "@/config/apis/workspace";
 import { getLLMProviderList, LLMProviderDetailType } from "@/config/apis/ai";
 import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
@@ -182,8 +176,26 @@ function onEdit(v: Record<string, any> | null) {
         ],
         ok: async (data: any) => {
             if (tempValue) {
-                const { id, name, description, cover_url, llm_provider_id, tts_provider_id, prompt_template_ids, remark } = data;
-                await updateProject({ id, name, description, cover_url, llm_provider_id, tts_provider_id, prompt_template_ids, remark });
+                const {
+                    id,
+                    name,
+                    description,
+                    cover_url,
+                    llm_provider_id,
+                    tts_provider_id,
+                    prompt_template_ids,
+                    remark
+                } = data;
+                await updateProject({
+                    id,
+                    name,
+                    description,
+                    cover_url,
+                    llm_provider_id,
+                    tts_provider_id,
+                    prompt_template_ids,
+                    remark
+                });
             } else {
                 await addProject(data);
             }

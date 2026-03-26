@@ -9,9 +9,7 @@
                     <a-tag size="small" color="arcoblue">{{ project.total_chapters }} 章</a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_characters }} 角色</a-tag>
                     <template v-if="ttsQueueList.length > 0">
-                        <a-tag size="small" color="orange"
-                            >语音队列 {{ ttsProcessedCount }}/{{ ttsTotalCount }}</a-tag
-                        >
+                        <a-tag size="small" color="orange">语音队列 {{ ttsProcessedCount }}/{{ ttsTotalCount }}</a-tag>
                         <a-popconfirm content="确认取消所有排队中的生成任务？" @ok="handleCancelAll">
                             <a-button type="text" size="mini" status="danger">取消全部队列</a-button>
                         </a-popconfirm>
@@ -56,12 +54,7 @@ import { Message } from "@arco-design/web-vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchEventSource } from "@fortaine/fetch-event-source";
 import { getProject, ProjectDetailType } from "@/config/apis/project";
-import {
-    getProjectEventsURL,
-    cancelProjectQueue,
-    TTSSegmentEvent,
-    ProjectTaskProgress
-} from "@/config/apis/tts";
+import { getProjectEventsURL, cancelProjectQueue, TTSSegmentEvent, ProjectTaskProgress } from "@/config/apis/tts";
 import storage from "@/utils/tools/storage";
 import ProjectImport from "./components/import/index.vue";
 import ProjectChapter from "./components/chapter/index.vue";

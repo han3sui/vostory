@@ -17,7 +17,9 @@
                     </div>
                     <div class="emotion-card-body">
                         <div class="audio-url" :title="item.reference_audio_url">
-                            {{ item.reference_audio_url ? extractFilenameFromPath(item.reference_audio_url) : '未设置' }}
+                            {{
+                                item.reference_audio_url ? extractFilenameFromPath(item.reference_audio_url) : "未设置"
+                            }}
                         </div>
                         <div v-if="item.reference_text" class="ref-text">{{ item.reference_text }}</div>
                     </div>
@@ -65,12 +67,19 @@
                         </a-upload>
                         <div v-if="formData.reference_audio_url" class="uploaded-file-info">
                             <icon-check-circle style="color: rgb(var(--green-6)); margin-right: 4px" />
-                            <span class="file-name">{{ extractFilenameFromPath(formData.reference_audio_url as string) }}</span>
+                            <span
+                                class="file-name"
+                                >{{ extractFilenameFromPath(formData.reference_audio_url as string) }}</span
+                            >
                         </div>
                     </div>
                 </a-form-item>
                 <a-form-item label="参考文本">
-                    <a-textarea v-model="formData.reference_text" placeholder="参考音频对应的文本内容" :auto-size="{ minRows: 2 }" />
+                    <a-textarea
+                        v-model="formData.reference_text"
+                        placeholder="参考音频对应的文本内容"
+                        :auto-size="{ minRows: 2 }"
+                    />
                 </a-form-item>
             </a-form>
         </a-modal>
@@ -101,7 +110,7 @@ async function loadEmotions() {
     if (!props.voiceProfileId) return;
     loading.value = true;
     try {
-        emotions.value = await getVoiceEmotionsByProfile(props.voiceProfileId) || [];
+        emotions.value = (await getVoiceEmotionsByProfile(props.voiceProfileId)) || [];
     } finally {
         loading.value = false;
     }
@@ -165,16 +174,26 @@ async function handleDelete(id: number) {
 
 function emotionLabel(type: string) {
     const map: Record<string, string> = {
-        neutral: "平静", happy: "开心", sad: "悲伤",
-        angry: "愤怒", fear: "恐惧", surprise: "惊讶", disgust: "厌恶"
+        neutral: "平静",
+        happy: "开心",
+        sad: "悲伤",
+        angry: "愤怒",
+        fear: "恐惧",
+        surprise: "惊讶",
+        disgust: "厌恶"
     };
     return map[type] || type;
 }
 
 function emotionColor(type: string) {
     const map: Record<string, string> = {
-        neutral: "gray", happy: "orange", sad: "blue",
-        angry: "red", fear: "purple", surprise: "magenta", disgust: "green"
+        neutral: "gray",
+        happy: "orange",
+        sad: "blue",
+        angry: "red",
+        fear: "purple",
+        surprise: "magenta",
+        disgust: "green"
     };
     return map[type] || "gray";
 }

@@ -44,7 +44,8 @@
             @before-ok="handleSmartImport"
         >
             <a-typography-paragraph>
-                粘贴角色介绍文字，LLM 将自动识别角色名称、性别、层级、性格描述等信息并录入角色库。已存在的角色会自动跳过。
+                粘贴角色介绍文字，LLM
+                将自动识别角色名称、性别、层级、性格描述等信息并录入角色库。已存在的角色会自动跳过。
             </a-typography-paragraph>
             <a-textarea
                 v-model="smartImportText"
@@ -261,7 +262,9 @@ async function handleSmartImport(done: (closed: boolean) => void) {
     smartImporting.value = true;
     try {
         const res = await extractFromText(props.projectId, smartImportText.value);
-        Message.success(`识别完成：发现 ${res.extracted_count} 个角色，新增 ${res.new_count} 个，跳过 ${res.skipped_count} 个`);
+        Message.success(
+            `识别完成：发现 ${res.extracted_count} 个角色，新增 ${res.new_count} 个，跳过 ${res.skipped_count} 个`
+        );
         table.value.refresh();
         done(true);
     } catch {

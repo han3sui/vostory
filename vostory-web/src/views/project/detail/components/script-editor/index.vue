@@ -500,7 +500,9 @@ function handleChapterSplitEvent(evt: any) {
     splittingChapterIds.value = ids;
 
     if (evt.status === "completed") {
-        Message.success(`章节「${evt.chapter_title || evt.chapter_id}」切割完成：${evt.scene_count} 场景，${evt.segment_count} 片段`);
+        Message.success(
+            `章节「${evt.chapter_title || evt.chapter_id}」切割完成：${evt.scene_count} 场景，${evt.segment_count} 片段`
+        );
     } else {
         Message.warning(`章节「${evt.chapter_title || evt.chapter_id}」切割失败：${evt.error_message || "未知错误"}`);
     }

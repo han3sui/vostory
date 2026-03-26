@@ -17,9 +17,7 @@
             <template #tokensSlot>
                 <a-table-column title="Token">
                     <template #cell="{ record }">
-                        <span class="text-xs">
-                            入 {{ record.input_tokens }} / 出 {{ record.output_tokens }}
-                        </span>
+                        <span class="text-xs"> 入 {{ record.input_tokens }} / 出 {{ record.output_tokens }} </span>
                     </template>
                 </a-table-column>
             </template>

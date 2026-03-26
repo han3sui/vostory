@@ -78,10 +78,7 @@ export type BatchSplitResult = {
     total: number;
 };
 
-export function batchSplitChapters(
-    projectId: number,
-    chapterIds: number[]
-): Promise<BatchSplitResult> {
+export function batchSplitChapters(projectId: number, chapterIds: number[]): Promise<BatchSplitResult> {
     return request({
         url: "/api/v1/chapter/batch-split",
         method: "post",

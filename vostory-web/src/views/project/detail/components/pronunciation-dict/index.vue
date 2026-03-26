@@ -19,14 +19,7 @@
 </template>
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
-import {
-    formHelper,
-    ArcoTable,
-    tableHelper,
-    ArcoForm,
-    ArcoModalFormShow,
-    ruleHelper
-} from "@easyfe/admin-component";
+import { formHelper, ArcoTable, tableHelper, ArcoForm, ArcoModalFormShow, ruleHelper } from "@easyfe/admin-component";
 import {
     getPronunciationDictList,
     addPronunciationDict,
@@ -43,9 +36,7 @@ const table = ref();
 const filterData = ref<Record<string, any>>({});
 
 const getFilterConfig = computed(() => {
-    return [
-        formHelper.input("原始词", "word", { span: 6, debounce: 500 })
-    ];
+    return [formHelper.input("原始词", "word", { span: 6, debounce: 500 })];
 });
 
 const tableConfig = computed(() => {

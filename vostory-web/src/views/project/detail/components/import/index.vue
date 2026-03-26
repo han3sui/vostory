@@ -3,15 +3,9 @@
         <a-card title="文件导入">
             <a-form :model="{}" layout="vertical">
                 <a-form-item label="上传源文件" required>
-                    <a-upload
-                        :custom-request="handleUpload"
-                        :limit="1"
-                        accept=".txt,.docx,.epub"
-                    >
+                    <a-upload :custom-request="handleUpload" :limit="1" accept=".txt,.docx,.epub">
                         <template #upload-button>
-                            <a-button type="primary">
-                                选择文件（支持 txt / docx / epub）
-                            </a-button>
+                            <a-button type="primary"> 选择文件（支持 txt / docx / epub） </a-button>
                         </template>
                     </a-upload>
                 </a-form-item>

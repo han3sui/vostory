@@ -115,18 +115,14 @@ function onEdit(v: Record<string, any> | null) {
             formHelper.input("字典键值", "dict_value", { rules: [ruleHelper.require("请输入")] }),
             formHelper.inputNumber("排序", "dict_sort"),
             formHelper.input("样式属性", "css_class"),
-            formHelper.select(
-                "回显样式",
-                "list_class",
-                [
-                    { label: "默认", value: "default" },
-                    { label: "主要", value: "primary" },
-                    { label: "成功", value: "success" },
-                    { label: "信息", value: "info" },
-                    { label: "警告", value: "warning" },
-                    { label: "危险", value: "danger" }
-                ]
-            ),
+            formHelper.select("回显样式", "list_class", [
+                { label: "默认", value: "default" },
+                { label: "主要", value: "primary" },
+                { label: "成功", value: "success" },
+                { label: "信息", value: "info" },
+                { label: "警告", value: "warning" },
+                { label: "危险", value: "danger" }
+            ]),
             formHelper.radio(
                 "是否默认",
                 "is_default",
