@@ -14,6 +14,25 @@
                     </template>
                 </a-table-column>
             </template>
+            <template #previewSlot>
+                <a-table-column title="参考音频">
+                    <template #cell="{ record }">
+                        <a-button
+                            v-if="record.reference_audio_url"
+                            type="text"
+                            size="mini"
+                            @click="togglePreview(record)"
+                        >
+                            <template #icon>
+                                <icon-play-arrow v-if="previewingId !== record.id" />
+                                <icon-pause v-else />
+                            </template>
+                            {{ previewingId === record.id ? "停止" : "试听" }}
+                        </a-button>
+                        <span v-else style="color: var(--color-text-3)">未上传</span>
+                    </template>
+                </a-table-column>
+            </template>
         </arco-table>
 
         <a-drawer
@@ -48,8 +67,9 @@ import {
 } from "@/config/apis/voice-profile";
 import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
 import { getVoiceAssetList, VoiceAssetDetailType } from "@/config/apis/voice-asset";
-import { uploadReferenceAudio, extractUploadUrl, pathToFileList } from "@/config/apis/upload";
+import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceAudioBlob } from "@/config/apis/upload";
 import { hasPermission, PageTableConfig } from "@/views/utils";
+import { IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
 import { cloneDeep } from "lodash-es";
 import VoiceEmotionManager from "@/views/voice-emotion/index.vue";
 
@@ -72,9 +92,7 @@ async function loadTTSProviders() {
 onMounted(loadTTSProviders);
 
 const getFilterConfig = computed(() => {
-    return [
-        formHelper.input("名称", "name", { span: 6, debounce: 500 })
-    ];
+    return [formHelper.input("名称", "name", { span: 6, debounce: 500 })];
 });
 
 const tableConfig = computed(() => {
@@ -103,6 +121,7 @@ const tableConfig = computed(() => {
         columns: [
             tableHelper.default("名称", "name"),
             tableHelper.default("参考文本", "reference_text"),
+            tableHelper.slot("previewSlot"),
             tableHelper.default("TTS 提供商", "tts_provider_name"),
             tableHelper.slot("statusSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
@@ -278,6 +297,60 @@ function handleOpenImport() {
     });
 }
 
+const previewingId = ref<number | null>(null);
+const previewLoadingId = ref<number | null>(null);
+let previewAudioEl: HTMLAudioElement | null = null;
+let previewBlobURL: string | null = null;
+
+function stopPreview() {
+    if (previewAudioEl) {
+        previewAudioEl.pause();
+        previewAudioEl = null;
+    }
+    if (previewBlobURL) {
+        URL.revokeObjectURL(previewBlobURL);
+        previewBlobURL = null;
+    }
+    previewingId.value = null;
+    previewLoadingId.value = null;
+}
+
+async function togglePreview(row: VoiceProfileDetailType) {
+    if (previewingId.value === row.id) {
+        stopPreview();
+        return;
+    }
+
+    stopPreview();
+    previewLoadingId.value = row.id;
+
+    try {
+        const blobURL = await fetchReferenceAudioBlob("voice-profile", row.id);
+        if (previewLoadingId.value !== row.id) {
+            URL.revokeObjectURL(blobURL);
+            return;
+        }
+
+        previewBlobURL = blobURL;
+        const audio = new Audio(blobURL);
+        previewAudioEl = audio;
+        previewingId.value = row.id;
+        previewLoadingId.value = null;
+
+        audio.addEventListener("ended", () => stopPreview());
+        audio.addEventListener("error", () => {
+            Message.warning("音频播放失败");
+            stopPreview();
+        });
+        await audio.play();
+    } catch {
+        Message.warning("音频加载失败");
+        stopPreview();
+    }
+}
+
+onUnmounted(stopPreview);
+
 async function handleToggleStatus(record: VoiceProfileDetailType, enabled: boolean) {
     if (enabled) {
         await enableVoiceProfile(record.id);
@@ -287,4 +360,24 @@ async function handleToggleStatus(record: VoiceProfileDetailType, enabled: boole
     table.value.refresh();
 }
 </script>
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.playing-btn {
+    color: rgb(var(--primary-6));
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.no-audio-text {
+    font-size: 12px;
+    color: var(--color-text-3);
+}
+</style>
