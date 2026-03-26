@@ -14,6 +14,7 @@ type VsScriptSegment struct {
 	EmotionType     string  `json:"emotion_type" gorm:"size:50;comment:情绪类型（happy/sad/angry/fear/surprise/neutral等）"`
 	EmotionStrength string  `json:"emotion_strength" gorm:"size:20;default:'medium';comment:情绪强度（light/medium/strong）"`
 	Status          string  `json:"status" gorm:"size:20;default:'raw';comment:片段状态（raw/edited/generated）"`
+	ErrorMessage    string  `json:"error_message" gorm:"size:2000;comment:失败原因"`
 	Version         int     `json:"version" gorm:"default:1;comment:版本号"`
 
 	Scene     *VsScene     `json:"scene" gorm:"foreignKey:SceneID;references:SceneID"`

@@ -149,6 +149,7 @@ func (s *vsScriptSegmentService) convertToDetailResponse(seg *model.VsScriptSegm
 		EmotionType:     seg.EmotionType,
 		EmotionStrength: seg.EmotionStrength,
 		Status:          seg.Status,
+		ErrorMessage:    seg.ErrorMessage,
 		Version:         seg.Version,
 		CreatedAt:       seg.CreatedAt,
 		UpdatedAt:       seg.UpdatedAt,

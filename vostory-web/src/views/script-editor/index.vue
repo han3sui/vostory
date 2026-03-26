@@ -123,9 +123,15 @@
                                         <a-option value="strong">强</a-option>
                                     </a-select>
 
-                                    <a-tag size="small" :color="statusColor(seg.status)">
-                                        {{ statusLabel(seg.status) }}
-                                    </a-tag>
+                                    <a-tooltip
+                                        :content="seg.error_message"
+                                        :disabled="seg.status !== 'failed' || !seg.error_message"
+                                        position="top"
+                                    >
+                                        <a-tag size="small" :color="statusColor(seg.status)" style="cursor: default">
+                                            {{ statusLabel(seg.status) }}
+                                        </a-tag>
+                                    </a-tooltip>
                                     <span class="version-label">v{{ seg.version }}</span>
 
                                     <a-tooltip :content="disableReason(seg)" :disabled="!disableReason(seg)" mini>

@@ -17,7 +17,9 @@ type VsGenerationTaskRepository interface {
 	ResetStatus(ctx context.Context, id uint64, status string) error
 	SetStarted(ctx context.Context, id uint64) error
 	SetCompleted(ctx context.Context, id uint64) error
+	SetFailed(ctx context.Context, id uint64, errMsg string) error
 	IncrementCompleted(ctx context.Context, id uint64) (int64, error)
+	IncrementFailed(ctx context.Context, id uint64) (int64, error)
 }
 
 func NewVsGenerationTaskRepository(repository *Repository) VsGenerationTaskRepository {
@@ -104,6 +106,31 @@ func (r *vsGenerationTaskRepository) SetCompleted(ctx context.Context, id uint64
 			"progress":     100,
 			"completed_at": &now,
 		}).Error
+}
+
+func (r *vsGenerationTaskRepository) SetFailed(ctx context.Context, id uint64, errMsg string) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Model(&model.VsGenerationTask{}).
+		Where("task_id = ?", id).
+		Updates(map[string]interface{}{
+			"status":        "failed",
+			"error_message": errMsg,
+			"completed_at":  &now,
+		}).Error
+}
+
+func (r *vsGenerationTaskRepository) IncrementFailed(ctx context.Context, id uint64) (int64, error) {
+	result := r.db.WithContext(ctx).Model(&model.VsGenerationTask{}).
+		Where("task_id = ?", id).
+		Update("failed_batches", r.db.Raw("failed_batches + 1"))
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	var task model.VsGenerationTask
+	if err := r.db.WithContext(ctx).Select("failed_batches").Where("task_id = ?", id).First(&task).Error; err != nil {
+		return 0, err
+	}
+	return int64(task.FailedBatches), nil
 }
 
 func (r *vsGenerationTaskRepository) IncrementCompleted(ctx context.Context, id uint64) (int64, error) {

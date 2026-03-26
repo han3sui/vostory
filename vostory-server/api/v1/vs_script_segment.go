@@ -51,6 +51,7 @@ type VsScriptSegmentDetailResponse struct {
 	EmotionType     string    `json:"emotion_type"`
 	EmotionStrength string    `json:"emotion_strength"`
 	Status          string    `json:"status"`
+	ErrorMessage    string    `json:"error_message,omitempty"`
 	Version         int       `json:"version"`
 	HasAudio        bool      `json:"has_audio"`
 	AudioURL        string    `json:"audio_url,omitempty"`

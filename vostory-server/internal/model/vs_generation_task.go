@@ -43,6 +43,7 @@ type VsGenerationTask struct {
 	Progress         int         `json:"progress" gorm:"default:0;comment:进度百分比（0-100）"`
 	TotalBatches     int         `json:"total_batches" gorm:"default:0;comment:总批次数"`
 	CompletedBatches int         `json:"completed_batches" gorm:"default:0;comment:已完成批次数"`
+	FailedBatches    int         `json:"failed_batches" gorm:"default:0;comment:失败批次数"`
 	SegmentIDs       Uint64Array `json:"segment_ids" gorm:"type:text;comment:指定片段ID列表（JSON数组，为空则处理整个章节）"`
 	LLMProviderID    *uint64     `json:"llm_provider_id" gorm:"comment:使用的LLM提供商"`
 	TTSProviderID    *uint64     `json:"tts_provider_id" gorm:"comment:使用的TTS提供商"`

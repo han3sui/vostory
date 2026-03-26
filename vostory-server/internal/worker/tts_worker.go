@@ -146,17 +146,20 @@ func (w *TTSWorker) consumeLoop(ctx context.Context) {
 func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64) {
 	_ = w.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
 
-	_, err := w.ttsSvc.SynthesizeSegment(ctx, segmentID)
+	_, synthErr := w.ttsSvc.SynthesizeSegment(ctx, segmentID)
 
-	if err != nil {
+	if synthErr != nil {
 		w.logger.Warn("segment synthesis failed",
-			zap.Uint64("task_id", taskID), zap.Uint64("segment_id", segmentID), zap.Error(err))
-	}
+			zap.Uint64("task_id", taskID), zap.Uint64("segment_id", segmentID), zap.Error(synthErr))
 
-	completed, err := w.taskRepo.IncrementCompleted(ctx, taskID)
-	if err != nil {
-		w.logger.Error("increment completed failed", zap.Uint64("task_id", taskID), zap.Error(err))
-		return
+		if _, err := w.taskRepo.IncrementFailed(ctx, taskID); err != nil {
+			w.logger.Error("increment failed count error", zap.Uint64("task_id", taskID), zap.Error(err))
+		}
+	} else {
+		if _, err := w.taskRepo.IncrementCompleted(ctx, taskID); err != nil {
+			w.logger.Error("increment completed failed", zap.Uint64("task_id", taskID), zap.Error(err))
+			return
+		}
 	}
 
 	task, err := w.taskRepo.FindByID(ctx, taskID)
@@ -164,10 +167,16 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 		return
 	}
 
-	progress := int(completed) * 100 / task.TotalBatches
-	_ = w.taskRepo.UpdateProgress(ctx, taskID, int(completed), progress)
+	processed := task.CompletedBatches + task.FailedBatches
+	progress := processed * 100 / task.TotalBatches
+	_ = w.taskRepo.UpdateProgress(ctx, taskID, task.CompletedBatches, progress)
 
-	if int(completed) >= task.TotalBatches {
-		_ = w.taskRepo.SetCompleted(ctx, taskID)
+	if processed >= task.TotalBatches {
+		if task.FailedBatches > 0 {
+			_ = w.taskRepo.SetFailed(ctx, taskID,
+				fmt.Sprintf("%d/%d segments failed", task.FailedBatches, task.TotalBatches))
+		} else {
+			_ = w.taskRepo.SetCompleted(ctx, taskID)
+		}
 	}
 }

@@ -13,6 +13,7 @@ export type ScriptSegmentDetailType = {
     emotion_type: string;
     emotion_strength: string;
     status: string;
+    error_message: string;
     version: number;
     has_audio: boolean;
     audio_url: string;
