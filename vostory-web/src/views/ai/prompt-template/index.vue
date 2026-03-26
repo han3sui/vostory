@@ -142,7 +142,8 @@ function onEdit(v: Record<string, any> | null) {
             }),
             formHelper.textarea("Prompt 内容", "content", {
                 rules: [ruleHelper.require("请输入Prompt内容")],
-                inputTips: "支持变量占位符：{{content}}、{{segments}} 等"
+                inputTips: "支持变量占位符：{{content}}、{{segments}} 等",
+                autoSize: true
             }),
             formHelper.textarea("描述", "description"),
             formHelper.radio(
