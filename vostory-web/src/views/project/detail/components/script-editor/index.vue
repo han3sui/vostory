@@ -2,47 +2,66 @@
     <div class="script-editor-wrap">
         <!-- 左侧章节列表 -->
         <div class="chapter-sidebar">
-            <div v-if="chapters.length > 0 && hasPermission('chapter:split')" class="chapter-batch-bar">
+            <div class="chapter-batch-bar">
                 <a-checkbox
+                    v-if="chapters.length > 0 && hasPermission('chapter:split')"
                     :model-value="checkedChapterIds.length === chapters.length && chapters.length > 0"
                     :indeterminate="checkedChapterIds.length > 0 && checkedChapterIds.length < chapters.length"
                     @change="toggleAllChapters"
                 >
                     全选
                 </a-checkbox>
-                <a-button
-                    v-if="checkedChapterIds.length > 0"
-                    type="primary"
-                    size="mini"
-                    :loading="batchSplitting"
-                    @click="handleBatchSplit"
-                >
-                    批量切割 ({{ checkedChapterIds.length }})
-                </a-button>
+                <a-space v-if="chapters.length > 0" size="mini">
+                    <a-button
+                        v-if="checkedChapterIds.length > 0 && hasPermission('chapter:split')"
+                        type="primary"
+                        size="mini"
+                        :loading="batchSplitting"
+                        @click="handleBatchSplit"
+                    >
+                        批量切割 ({{ checkedChapterIds.length }})
+                    </a-button>
+                    <a-tooltip content="刷新章节列表">
+                        <a-button size="mini" :loading="refreshingChapters" @click="handleRefreshChapters">
+                            <template #icon><icon-refresh /></template>
+                        </a-button>
+                    </a-tooltip>
+                </a-space>
+                <a-tooltip v-else content="刷新章节列表">
+                    <a-button size="mini" :loading="refreshingChapters" @click="handleRefreshChapters">
+                        <template #icon><icon-refresh /></template>
+                    </a-button>
+                </a-tooltip>
             </div>
-            <div
-                v-for="ch in chapters"
-                :key="ch.id"
-                class="chapter-item"
-                :class="{ active: selectedChapterId === ch.id, splitting: splittingChapterIds.has(ch.id) }"
-                @click="selectChapter(ch)"
-            >
-                <a-checkbox
-                    v-if="hasPermission('chapter:split')"
-                    :model-value="checkedChapterIds.includes(ch.id)"
-                    class="chapter-checkbox"
-                    @change="(v: boolean | (string | boolean | number)[]) => toggleChapterCheck(ch.id, v as boolean)"
-                    @click.stop
-                />
-                <div class="chapter-info">
-                    <div class="chapter-title">{{ ch.title || `第${ch.chapter_num}章` }}</div>
-                    <div class="chapter-meta">
-                        {{ ch.word_count }} 字
-                        <a-tag v-if="splittingChapterIds.has(ch.id)" size="small" color="orange">切割中</a-tag>
+            <div class="chapter-list">
+                <div
+                    v-for="ch in chapters"
+                    :key="ch.id"
+                    class="chapter-item"
+                    :class="{ active: selectedChapterId === ch.id, splitting: splittingChapterIds.has(ch.id) }"
+                    @click="selectChapter(ch)"
+                >
+                    <a-checkbox
+                        v-if="hasPermission('chapter:split')"
+                        :model-value="checkedChapterIds.includes(ch.id)"
+                        class="chapter-checkbox"
+                        @change="
+                            (v: boolean | (string | boolean | number)[]) => toggleChapterCheck(ch.id, v as boolean)
+                        "
+                        @click.stop
+                    />
+                    <div class="chapter-info">
+                        <div class="chapter-title">{{ ch.title || `第${ch.chapter_num}章` }}</div>
+                        <div class="chapter-meta">
+                            {{ ch.word_count }} 字
+                            <a-tag v-if="splittingChapterIds.has(ch.id)" size="small" color="orange">切割中</a-tag>
+                            <a-tag v-else-if="ch.segment_count > 0" size="small" color="green">已切割</a-tag>
+                            <a-tag v-else size="small" color="gray">未切割</a-tag>
+                        </div>
                     </div>
                 </div>
+                <a-empty v-if="chapters.length === 0" description="暂无章节" />
             </div>
-            <a-empty v-if="chapters.length === 0" description="暂无章节" />
         </div>
 
         <!-- 右侧片段编辑区 -->
@@ -51,7 +70,7 @@
             <template v-else>
                 <div class="segment-header">
                     <h3>{{ currentChapter?.title }}</h3>
-                    <a-space>
+                    <a-space wrap>
                         <a-button
                             v-if="hasPermission('tts:synthesize')"
                             type="primary"
@@ -100,174 +119,180 @@
                     </a-space>
                 </div>
 
-                <div v-if="loadingSegments" class="loading-area">
-                    <a-spin />
-                </div>
+                <div class="segment-scroll">
+                    <div v-if="loadingSegments" class="loading-area">
+                        <a-spin />
+                    </div>
 
-                <div v-else class="segment-list">
-                    <div
-                        v-for="seg in segments"
-                        :key="seg.id"
-                        :data-seg-id="seg.id"
-                        class="segment-card"
-                        :class="segmentBorderClass(seg)"
-                    >
-                        <div class="segment-row">
-                            <div class="segment-num">#{{ seg.segment_num }}</div>
-                            <div class="segment-body">
-                                <div class="segment-controls">
-                                    <a-select
-                                        v-model="seg.segment_type"
-                                        size="mini"
-                                        style="width: 100px"
-                                        @change="() => saveSegment(seg)"
-                                    >
-                                        <a-option value="dialogue">对白</a-option>
-                                        <a-option value="narration">旁白</a-option>
-                                        <a-option value="monologue">独白</a-option>
-                                        <a-option value="description">描述</a-option>
-                                    </a-select>
-
-                                    <a-select
-                                        :model-value="seg.character_id ?? undefined"
-                                        size="mini"
-                                        style="width: 120px"
-                                        :placeholder="
-                                            seg.segment_type === 'narration' || seg.segment_type === 'description'
-                                                ? '旁白角色'
-                                                : '说话人'
-                                        "
-                                        allow-clear
-                                        @update:model-value="(v: any) => { seg.character_id = v ?? null; saveSegment(seg); }"
-                                    >
-                                        <a-option v-for="c in characterOptions" :key="c.id" :value="c.id">
-                                            {{ c.name }}
-                                        </a-option>
-                                    </a-select>
-
-                                    <a-select
-                                        v-model="seg.emotion_type"
-                                        size="mini"
-                                        style="width: 100px"
-                                        placeholder="情绪"
-                                        allow-clear
-                                        @change="() => saveSegment(seg)"
-                                    >
-                                        <a-option value="neutral">平静</a-option>
-                                        <a-option value="happy">开心</a-option>
-                                        <a-option value="sad">悲伤</a-option>
-                                        <a-option value="angry">愤怒</a-option>
-                                        <a-option value="fear">恐惧</a-option>
-                                        <a-option value="surprise">惊讶</a-option>
-                                        <a-option value="disgust">厌恶</a-option>
-                                    </a-select>
-
-                                    <a-select
-                                        v-model="seg.emotion_strength"
-                                        size="mini"
-                                        style="width: 80px"
-                                        placeholder="强度"
-                                        @change="() => saveSegment(seg)"
-                                    >
-                                        <a-option value="light">轻</a-option>
-                                        <a-option value="medium">中</a-option>
-                                        <a-option value="strong">强</a-option>
-                                    </a-select>
-
-                                    <a-tooltip
-                                        :content="seg.error_message"
-                                        :disabled="seg.status !== 'failed' || !seg.error_message"
-                                        position="top"
-                                    >
-                                        <a-tag size="small" :color="statusColor(seg.status)" style="cursor: default">
-                                            {{ statusLabel(seg.status) }}
-                                        </a-tag>
-                                    </a-tooltip>
-                                    <span class="version-label">v{{ seg.version }}</span>
-
-                                    <a-tooltip :content="disableReason(seg)" :disabled="!disableReason(seg)" mini>
-                                        <a-button
-                                            type="outline"
+                    <div v-else class="segment-list">
+                        <div
+                            v-for="seg in segments"
+                            :key="seg.id"
+                            :data-seg-id="seg.id"
+                            class="segment-card"
+                            :class="segmentBorderClass(seg)"
+                        >
+                            <div class="segment-row">
+                                <div class="segment-num">#{{ seg.segment_num }}</div>
+                                <div class="segment-body">
+                                    <div class="segment-controls">
+                                        <a-select
+                                            v-model="seg.segment_type"
                                             size="mini"
-                                            status="normal"
-                                            :loading="synthesizingIds.has(seg.id)"
-                                            :disabled="!canGenerate(seg)"
-                                            @click="handleGenerate(seg)"
+                                            style="width: 100px"
+                                            @change="() => saveSegment(seg)"
                                         >
-                                            <template #icon><icon-sound /></template>
-                                            生成
-                                        </a-button>
-                                    </a-tooltip>
-                                    <a-button
-                                        v-if="seg.status === 'generated'"
-                                        type="text"
-                                        size="mini"
-                                        @click="handleLock(seg)"
-                                    >
-                                        <template #icon><icon-lock /></template>
-                                    </a-button>
-                                    <a-button
-                                        v-if="seg.status === 'locked'"
-                                        type="text"
-                                        size="mini"
-                                        @click="handleUnlock(seg)"
-                                    >
-                                        <template #icon><icon-unlock /></template>
-                                    </a-button>
-                                    <a-trigger
-                                        v-if="seg.clip_id"
-                                        trigger="hover"
-                                        position="bottom"
-                                        :unmount-on-close="false"
-                                    >
+                                            <a-option value="dialogue">对白</a-option>
+                                            <a-option value="narration">旁白</a-option>
+                                            <a-option value="monologue">独白</a-option>
+                                            <a-option value="description">描述</a-option>
+                                        </a-select>
+
+                                        <a-select
+                                            :model-value="seg.character_id ?? undefined"
+                                            size="mini"
+                                            style="width: 120px"
+                                            :placeholder="
+                                                seg.segment_type === 'narration' || seg.segment_type === 'description'
+                                                    ? '旁白角色'
+                                                    : '说话人'
+                                            "
+                                            allow-clear
+                                            @update:model-value="(v: any) => { seg.character_id = v ?? null; saveSegment(seg); }"
+                                        >
+                                            <a-option v-for="c in characterOptions" :key="c.id" :value="c.id">
+                                                {{ c.name }}
+                                            </a-option>
+                                        </a-select>
+
+                                        <a-select
+                                            v-model="seg.emotion_type"
+                                            size="mini"
+                                            style="width: 100px"
+                                            placeholder="情绪"
+                                            allow-clear
+                                            @change="() => saveSegment(seg)"
+                                        >
+                                            <a-option value="neutral">平静</a-option>
+                                            <a-option value="happy">开心</a-option>
+                                            <a-option value="sad">悲伤</a-option>
+                                            <a-option value="angry">愤怒</a-option>
+                                            <a-option value="fear">恐惧</a-option>
+                                            <a-option value="surprise">惊讶</a-option>
+                                            <a-option value="disgust">厌恶</a-option>
+                                        </a-select>
+
+                                        <a-select
+                                            v-model="seg.emotion_strength"
+                                            size="mini"
+                                            style="width: 80px"
+                                            placeholder="强度"
+                                            @change="() => saveSegment(seg)"
+                                        >
+                                            <a-option value="light">轻</a-option>
+                                            <a-option value="medium">中</a-option>
+                                            <a-option value="strong">强</a-option>
+                                        </a-select>
+
+                                        <a-tooltip
+                                            :content="seg.error_message"
+                                            :disabled="seg.status !== 'failed' || !seg.error_message"
+                                            position="top"
+                                        >
+                                            <a-tag
+                                                size="small"
+                                                :color="statusColor(seg.status)"
+                                                style="cursor: default"
+                                            >
+                                                {{ statusLabel(seg.status) }}
+                                            </a-tag>
+                                        </a-tooltip>
+                                        <span class="version-label">v{{ seg.version }}</span>
+
+                                        <a-tooltip :content="disableReason(seg)" :disabled="!disableReason(seg)" mini>
+                                            <a-button
+                                                type="outline"
+                                                size="mini"
+                                                status="normal"
+                                                :loading="synthesizingIds.has(seg.id)"
+                                                :disabled="!canGenerate(seg)"
+                                                @click="handleGenerate(seg)"
+                                            >
+                                                <template #icon><icon-sound /></template>
+                                                生成
+                                            </a-button>
+                                        </a-tooltip>
                                         <a-button
+                                            v-if="seg.status === 'generated'"
                                             type="text"
                                             size="mini"
-                                            :class="{
-                                                'playing-btn':
-                                                    playingId === seg.id || continuousPlayingFromId === seg.id
-                                            }"
-                                            @click="togglePlayAudio(seg)"
+                                            @click="handleLock(seg)"
                                         >
-                                            <template #icon>
-                                                <icon-pause v-if="playingId === seg.id" />
-                                                <icon-play-arrow v-else />
-                                            </template>
+                                            <template #icon><icon-lock /></template>
                                         </a-button>
-                                        <template #content>
-                                            <div class="play-popover">
-                                                <div class="play-popover-item" @click="togglePlayAudio(seg)">
-                                                    <icon-play-arrow />
-                                                    <span>播放当前</span>
+                                        <a-button
+                                            v-if="seg.status === 'locked'"
+                                            type="text"
+                                            size="mini"
+                                            @click="handleUnlock(seg)"
+                                        >
+                                            <template #icon><icon-unlock /></template>
+                                        </a-button>
+                                        <a-trigger
+                                            v-if="seg.clip_id"
+                                            trigger="hover"
+                                            position="bottom"
+                                            :unmount-on-close="false"
+                                        >
+                                            <a-button
+                                                type="text"
+                                                size="mini"
+                                                :class="{
+                                                    'playing-btn':
+                                                        playingId === seg.id || continuousPlayingFromId === seg.id
+                                                }"
+                                                @click="togglePlayAudio(seg)"
+                                            >
+                                                <template #icon>
+                                                    <icon-pause v-if="playingId === seg.id" />
+                                                    <icon-play-arrow v-else />
+                                                </template>
+                                            </a-button>
+                                            <template #content>
+                                                <div class="play-popover">
+                                                    <div class="play-popover-item" @click="togglePlayAudio(seg)">
+                                                        <icon-play-arrow />
+                                                        <span>播放当前</span>
+                                                    </div>
+                                                    <div class="play-popover-item" @click="toggleContinuousPlay(seg)">
+                                                        <icon-drag-dot-vertical />
+                                                        <span>{{
+                                                            continuousPlayingFromId === seg.id ? "停止连播" : "连续播放"
+                                                        }}</span>
+                                                    </div>
                                                 </div>
-                                                <div class="play-popover-item" @click="toggleContinuousPlay(seg)">
-                                                    <icon-drag-dot-vertical />
-                                                    <span>{{
-                                                        continuousPlayingFromId === seg.id ? "停止连播" : "连续播放"
-                                                    }}</span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </a-trigger>
-                                </div>
+                                            </template>
+                                        </a-trigger>
+                                    </div>
 
-                                <a-textarea
-                                    v-model="seg.content"
-                                    :auto-size="{ minRows: 1, maxRows: 6 }"
-                                    class="segment-textarea"
-                                    @blur="() => saveSegment(seg)"
-                                />
+                                    <a-textarea
+                                        v-model="seg.content"
+                                        :auto-size="{ minRows: 1, maxRows: 6 }"
+                                        class="segment-textarea"
+                                        @blur="() => saveSegment(seg)"
+                                    />
 
-                                <div
-                                    v-if="seg.original_content && seg.original_content !== seg.content"
-                                    class="original-text"
-                                >
-                                    原文：{{ seg.original_content }}
+                                    <div
+                                        v-if="seg.original_content && seg.original_content !== seg.content"
+                                        class="original-text"
+                                    >
+                                        原文：{{ seg.original_content }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <a-empty v-if="segments.length === 0" description="暂无脚本片段" />
                     </div>
-                    <a-empty v-if="segments.length === 0" description="暂无脚本片段" />
                 </div>
             </template>
         </div>
@@ -321,6 +346,7 @@ const loadingSegments = ref(false);
 const aligning = ref(false);
 const splitting = ref(false);
 const batchSplitting = ref(false);
+const refreshingChapters = ref(false);
 const checkedChapterIds = ref<number[]>([]);
 const splittingChapterIds = ref<Set<number>>(new Set());
 const synthesizingIds = ref<Set<number>>(new Set());
@@ -360,6 +386,24 @@ async function loadChapters() {
     chapters.value = res || [];
 
     characterOptions.value = await getCharactersByProject(props.projectId);
+}
+
+async function handleRefreshChapters() {
+    if (!props.projectId) return;
+    refreshingChapters.value = true;
+    try {
+        const prevSelectedId = selectedChapterId.value;
+        const res: any = await request({
+            url: `/api/v1/common/chapter/project/${props.projectId}`
+        });
+        chapters.value = res || [];
+        characterOptions.value = await getCharactersByProject(props.projectId);
+        if (prevSelectedId && chapters.value.some((ch: any) => ch.id === prevSelectedId)) {
+            segments.value = await getSegmentsByChapter(prevSelectedId);
+        }
+    } finally {
+        refreshingChapters.value = false;
+    }
 }
 
 onMounted(loadChapters);
@@ -503,6 +547,10 @@ function handleChapterSplitEvent(evt: any) {
         Message.success(
             `章节「${evt.chapter_title || evt.chapter_id}」切割完成：${evt.scene_count} 场景，${evt.segment_count} 片段`
         );
+        const ch = chapters.value.find((c: any) => c.id === evt.chapter_id);
+        if (ch) {
+            ch.segment_count = evt.segment_count || 1;
+        }
     } else {
         Message.warning(`章节「${evt.chapter_title || evt.chapter_id}」切割失败：${evt.error_message || "未知错误"}`);
     }
@@ -865,8 +913,15 @@ function statusLabel(status: string) {
     width: 240px;
     flex-shrink: 0;
     border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chapter-list {
+    flex: 1;
     overflow-y: auto;
-    padding: 12px;
+    padding: 0 12px 12px;
 }
 
 .chapter-batch-bar {
@@ -875,7 +930,8 @@ function statusLabel(status: string) {
     justify-content: space-between;
     padding: 8px 12px;
     border-bottom: 1px solid var(--color-border);
-    margin-bottom: 4px;
+    flex-shrink: 0;
+    background-color: var(--color-bg-2);
 }
 
 .chapter-item {
@@ -929,16 +985,23 @@ function statusLabel(status: string) {
 
 .segment-main {
     flex: 1;
-    overflow-y: auto;
-    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     min-width: 0;
+}
+
+.segment-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 16px;
 }
 
 .empty-placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    flex: 1;
     color: var(--color-text-3);
 }
 
@@ -946,7 +1009,9 @@ function statusLabel(status: string) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    padding: 0px 16px 16px 12px;
+    flex-shrink: 0;
+    background-color: var(--color-bg-2);
 
     h3 {
         font-size: 16px;

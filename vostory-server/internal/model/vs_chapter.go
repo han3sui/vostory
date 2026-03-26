@@ -12,6 +12,8 @@ type VsChapter struct {
 	Status     string `json:"status" gorm:"size:20;default:'raw';comment:章节状态（raw/parsed/edited/generated/exported）"`
 	Remark     string `json:"remark" gorm:"size:500;comment:备注"`
 
+	SegmentCount int `json:"segment_count" gorm:"->"`
+
 	Project *VsProject `json:"project" gorm:"foreignKey:ProjectID;references:ProjectID"`
 }
 

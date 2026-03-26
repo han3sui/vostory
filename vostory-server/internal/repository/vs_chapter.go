@@ -82,9 +82,10 @@ func (r *vsChapterRepository) FindWithPagination(ctx context.Context, query *v1.
 func (r *vsChapterRepository) FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsChapter, error) {
 	var chapters []*model.VsChapter
 	if err := r.db.WithContext(ctx).
-		Select("chapter_id, project_id, title, chapter_num, word_count, status, remark, created_by, created_at, updated_by, updated_at, dept_id").
-		Where("project_id = ?", projectID).
-		Order("chapter_num ASC").Find(&chapters).Error; err != nil {
+		Select("vs_chapter.chapter_id, vs_chapter.project_id, vs_chapter.title, vs_chapter.chapter_num, vs_chapter.word_count, vs_chapter.status, vs_chapter.remark, vs_chapter.created_by, vs_chapter.created_at, vs_chapter.updated_by, vs_chapter.updated_at, vs_chapter.dept_id, "+
+			"(SELECT COUNT(*) FROM vs_script_segment WHERE vs_script_segment.chapter_id = vs_chapter.chapter_id AND vs_script_segment.deleted_at IS NULL) AS segment_count").
+		Where("vs_chapter.project_id = ?", projectID).
+		Order("vs_chapter.chapter_num ASC").Find(&chapters).Error; err != nil {
 		return nil, err
 	}
 	return chapters, nil

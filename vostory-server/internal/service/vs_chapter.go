@@ -112,15 +112,16 @@ func (s *vsChapterService) FindByProjectID(ctx context.Context, projectID uint64
 
 func (s *vsChapterService) convertToListResponse(c *model.VsChapter) *v1.VsChapterListResponse {
 	return &v1.VsChapterListResponse{
-		ID:         c.ChapterID,
-		ProjectID:  c.ProjectID,
-		Title:      c.Title,
-		ChapterNum: c.ChapterNum,
-		WordCount:  c.WordCount,
-		Status:     c.Status,
-		Remark:     c.Remark,
-		CreatedAt:  c.CreatedAt,
-		UpdatedAt:  c.UpdatedAt,
+		ID:           c.ChapterID,
+		ProjectID:    c.ProjectID,
+		Title:        c.Title,
+		ChapterNum:   c.ChapterNum,
+		WordCount:    c.WordCount,
+		SegmentCount: c.SegmentCount,
+		Status:       c.Status,
+		Remark:       c.Remark,
+		CreatedAt:    c.CreatedAt,
+		UpdatedAt:    c.UpdatedAt,
 	}
 }
 

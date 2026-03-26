@@ -7,6 +7,7 @@ export type ChapterDetailType = {
     chapter_num: number;
     content: string;
     word_count: number;
+    segment_count: number;
     status: string;
     remark: string;
     created_at: string;
