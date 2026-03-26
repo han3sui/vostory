@@ -143,14 +143,9 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 
 	emoVector, _ := buildEmotionVector(segment.EmotionType, segment.EmotionStrength)
 
-	client := tts.NewClient(provider.APIBaseURL)
+	client := tts.NewClient(provider.APIBaseURL, provider.APIKey)
 
-	remoteKey := filepath.Base(referenceAudioURL)
-	if err := client.EnsureAudioUploaded(referenceAudioURL, remoteKey); err != nil {
-		return failAndReturn(fmt.Sprintf("上传参考音频失败: %v", err))
-	}
-
-	audioData, err := client.Synthesize(text, remoteKey, emoVector, "")
+	audioData, err := client.Synthesize(referenceAudioURL, text, emoVector, "")
 	if err != nil {
 		return failAndReturn(fmt.Sprintf("TTS 合成失败: %v", err))
 	}

@@ -132,7 +132,7 @@ func (s *vsTTSProviderService) TestConnection(_ context.Context, request *v1.VsT
 
 	url := strings.TrimRight(request.APIBaseURL, "/")
 	if !strings.HasSuffix(url, "/health") && !strings.HasSuffix(url, "/ping") {
-		url += "/"
+		url += "/health"
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
