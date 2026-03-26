@@ -251,6 +251,12 @@ const props = defineProps<{ projectId: number }>();
 
 const onTTSEvent = inject<(handler: (evt: TTSSegmentEvent) => void) => () => void>("onTTSEvent");
 const refreshProjectTTSQueue = inject<() => Promise<void>>("refreshProjectTTSQueue");
+const notifyTTSQueuedTask = inject<(payload: {
+    task_id: number;
+    chapter_id: number;
+    chapter_title?: string;
+    total_count: number;
+}) => void>("notifyTTSQueuedTask");
 
 const selectedChapterId = ref<number>();
 const currentChapter = ref<any>(null);
@@ -394,7 +400,15 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
     synthesizingId.value = seg.id;
     seg.status = "queued";
     try {
-        await synthesizeSegment(seg.id);
+        const result = await synthesizeSegment(seg.id);
+        if (notifyTTSQueuedTask && selectedChapterId.value) {
+            notifyTTSQueuedTask({
+                task_id: result.task_id,
+                chapter_id: selectedChapterId.value,
+                chapter_title: currentChapter.value?.title,
+                total_count: result.total_count || 1
+            });
+        }
     } catch {
         seg.status = "failed";
         synthesizingId.value = null;
@@ -454,7 +468,15 @@ async function handleBatchGenerate() {
         onOk: async () => {
             todo.forEach((seg) => (seg.status = "queued"));
             try {
-                await batchGenerate(selectedChapterId.value!);
+                const result = await batchGenerate(selectedChapterId.value!);
+                if (notifyTTSQueuedTask) {
+                    notifyTTSQueuedTask({
+                        task_id: result.task_id,
+                        chapter_id: selectedChapterId.value!,
+                        chapter_title: currentChapter.value?.title,
+                        total_count: result.total_count || todo.length
+                    });
+                }
             } catch (e: any) {
                 todo.forEach((seg) => { if (seg.status === "queued") seg.status = "failed"; });
                 const msg = e?.response?.data?.message || e?.message || "";

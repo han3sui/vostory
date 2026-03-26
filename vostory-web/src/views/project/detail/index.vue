@@ -8,10 +8,9 @@
                     </a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_chapters }} 章</a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_characters }} 角色</a-tag>
-                    <template v-if="activeTaskList.length > 0">
-                        <a-tag v-for="t in activeTaskList" :key="t.task_id" size="small" color="orange">
-                            {{ t.chapter_title || '未知章节' }} {{ t.completed_count + t.failed_count }}/{{ t.total_count }}
-                        </a-tag>
+                    <template v-if="queueTaskList.length > 0">
+                        <a-tag size="small" color="orange">语音队列 {{ queueProcessedCount }}/{{ queueTotalCount }}</a-tag>
+                        <a-button type="text" size="mini" @click="queueDetailVisible = true">查看详情</a-button>
                         <a-popconfirm content="确认取消所有排队中的生成任务？" @ok="handleCancelAll">
                             <a-button type="text" size="mini" status="danger">取消全部队列</a-button>
                         </a-popconfirm>
@@ -44,6 +43,29 @@
                 <project-pronunciation-dict :project-id="projectId" />
             </a-tab-pane>
         </a-tabs>
+
+        <a-modal v-model:visible="queueDetailVisible" title="语音队列详情" width="760px" :footer="false">
+            <a-table :data="queueTaskList" row-key="task_id" :pagination="false" size="small">
+                <template #columns>
+                    <a-table-column title="任务ID" data-index="task_id" :width="100" />
+                    <a-table-column title="章节" :width="180">
+                        <template #cell="{ record }">
+                            {{ record.chapter_title || "未知章节" }}
+                        </template>
+                    </a-table-column>
+                    <a-table-column title="状态" :width="100">
+                        <template #cell="{ record }">
+                            {{ queueStatusLabel(record.status) }}
+                        </template>
+                    </a-table-column>
+                    <a-table-column title="进度">
+                        <template #cell="{ record }">
+                            {{ record.completed_count + record.failed_count }}/{{ record.total_count }}
+                        </template>
+                    </a-table-column>
+                </template>
+            </a-table>
+        </a-modal>
     </frame-view>
 </template>
 <script lang="ts" setup>
@@ -73,6 +95,7 @@ const router = useRouter();
 const projectId = computed(() => Number(route.params.id));
 const project = ref<ProjectDetailType | null>(null);
 const activeTab = ref("chapter");
+const queueDetailVisible = ref(false);
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
     draft: { label: "草稿", color: "gray" },
@@ -104,12 +127,37 @@ defineExpose({ refreshProject: loadProject });
 // ── 项目级 SSE + 全局任务进度 ──
 
 type TTSEventHandler = (evt: TTSSegmentEvent) => void;
+type QueueStatus = "pending" | "running";
+type EnqueueTaskPayload = {
+    task_id: number;
+    chapter_id: number;
+    chapter_title?: string;
+    total_count: number;
+};
 
 const ttsEventHandlers = ref<Set<TTSEventHandler>>(new Set());
 const activeTasks = ref<Map<number, ProjectTaskProgress>>(new Map());
 let sseController: AbortController | null = null;
 
-const activeTaskList = computed(() => Array.from(activeTasks.value.values()));
+const queueTaskList = computed(() =>
+    Array.from(activeTasks.value.values()).filter((t) => t.status === "pending" || t.status === "running")
+);
+const queueProcessedCount = computed(() =>
+    queueTaskList.value.reduce((sum, t) => sum + t.completed_count + t.failed_count, 0)
+);
+const queueTotalCount = computed(() =>
+    queueTaskList.value.reduce((sum, t) => sum + t.total_count, 0)
+);
+
+function queueStatusLabel(status: string): string {
+    if (status === "pending") return "待处理";
+    if (status === "running") return "处理中";
+    return status;
+}
+
+function isQueueStatus(status: string): status is QueueStatus {
+    return status === "pending" || status === "running";
+}
 
 function onTTSEvent(handler: TTSEventHandler) {
     ttsEventHandlers.value.add(handler);
@@ -121,7 +169,9 @@ async function loadActiveTasks(pid: number) {
         const tasks = await getActiveTasksByProject(pid);
         const map = new Map<number, ProjectTaskProgress>();
         if (tasks) {
-            for (const t of tasks) map.set(t.task_id, t);
+            for (const t of tasks) {
+                if (isQueueStatus(t.status)) map.set(t.task_id, t);
+            }
         }
         activeTasks.value = map;
     } catch {
@@ -134,10 +184,34 @@ async function refreshProjectTTSQueue() {
     await loadActiveTasks(projectId.value);
 }
 
+function notifyTTSQueuedTask(payload: EnqueueTaskPayload) {
+    const map = new Map(activeTasks.value);
+    if (!map.has(payload.task_id)) {
+        map.set(payload.task_id, {
+            task_id: payload.task_id,
+            chapter_id: payload.chapter_id,
+            chapter_title: payload.chapter_title || "",
+            status: "pending",
+            progress: 0,
+            total_count: payload.total_count,
+            completed_count: 0,
+            failed_count: 0
+        });
+    }
+    activeTasks.value = map;
+}
+
 function handleSSEEvent(evt: TTSSegmentEvent) {
     ttsEventHandlers.value.forEach((fn) => fn(evt));
 
-    const existing = activeTasks.value.get(evt.task_id);
+    const map = new Map(activeTasks.value);
+    if (!isQueueStatus(evt.task_status) || evt.task_done) {
+        map.delete(evt.task_id);
+        activeTasks.value = map;
+        return;
+    }
+
+    const existing = map.get(evt.task_id);
     if (existing) {
         existing.completed_count = evt.completed;
         existing.failed_count = evt.failed;
@@ -145,7 +219,7 @@ function handleSSEEvent(evt: TTSSegmentEvent) {
         existing.progress = evt.progress;
         existing.status = evt.task_status;
     } else {
-        activeTasks.value.set(evt.task_id, {
+        map.set(evt.task_id, {
             task_id: evt.task_id,
             chapter_id: evt.chapter_id,
             chapter_title: evt.chapter_title || "",
@@ -157,9 +231,7 @@ function handleSSEEvent(evt: TTSSegmentEvent) {
         });
     }
 
-    if (evt.task_done) {
-        activeTasks.value.delete(evt.task_id);
-    }
+    activeTasks.value = map;
 }
 
 function connectProjectSSE(pid: number) {
@@ -220,5 +292,6 @@ onUnmounted(disconnectProjectSSE);
 
 provide("onTTSEvent", onTTSEvent);
 provide("refreshProjectTTSQueue", refreshProjectTTSQueue);
+provide("notifyTTSQueuedTask", notifyTTSQueuedTask);
 </script>
 <style lang="scss" scoped></style>

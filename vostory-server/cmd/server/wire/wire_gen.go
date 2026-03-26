@@ -120,7 +120,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsVoiceEmotionService := service.NewVsVoiceEmotionService(serviceService, vsVoiceEmotionRepository)
 	vsVoiceEmotionHandler := handler.NewVsVoiceEmotionHandler(handlerHandler, vsVoiceEmotionService)
 	vsGenerationTaskRepository := repository.NewVsGenerationTaskRepository(repositoryRepository)
-	vsTTSSynthesizeService := service.NewVsTTSSynthesizeService(serviceService, vsScriptSegmentRepository, vsCharacterRepository, vsVoiceProfileRepository, vsVoiceEmotionRepository, vsPronunciationDictRepository, vsAudioClipRepository, vsTTSProviderRepository, vsProjectRepository, vsGenerationTaskRepository, client)
+	vsTTSSynthesizeService := service.NewVsTTSSynthesizeService(serviceService, vsScriptSegmentRepository, vsChapterRepository, vsCharacterRepository, vsVoiceProfileRepository, vsVoiceEmotionRepository, vsPronunciationDictRepository, vsAudioClipRepository, vsTTSProviderRepository, vsProjectRepository, vsGenerationTaskRepository, client)
 	vsTTSSynthesizeHandler := handler.NewVsTTSSynthesizeHandler(handlerHandler, vsTTSSynthesizeService, client)
 	vsVoiceAssetRepository := repository.NewVsVoiceAssetRepository(repositoryRepository)
 	vsVoiceAssetService := service.NewVsVoiceAssetService(serviceService, vsVoiceAssetRepository)

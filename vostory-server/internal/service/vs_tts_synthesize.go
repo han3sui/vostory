@@ -53,6 +53,7 @@ type VsTTSSynthesizeService interface {
 func NewVsTTSSynthesizeService(
 	service *Service,
 	segmentRepo repository.VsScriptSegmentRepository,
+	chapterRepo repository.VsChapterRepository,
 	characterRepo repository.VsCharacterRepository,
 	voiceProfileRepo repository.VsVoiceProfileRepository,
 	voiceEmotionRepo repository.VsVoiceEmotionRepository,
@@ -66,6 +67,7 @@ func NewVsTTSSynthesizeService(
 	return &vsTTSSynthesizeService{
 		Service:               service,
 		segmentRepo:           segmentRepo,
+		chapterRepo:           chapterRepo,
 		characterRepo:         characterRepo,
 		voiceProfileRepo:      voiceProfileRepo,
 		voiceEmotionRepo:      voiceEmotionRepo,
@@ -81,6 +83,7 @@ func NewVsTTSSynthesizeService(
 type vsTTSSynthesizeService struct {
 	*Service
 	segmentRepo           repository.VsScriptSegmentRepository
+	chapterRepo           repository.VsChapterRepository
 	characterRepo         repository.VsCharacterRepository
 	voiceProfileRepo      repository.VsVoiceProfileRepository
 	voiceEmotionRepo      repository.VsVoiceEmotionRepository
@@ -319,7 +322,12 @@ func (s *vsTTSSynthesizeService) SingleGenerate(ctx context.Context, segmentID u
 	}
 
 	chapterID := segment.ChapterID
+	projectID, err := s.getProjectIDByChapter(ctx, chapterID)
+	if err != nil {
+		return nil, err
+	}
 	task := &model.VsGenerationTask{
+		ProjectID:    projectID,
 		ChapterID:    &chapterID,
 		TaskType:     "tts_generate",
 		Status:       "running",
@@ -370,7 +378,13 @@ func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID ui
 		segIDs[i] = seg.SegmentID
 	}
 
+	projectID, err := s.getProjectIDByChapter(ctx, chapterID)
+	if err != nil {
+		return nil, err
+	}
+
 	task := &model.VsGenerationTask{
+		ProjectID:    projectID,
 		ChapterID:    &chapterID,
 		TaskType:     "tts_generate",
 		Status:       "running",
@@ -521,6 +535,14 @@ func (s *vsTTSSynthesizeService) CancelChapterQueue(ctx context.Context, chapter
 		totalAffected += affected
 	}
 	return totalAffected, nil
+}
+
+func (s *vsTTSSynthesizeService) getProjectIDByChapter(ctx context.Context, chapterID uint64) (uint64, error) {
+	chapter, err := s.chapterRepo.FindByID(ctx, chapterID)
+	if err != nil {
+		return 0, fmt.Errorf("章节不存在: %w", err)
+	}
+	return chapter.ProjectID, nil
 }
 
 func (s *vsTTSSynthesizeService) CancelProjectQueue(ctx context.Context, projectID uint64) (int64, error) {
