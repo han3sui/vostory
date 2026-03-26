@@ -14,6 +14,7 @@ type VsGenerationTaskRepository interface {
 	FindActiveListByChapterID(ctx context.Context, chapterID uint64) ([]*model.VsGenerationTask, error)
 	FindActiveByProjectID(ctx context.Context, projectID uint64) ([]*model.VsGenerationTask, error)
 	FindAllByStatuses(ctx context.Context, statuses []string) ([]*model.VsGenerationTask, error)
+	FindAllByStatusesAndType(ctx context.Context, statuses []string, taskType string) ([]*model.VsGenerationTask, error)
 	UpdateProgress(ctx context.Context, id uint64, completed int, progress int) error
 	UpdateStatus(ctx context.Context, id uint64, status string, errMsg string) error
 	ResetStatus(ctx context.Context, id uint64, status string) error
@@ -71,6 +72,15 @@ func (r *vsGenerationTaskRepository) FindAllByStatuses(ctx context.Context, stat
 	var tasks []*model.VsGenerationTask
 	err := r.db.WithContext(ctx).
 		Where("status IN ?", statuses).
+		Order("task_id ASC").
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *vsGenerationTaskRepository) FindAllByStatusesAndType(ctx context.Context, statuses []string, taskType string) ([]*model.VsGenerationTask, error) {
+	var tasks []*model.VsGenerationTask
+	err := r.db.WithContext(ctx).
+		Where("status IN ? AND task_type = ?", statuses, taskType).
 		Order("task_id ASC").
 		Find(&tasks).Error
 	return tasks, err

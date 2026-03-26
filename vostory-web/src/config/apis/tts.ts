@@ -83,6 +83,7 @@ export type ProjectTaskProgress = {
     total_count: number;
     completed_count: number;
     failed_count: number;
+    task_type?: string;
 };
 
 export function getActiveTasksByProject(projectId: number): Promise<ProjectTaskProgress[]> {

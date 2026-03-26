@@ -2,15 +2,45 @@
     <div class="script-editor-wrap">
         <!-- 左侧章节列表 -->
         <div class="chapter-sidebar">
+            <div v-if="chapters.length > 0 && hasPermission('chapter:split')" class="chapter-batch-bar">
+                <a-checkbox
+                    :model-value="checkedChapterIds.length === chapters.length && chapters.length > 0"
+                    :indeterminate="checkedChapterIds.length > 0 && checkedChapterIds.length < chapters.length"
+                    @change="toggleAllChapters"
+                >
+                    全选
+                </a-checkbox>
+                <a-button
+                    v-if="checkedChapterIds.length > 0"
+                    type="primary"
+                    size="mini"
+                    :loading="batchSplitting"
+                    @click="handleBatchSplit"
+                >
+                    批量切割 ({{ checkedChapterIds.length }})
+                </a-button>
+            </div>
             <div
                 v-for="ch in chapters"
                 :key="ch.id"
                 class="chapter-item"
-                :class="{ active: selectedChapterId === ch.id }"
+                :class="{ active: selectedChapterId === ch.id, splitting: splittingChapterIds.has(ch.id) }"
                 @click="selectChapter(ch)"
             >
-                <div class="chapter-title">{{ ch.title || `第${ch.chapter_num}章` }}</div>
-                <div class="chapter-meta">{{ ch.word_count }} 字</div>
+                <a-checkbox
+                    v-if="hasPermission('chapter:split')"
+                    :model-value="checkedChapterIds.includes(ch.id)"
+                    class="chapter-checkbox"
+                    @change="(v: boolean | (string | boolean | number)[]) => toggleChapterCheck(ch.id, v as boolean)"
+                    @click.stop
+                />
+                <div class="chapter-info">
+                    <div class="chapter-title">{{ ch.title || `第${ch.chapter_num}章` }}</div>
+                    <div class="chapter-meta">
+                        {{ ch.word_count }} 字
+                        <a-tag v-if="splittingChapterIds.has(ch.id)" size="small" color="orange">切割中</a-tag>
+                    </div>
+                </div>
             </div>
             <a-empty v-if="chapters.length === 0" description="暂无章节" />
         </div>
@@ -258,6 +288,7 @@ import {
     getSegmentsByChapter,
     updateScriptSegment,
     splitChapter,
+    batchSplitChapters,
     ScriptSegmentDetailType
 } from "@/config/apis/script-segment";
 import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
@@ -289,6 +320,9 @@ const characterOptions = ref<CharacterOptionType[]>([]);
 const loadingSegments = ref(false);
 const aligning = ref(false);
 const splitting = ref(false);
+const batchSplitting = ref(false);
+const checkedChapterIds = ref<number[]>([]);
+const splittingChapterIds = ref<Set<number>>(new Set());
 const synthesizingIds = ref<Set<number>>(new Set());
 const playingId = ref<number | null>(null);
 const continuousPlayingFromId = ref<number | null>(null);
@@ -413,6 +447,82 @@ async function handleSplit() {
     }
 }
 
+function toggleAllChapters(checked: boolean | (string | boolean | number)[]) {
+    if (checked) {
+        checkedChapterIds.value = chapters.value.map((ch: any) => ch.id);
+    } else {
+        checkedChapterIds.value = [];
+    }
+}
+
+function toggleChapterCheck(chapterId: number, checked: boolean) {
+    if (checked) {
+        if (!checkedChapterIds.value.includes(chapterId)) {
+            checkedChapterIds.value = [...checkedChapterIds.value, chapterId];
+        }
+    } else {
+        checkedChapterIds.value = checkedChapterIds.value.filter((id) => id !== chapterId);
+    }
+}
+
+async function handleBatchSplit() {
+    if (checkedChapterIds.value.length === 0) return;
+
+    Modal.confirm({
+        title: "批量智能切割",
+        content: `将对 ${checkedChapterIds.value.length} 个章节依次进行智能切割，已有片段的章节将被覆盖。是否继续？`,
+        okText: "确认切割",
+        cancelText: "取消",
+        onOk: async () => {
+            batchSplitting.value = true;
+            try {
+                const res = await batchSplitChapters(props.projectId, checkedChapterIds.value);
+                const ids = new Set(splittingChapterIds.value);
+                checkedChapterIds.value.forEach((id) => ids.add(id));
+                splittingChapterIds.value = ids;
+                checkedChapterIds.value = [];
+                Message.success(`已提交 ${res.total} 个章节到切割队列`);
+            } catch (e: any) {
+                const msg = e?.response?.data?.message || e?.message || "批量切割提交失败";
+                Message.error(msg);
+            } finally {
+                batchSplitting.value = false;
+            }
+        }
+    });
+}
+
+function handleChapterSplitEvent(evt: any) {
+    if (evt.type !== "chapter_split_done") return;
+
+    const ids = new Set(splittingChapterIds.value);
+    ids.delete(evt.chapter_id);
+    splittingChapterIds.value = ids;
+
+    if (evt.status === "completed") {
+        Message.success(`章节「${evt.chapter_title || evt.chapter_id}」切割完成：${evt.scene_count} 场景，${evt.segment_count} 片段`);
+    } else {
+        Message.warning(`章节「${evt.chapter_title || evt.chapter_id}」切割失败：${evt.error_message || "未知错误"}`);
+    }
+
+    if (evt.chapter_id === selectedChapterId.value) {
+        getSegmentsByChapter(evt.chapter_id).then((segs) => {
+            segments.value = segs;
+        });
+        getCharactersByProject(props.projectId).then((chars) => {
+            characterOptions.value = chars;
+        });
+    }
+
+    if (evt.task_done) {
+        if (evt.failed > 0) {
+            Message.warning(`批量切割完成：${evt.completed} 成功，${evt.failed} 失败`);
+        } else if (evt.total > 1) {
+            Message.success(`批量切割全部完成：${evt.completed} 个章节`);
+        }
+    }
+}
+
 async function handleGenerate(seg: ScriptSegmentDetailType) {
     if (!canGenerate(seg)) return;
 
@@ -458,10 +568,12 @@ function handleSegmentEvent(evt: TTSSegmentEvent) {
 }
 
 let unsubscribeTTSEvent: (() => void) | null = null;
+let unsubscribeLLMEvent: (() => void) | null = null;
 
 onMounted(() => {
     if (onTTSEvent) {
         unsubscribeTTSEvent = onTTSEvent(handleSegmentEvent);
+        unsubscribeLLMEvent = onTTSEvent(handleChapterSplitEvent);
     }
 });
 
@@ -536,6 +648,7 @@ async function handleCancelQueue() {
 
 onUnmounted(() => {
     if (unsubscribeTTSEvent) unsubscribeTTSEvent();
+    if (unsubscribeLLMEvent) unsubscribeLLMEvent();
     stopAudio();
 });
 
@@ -754,7 +867,19 @@ function statusLabel(status: string) {
     padding: 12px;
 }
 
+.chapter-batch-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 4px;
+}
+
 .chapter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 8px 12px;
     border-radius: 4px;
     cursor: pointer;
@@ -770,6 +895,19 @@ function statusLabel(status: string) {
         color: rgb(var(--primary-6));
         font-weight: 500;
     }
+
+    &.splitting {
+        border-left: 3px solid rgb(var(--orange-6));
+    }
+}
+
+.chapter-checkbox {
+    flex-shrink: 0;
+}
+
+.chapter-info {
+    flex: 1;
+    min-width: 0;
 }
 
 .chapter-title {
@@ -779,6 +917,9 @@ function statusLabel(status: string) {
 }
 
 .chapter-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 12px;
     color: var(--color-text-3);
     margin-top: 2px;

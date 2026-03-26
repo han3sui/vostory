@@ -72,3 +72,19 @@ export type ChapterSplitResult = {
 export function splitChapter(chapterId: number): Promise<ChapterSplitResult> {
     return request({ url: `/api/v1/chapter/${chapterId}/split`, method: "post", timeout: 0 });
 }
+
+export type BatchSplitResult = {
+    task_id: number;
+    total: number;
+};
+
+export function batchSplitChapters(
+    projectId: number,
+    chapterIds: number[]
+): Promise<BatchSplitResult> {
+    return request({
+        url: "/api/v1/chapter/batch-split",
+        method: "post",
+        data: { project_id: projectId, chapter_ids: chapterIds }
+    });
+}

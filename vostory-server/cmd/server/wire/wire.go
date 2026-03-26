@@ -133,6 +133,7 @@ var handlerSet = wire.NewSet(
 
 var workerSet = wire.NewSet(
 	worker.NewTTSWorker,
+	worker.NewLLMWorker,
 )
 
 var jobSet = wire.NewSet(

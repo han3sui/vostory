@@ -43,3 +43,35 @@ func (h *VsChapterSplitHandler) Split(ctx *gin.Context) {
 	}
 	v1.HandleSuccess(ctx, result)
 }
+
+// BatchSplit godoc
+// @Summary      批量 LLM 智能切割
+// @Description  将多个章节加入切割队列，后台异步依次执行
+// @Tags         章节管理
+// @Accept       json
+// @Produce      json
+// @Param        body  body      v1.BatchSplitRequest  true  "批量切割请求"
+// @Success      200   {object}  v1.Response
+// @Failure      400   {object}  v1.Response
+// @Failure      500   {object}  v1.Response
+// @Router       /api/v1/chapter/batch-split [post]
+// @Id        chapter:batch-split
+func (h *VsChapterSplitHandler) BatchSplit(ctx *gin.Context) {
+	var req v1.BatchSplitRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "参数错误: "+err.Error()), nil)
+		return
+	}
+
+	loginName := ""
+	if v, ok := ctx.Get("login_name"); ok {
+		loginName = v.(string)
+	}
+
+	result, err := h.svc.BatchSplitChapters(ctx, req.ProjectID, req.ChapterIDs, loginName)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, result)
+}

@@ -12,16 +12,19 @@ import (
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/pkg/llm"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type VsChapterSplitService interface {
 	SplitChapter(ctx context.Context, chapterID uint64) (*v1.ChapterSplitResponse, error)
+	BatchSplitChapters(ctx context.Context, projectID uint64, chapterIDs []uint64, loginName string) (*v1.BatchSplitResponse, error)
 }
 
 func NewVsChapterSplitService(
 	service *Service,
 	db *gorm.DB,
+	rdb *redis.Client,
 	chapterRepo repository.VsChapterRepository,
 	projectRepo repository.VsProjectRepository,
 	promptRepo repository.VsPromptTemplateRepository,
@@ -30,10 +33,12 @@ func NewVsChapterSplitService(
 	segmentRepo repository.VsScriptSegmentRepository,
 	characterRepo repository.VsCharacterRepository,
 	llmLogRepo repository.VsLLMLogRepository,
+	taskRepo repository.VsGenerationTaskRepository,
 ) VsChapterSplitService {
 	return &vsChapterSplitService{
 		Service:       service,
 		db:            db,
+		rdb:           rdb,
 		chapterRepo:   chapterRepo,
 		projectRepo:   projectRepo,
 		promptRepo:    promptRepo,
@@ -42,6 +47,7 @@ func NewVsChapterSplitService(
 		segmentRepo:   segmentRepo,
 		characterRepo: characterRepo,
 		llmLogRepo:    llmLogRepo,
+		taskRepo:      taskRepo,
 		llmClient:     llm.NewClient(),
 	}
 }
@@ -49,6 +55,7 @@ func NewVsChapterSplitService(
 type vsChapterSplitService struct {
 	*Service
 	db            *gorm.DB
+	rdb           *redis.Client
 	chapterRepo   repository.VsChapterRepository
 	projectRepo   repository.VsProjectRepository
 	promptRepo    repository.VsPromptTemplateRepository
@@ -57,6 +64,7 @@ type vsChapterSplitService struct {
 	segmentRepo   repository.VsScriptSegmentRepository
 	characterRepo repository.VsCharacterRepository
 	llmLogRepo    repository.VsLLMLogRepository
+	taskRepo      repository.VsGenerationTaskRepository
 	llmClient     *llm.Client
 }
 
@@ -283,6 +291,60 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 		NewCharacters: newCharacters,
 		InputTokens:   chatResp.InputTokens,
 		OutputTokens:  chatResp.OutputTokens,
+	}, nil
+}
+
+func (s *vsChapterSplitService) BatchSplitChapters(ctx context.Context, projectID uint64, chapterIDs []uint64, loginName string) (*v1.BatchSplitResponse, error) {
+	project, err := s.projectRepo.FindByID(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("项目不存在")
+	}
+
+	if _, err := s.resolveProvider(ctx, project); err != nil {
+		return nil, err
+	}
+	if _, _, err := s.resolvePrompt(ctx, project); err != nil {
+		return nil, err
+	}
+
+	for _, chID := range chapterIDs {
+		ch, err := s.chapterRepo.FindByID(ctx, chID)
+		if err != nil {
+			return nil, fmt.Errorf("章节 %d 不存在", chID)
+		}
+		if ch.ProjectID != projectID {
+			return nil, fmt.Errorf("章节 %d 不属于当前项目", chID)
+		}
+		if ch.Content == "" {
+			return nil, fmt.Errorf("章节「%s」内容为空", ch.Title)
+		}
+	}
+
+	task := &model.VsGenerationTask{
+		ProjectID:    projectID,
+		TaskType:     "chapter_split",
+		Status:       "running",
+		TotalBatches: len(chapterIDs),
+		SegmentIDs:   model.Uint64Array(chapterIDs),
+		BaseModel: model.BaseModel{
+			CreatedBy: loginName,
+		},
+	}
+	if err := s.taskRepo.Create(ctx, task); err != nil {
+		return nil, fmt.Errorf("创建批量切割任务失败: %w", err)
+	}
+	_ = s.taskRepo.SetStarted(ctx, task.TaskID)
+
+	for _, chID := range chapterIDs {
+		msg := fmt.Sprintf("%d:%d", task.TaskID, chID)
+		if err := s.rdb.LPush(ctx, "vs:llm:queue", msg).Err(); err != nil {
+			return nil, fmt.Errorf("章节 %d 入队失败: %w", chID, err)
+		}
+	}
+
+	return &v1.BatchSplitResponse{
+		TaskID: task.TaskID,
+		Total:  len(chapterIDs),
 	}, nil
 }
 

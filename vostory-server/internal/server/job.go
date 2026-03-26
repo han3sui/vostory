@@ -15,6 +15,7 @@ type JobServer struct {
 	conf      *viper.Viper
 	userJob   job.UserJob
 	ttsWorker *worker.TTSWorker
+	llmWorker *worker.LLMWorker
 	jobsMutex sync.Mutex
 }
 
@@ -28,12 +29,14 @@ func NewJobServer(
 	conf *viper.Viper,
 	userJob job.UserJob,
 	ttsWorker *worker.TTSWorker,
+	llmWorker *worker.LLMWorker,
 ) *JobServer {
 	return &JobServer{
 		log:       log,
 		conf:      conf,
 		userJob:   userJob,
 		ttsWorker: ttsWorker,
+		llmWorker: llmWorker,
 	}
 }
 
@@ -44,6 +47,7 @@ func (j *JobServer) Start(ctx context.Context) error {
 	go j.userJob.KafkaConsumer(ctx)
 
 	j.ttsWorker.Start(ctx)
+	j.llmWorker.Start(ctx)
 
 	<-ctx.Done()
 	return nil
@@ -54,6 +58,7 @@ func (j *JobServer) Stop(ctx context.Context) error {
 	defer j.jobsMutex.Unlock()
 
 	j.ttsWorker.Stop()
+	j.llmWorker.Stop()
 
 	j.log.Info("所有Job已停止")
 	return nil

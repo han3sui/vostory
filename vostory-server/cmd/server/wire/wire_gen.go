@@ -112,14 +112,14 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsPreciseFillService := service.NewVsPreciseFillService(serviceService, vsChapterRepository, vsScriptSegmentRepository)
 	vsPreciseFillHandler := handler.NewVsPreciseFillHandler(handlerHandler, vsPreciseFillService)
 	vsSceneRepository := repository.NewVsSceneRepository(repositoryRepository)
-	vsChapterSplitService := service.NewVsChapterSplitService(serviceService, db, vsChapterRepository, vsProjectRepository, vsPromptTemplateRepository, vsLLMProviderRepository, vsSceneRepository, vsScriptSegmentRepository, vsCharacterRepository, vsLLMLogRepository)
+	vsGenerationTaskRepository := repository.NewVsGenerationTaskRepository(repositoryRepository)
+	vsChapterSplitService := service.NewVsChapterSplitService(serviceService, db, client, vsChapterRepository, vsProjectRepository, vsPromptTemplateRepository, vsLLMProviderRepository, vsSceneRepository, vsScriptSegmentRepository, vsCharacterRepository, vsLLMLogRepository, vsGenerationTaskRepository)
 	vsChapterSplitHandler := handler.NewVsChapterSplitHandler(handlerHandler, vsChapterSplitService)
 	vsCharacterExtractService := service.NewVsCharacterExtractService(serviceService, vsProjectRepository, vsChapterRepository, vsCharacterRepository, vsPromptTemplateRepository, vsLLMProviderRepository, vsLLMLogRepository)
 	vsCharacterExtractHandler := handler.NewVsCharacterExtractHandler(handlerHandler, vsCharacterExtractService)
 	vsVoiceEmotionRepository := repository.NewVsVoiceEmotionRepository(repositoryRepository)
 	vsVoiceEmotionService := service.NewVsVoiceEmotionService(serviceService, vsVoiceEmotionRepository)
 	vsVoiceEmotionHandler := handler.NewVsVoiceEmotionHandler(handlerHandler, vsVoiceEmotionService)
-	vsGenerationTaskRepository := repository.NewVsGenerationTaskRepository(repositoryRepository)
 	vsTTSSynthesizeService := service.NewVsTTSSynthesizeService(serviceService, vsScriptSegmentRepository, vsChapterRepository, vsCharacterRepository, vsVoiceProfileRepository, vsVoiceEmotionRepository, vsPronunciationDictRepository, vsAudioClipRepository, vsTTSProviderRepository, vsProjectRepository, vsGenerationTaskRepository, client)
 	vsTTSSynthesizeHandler := handler.NewVsTTSSynthesizeHandler(handlerHandler, vsTTSSynthesizeService, client)
 	vsVoiceAssetRepository := repository.NewVsVoiceAssetRepository(repositoryRepository)
@@ -130,7 +130,8 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	jobJob := job.NewJob(transaction, logger, sidSid, viperViper)
 	userJob := job.NewUserJob(jobJob)
 	ttsWorker := worker.NewTTSWorker(client, logger, vsGenerationTaskRepository, vsScriptSegmentRepository, vsTTSSynthesizeService)
-	jobServer := server.NewJobServer(logger, viperViper, userJob, ttsWorker)
+	llmWorker := worker.NewLLMWorker(client, logger, vsGenerationTaskRepository, vsChapterRepository, vsChapterSplitService)
+	jobServer := server.NewJobServer(logger, viperViper, userJob, ttsWorker, llmWorker)
 	appApp := newApp(httpServer, jobServer)
 	return appApp, func() {
 	}, nil
@@ -144,7 +145,7 @@ var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, serv
 
 var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler, handler.NewSysDictTypeHandler, handler.NewSysDictDataHandler, handler.NewSysOperLogHandler, handler.NewVsLLMProviderHandler, handler.NewVsTTSProviderHandler, handler.NewVsPromptTemplateHandler, handler.NewVsWorkspaceHandler, handler.NewVsProjectHandler, handler.NewVsChapterHandler, handler.NewVsScriptSegmentHandler, handler.NewVsCharacterHandler, handler.NewVsFileImportHandler, handler.NewVsLLMLogHandler, handler.NewVsVoiceProfileHandler, handler.NewVsPronunciationDictHandler, handler.NewVsPreciseFillHandler, handler.NewVsChapterSplitHandler, handler.NewVsCharacterExtractHandler, handler.NewVsVoiceEmotionHandler, handler.NewVsTTSSynthesizeHandler, handler.NewVsVoiceAssetHandler, handler.NewVsCommonUploadHandler)
 
-var workerSet = wire.NewSet(worker.NewTTSWorker)
+var workerSet = wire.NewSet(worker.NewTTSWorker, worker.NewLLMWorker)
 
 var jobSet = wire.NewSet(job.NewJob, job.NewUserJob)
 

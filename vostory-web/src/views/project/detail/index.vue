@@ -8,13 +8,18 @@
                     </a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_chapters }} 章</a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_characters }} 角色</a-tag>
-                    <template v-if="queueTaskList.length > 0">
+                    <template v-if="ttsQueueList.length > 0">
                         <a-tag size="small" color="orange"
-                            >语音队列 {{ queueProcessedCount }}/{{ queueTotalCount }}</a-tag
+                            >语音队列 {{ ttsProcessedCount }}/{{ ttsTotalCount }}</a-tag
                         >
                         <a-popconfirm content="确认取消所有排队中的生成任务？" @ok="handleCancelAll">
                             <a-button type="text" size="mini" status="danger">取消全部队列</a-button>
                         </a-popconfirm>
+                    </template>
+                    <template v-if="splitQueueList.length > 0">
+                        <a-tag size="small" color="cyan"
+                            >切割队列 {{ splitProcessedCount }}/{{ splitTotalCount }}</a-tag
+                        >
                     </template>
                 </a-space>
             </template>
@@ -108,11 +113,21 @@ const ttsEventHandlers = ref<Set<TTSEventHandler>>(new Set());
 const activeTasks = ref<Map<number, ProjectTaskProgress>>(new Map());
 let sseController: AbortController | null = null;
 
-const queueTaskList = computed(() => Array.from(activeTasks.value.values()));
-const queueProcessedCount = computed(() =>
-    queueTaskList.value.reduce((sum, t) => sum + t.completed_count + t.failed_count, 0)
+const ttsQueueList = computed(() =>
+    Array.from(activeTasks.value.values()).filter((t) => t.task_type !== "chapter_split")
 );
-const queueTotalCount = computed(() => queueTaskList.value.reduce((sum, t) => sum + t.total_count, 0));
+const ttsProcessedCount = computed(() =>
+    ttsQueueList.value.reduce((sum, t) => sum + t.completed_count + t.failed_count, 0)
+);
+const ttsTotalCount = computed(() => ttsQueueList.value.reduce((sum, t) => sum + t.total_count, 0));
+
+const splitQueueList = computed(() =>
+    Array.from(activeTasks.value.values()).filter((t) => t.task_type === "chapter_split")
+);
+const splitProcessedCount = computed(() =>
+    splitQueueList.value.reduce((sum, t) => sum + t.completed_count + t.failed_count, 0)
+);
+const splitTotalCount = computed(() => splitQueueList.value.reduce((sum, t) => sum + t.total_count, 0));
 
 function onTTSEvent(handler: TTSEventHandler) {
     ttsEventHandlers.value.add(handler);
@@ -138,7 +153,8 @@ function handleSSEEvent(evt: TTSSegmentEvent) {
         progress: evt.progress,
         total_count: evt.total,
         completed_count: evt.completed,
-        failed_count: evt.failed
+        failed_count: evt.failed,
+        task_type: evt.type === "chapter_split_done" ? "chapter_split" : "tts_generate"
     });
     activeTasks.value = map;
 }
