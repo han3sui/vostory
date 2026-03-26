@@ -75,7 +75,13 @@
                 </div>
 
                 <div v-else class="segment-list">
-                    <div v-for="seg in segments" :key="seg.id" class="segment-card" :class="segmentBorderClass(seg)">
+                    <div
+                        v-for="seg in segments"
+                        :key="seg.id"
+                        :data-seg-id="seg.id"
+                        class="segment-card"
+                        :class="segmentBorderClass(seg)"
+                    >
                         <div class="segment-row">
                             <div class="segment-num">#{{ seg.segment_num }}</div>
                             <div class="segment-body">
@@ -178,18 +184,41 @@
                                     >
                                         <template #icon><icon-unlock /></template>
                                     </a-button>
-                                    <a-button
+                                    <a-trigger
                                         v-if="seg.clip_id"
-                                        type="text"
-                                        size="mini"
-                                        :class="{ 'playing-btn': playingId === seg.id }"
-                                        @click="togglePlayAudio(seg)"
+                                        trigger="hover"
+                                        position="bottom"
+                                        :unmount-on-close="false"
                                     >
-                                        <template #icon>
-                                            <icon-pause v-if="playingId === seg.id" />
-                                            <icon-play-arrow v-else />
+                                        <a-button
+                                            type="text"
+                                            size="mini"
+                                            :class="{
+                                                'playing-btn':
+                                                    playingId === seg.id || continuousPlayingFromId === seg.id
+                                            }"
+                                            @click="togglePlayAudio(seg)"
+                                        >
+                                            <template #icon>
+                                                <icon-pause v-if="playingId === seg.id" />
+                                                <icon-play-arrow v-else />
+                                            </template>
+                                        </a-button>
+                                        <template #content>
+                                            <div class="play-popover">
+                                                <div class="play-popover-item" @click="togglePlayAudio(seg)">
+                                                    <icon-play-arrow />
+                                                    <span>播放当前</span>
+                                                </div>
+                                                <div class="play-popover-item" @click="toggleContinuousPlay(seg)">
+                                                    <icon-drag-dot-vertical />
+                                                    <span>{{
+                                                        continuousPlayingFromId === seg.id ? "停止连播" : "连续播放"
+                                                    }}</span>
+                                                </div>
+                                            </div>
                                         </template>
-                                    </a-button>
+                                    </a-trigger>
                                 </div>
 
                                 <a-textarea
@@ -217,7 +246,14 @@
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
 import { Modal } from "@arco-design/web-vue";
-import { IconSound, IconPlayArrow, IconPause, IconLock, IconUnlock } from "@arco-design/web-vue/es/icon";
+import {
+    IconSound,
+    IconPlayArrow,
+    IconPause,
+    IconLock,
+    IconUnlock,
+    IconDragDotVertical
+} from "@arco-design/web-vue/es/icon";
 import {
     getSegmentsByChapter,
     updateScriptSegment,
@@ -260,6 +296,7 @@ const aligning = ref(false);
 const splitting = ref(false);
 const synthesizingId = ref<number | null>(null);
 const playingId = ref<number | null>(null);
+const continuousPlayingFromId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
 let currentBlobURL: string | null = null;
 
@@ -519,41 +556,152 @@ onUnmounted(() => {
     stopAudio();
 });
 
+async function fetchAudioBlob(clipId: number): Promise<string | null> {
+    try {
+        const resp = await fetch(getTTSStreamURL(clipId), {
+            headers: { Authorization: `Bearer ${storage.getToken()}` }
+        });
+        if (!resp.ok) return null;
+        const blob = await resp.blob();
+        return URL.createObjectURL(blob);
+    } catch {
+        return null;
+    }
+}
+
+function playBlobURL(blobURL: string): Promise<boolean> {
+    currentBlobURL = blobURL;
+    const audio = new Audio(blobURL);
+    currentAudioEl = audio;
+
+    return new Promise<boolean>((resolve) => {
+        audio.addEventListener("ended", () => {
+            cleanupAudioResource();
+            resolve(true);
+        });
+        audio.addEventListener("error", () => {
+            Message.warning("音频播放失败");
+            cleanupAudioResource();
+            resolve(false);
+        });
+        audio.play().catch(() => {
+            Message.warning("音频播放失败");
+            cleanupAudioResource();
+            resolve(false);
+        });
+    });
+}
+
+async function playSegmentAudio(seg: ScriptSegmentDetailType): Promise<boolean> {
+    if (!seg.clip_id) return false;
+
+    playingId.value = seg.id;
+    const blobURL = await fetchAudioBlob(seg.clip_id);
+    if (!blobURL) {
+        Message.warning("音频播放失败");
+        return false;
+    }
+    return playBlobURL(blobURL);
+}
+
 async function togglePlayAudio(seg: ScriptSegmentDetailType) {
     if (playingId.value === seg.id) {
         stopAudio();
         return;
     }
-
     stopAudio();
-    if (!seg.clip_id) return;
+    await playSegmentAudio(seg);
+    playingId.value = null;
+}
 
-    playingId.value = seg.id;
-    try {
-        const resp = await fetch(getTTSStreamURL(seg.clip_id), {
-            headers: { Authorization: `Bearer ${storage.getToken()}` }
-        });
-        if (!resp.ok) throw new Error("fetch failed");
+const prefetchCache = new Map<number, Promise<string | null>>();
 
-        const blob = await resp.blob();
-        const blobURL = URL.createObjectURL(blob);
-        currentBlobURL = blobURL;
-
-        const audio = new Audio(blobURL);
-        currentAudioEl = audio;
-        audio.addEventListener("ended", () => stopAudio());
-        audio.addEventListener("error", () => {
-            Message.warning("音频播放失败");
-            stopAudio();
-        });
-        await audio.play();
-    } catch {
-        Message.warning("音频播放失败");
-        stopAudio();
+function prefetchNext(segs: ScriptSegmentDetailType[], fromIdx: number) {
+    for (let j = fromIdx + 1; j < segs.length; j++) {
+        const next = segs[j];
+        if (!next.clip_id) continue;
+        if (!prefetchCache.has(next.clip_id)) {
+            prefetchCache.set(next.clip_id, fetchAudioBlob(next.clip_id));
+        }
+        break;
     }
 }
 
-function stopAudio() {
+function scrollToSegment(segId: number) {
+    const el = document.querySelector(`[data-seg-id="${segId}"]`);
+    if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+}
+
+function clearPrefetchCache() {
+    prefetchCache.forEach((promise) => {
+        promise.then((url) => {
+            if (url) URL.revokeObjectURL(url);
+        });
+    });
+    prefetchCache.clear();
+}
+
+async function toggleContinuousPlay(seg: ScriptSegmentDetailType) {
+    if (continuousPlayingFromId.value === seg.id) {
+        stopAudio();
+        return;
+    }
+
+    stopAudio();
+    clearPrefetchCache();
+    continuousPlayingFromId.value = seg.id;
+
+    const startIdx = segments.value.findIndex((s) => s.id === seg.id);
+    if (startIdx === -1) return;
+
+    for (let i = startIdx; i < segments.value.length; i++) {
+        if (continuousPlayingFromId.value !== seg.id) break;
+
+        const current = segments.value[i];
+        if (!current.clip_id) continue;
+
+        prefetchNext(segments.value, i);
+
+        playingId.value = current.id;
+        scrollToSegment(current.id);
+
+        let blobURL: string | null;
+        const cached = prefetchCache.get(current.clip_id);
+        if (cached) {
+            blobURL = await cached;
+            prefetchCache.delete(current.clip_id);
+        } else {
+            blobURL = await fetchAudioBlob(current.clip_id);
+        }
+
+        if (continuousPlayingFromId.value !== seg.id) {
+            if (blobURL) URL.revokeObjectURL(blobURL);
+            break;
+        }
+
+        if (!blobURL) {
+            Message.warning(`片段 #${current.segment_num} 音频加载失败，连播已停止`);
+            break;
+        }
+
+        const ok = await playBlobURL(blobURL);
+        if (!ok) {
+            Message.warning(`片段 #${current.segment_num} 播放失败，连播已停止`);
+            break;
+        }
+        if (continuousPlayingFromId.value !== seg.id) break;
+    }
+
+    clearPrefetchCache();
+    if (continuousPlayingFromId.value === seg.id) {
+        continuousPlayingFromId.value = null;
+    }
+    playingId.value = null;
+}
+
+function cleanupAudioResource() {
     if (currentAudioEl) {
         currentAudioEl.pause();
         currentAudioEl = null;
@@ -562,7 +710,12 @@ function stopAudio() {
         URL.revokeObjectURL(currentBlobURL);
         currentBlobURL = null;
     }
+}
+
+function stopAudio() {
+    cleanupAudioResource();
     playingId.value = null;
+    continuousPlayingFromId.value = null;
 }
 
 function segmentBorderClass(seg: ScriptSegmentDetailType) {
@@ -606,7 +759,7 @@ function statusLabel(status: string) {
 <style lang="scss" scoped>
 .script-editor-wrap {
     display: flex;
-    height: calc(100vh - 300px);
+    height: calc(100vh - 310px);
     min-height: 400px;
 }
 
@@ -775,5 +928,25 @@ function statusLabel(status: string) {
     background-color: rgb(var(--warning-1));
     padding: 4px;
     border-radius: 4px;
+}
+
+.play-popover {
+    padding: 4px 0;
+    min-width: 120px;
+}
+
+.play-popover-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--color-text-1);
+    transition: background-color 0.15s;
+
+    &:hover {
+        background-color: var(--color-fill-2);
+    }
 }
 </style>
