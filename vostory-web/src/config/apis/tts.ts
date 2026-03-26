@@ -55,6 +55,7 @@ export type TTSSegmentEvent = {
     type: string;
     task_id: number;
     chapter_id: number;
+    chapter_title?: string;
     segment_id: number;
     status: string;
     error_message?: string;

@@ -505,17 +505,11 @@ func (s *vsTTSSynthesizeService) BatchUnlockByChapter(ctx context.Context, chapt
 }
 
 func (s *vsTTSSynthesizeService) CancelChapterQueue(ctx context.Context, chapterID uint64) (int64, error) {
-	affected, err := s.segmentRepo.BatchUpdateStatusByChapter(ctx, chapterID, "queued", "cancelled")
-	if err != nil {
-		return 0, err
+	task, _ := s.taskRepo.FindActiveByChapterID(ctx, chapterID)
+	if task == nil {
+		return 0, nil
 	}
-	if affected > 0 {
-		task, _ := s.taskRepo.FindActiveByChapterID(ctx, chapterID)
-		if task != nil {
-			_ = s.taskRepo.ReduceTotalBatches(ctx, task.TaskID, int(affected))
-		}
-	}
-	return affected, nil
+	return s.cancelTaskQueuedSegments(ctx, task)
 }
 
 func (s *vsTTSSynthesizeService) CancelProjectQueue(ctx context.Context, projectID uint64) (int64, error) {
@@ -525,19 +519,45 @@ func (s *vsTTSSynthesizeService) CancelProjectQueue(ctx context.Context, project
 	}
 	var totalAffected int64
 	for _, task := range tasks {
-		if task.ChapterID == nil {
-			continue
-		}
-		affected, err := s.segmentRepo.BatchUpdateStatusByChapter(ctx, *task.ChapterID, "queued", "cancelled")
+		affected, err := s.cancelTaskQueuedSegments(ctx, task)
 		if err != nil {
 			continue
 		}
-		if affected > 0 {
-			_ = s.taskRepo.ReduceTotalBatches(ctx, task.TaskID, int(affected))
-			totalAffected += affected
-		}
+		totalAffected += affected
 	}
 	return totalAffected, nil
+}
+
+// cancelTaskQueuedSegments 按 task.SegmentIDs 精确取消 queued 片段，并重算任务终态。
+func (s *vsTTSSynthesizeService) cancelTaskQueuedSegments(ctx context.Context, task *model.VsGenerationTask) (int64, error) {
+	if len(task.SegmentIDs) == 0 {
+		return 0, nil
+	}
+	affected, err := s.segmentRepo.BatchUpdateStatus(ctx, []uint64(task.SegmentIDs), "queued", "cancelled")
+	if err != nil {
+		return 0, err
+	}
+	if affected == 0 {
+		return 0, nil
+	}
+
+	_ = s.taskRepo.ReduceTotalBatches(ctx, task.TaskID, int(affected))
+
+	// 重新读取 task，判断是否已全部处理完毕
+	updated, err := s.taskRepo.FindByID(ctx, task.TaskID)
+	if err != nil {
+		return affected, nil
+	}
+	processed := updated.CompletedBatches + updated.FailedBatches
+	if updated.TotalBatches > 0 && processed >= updated.TotalBatches {
+		if updated.FailedBatches > 0 {
+			_ = s.taskRepo.SetFailed(ctx, task.TaskID,
+				fmt.Sprintf("%d/%d segments failed", updated.FailedBatches, updated.TotalBatches))
+		} else {
+			_ = s.taskRepo.SetCompleted(ctx, task.TaskID)
+		}
+	}
+	return affected, nil
 }
 
 func getLoginName(ctx context.Context) string {

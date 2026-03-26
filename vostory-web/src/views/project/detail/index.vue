@@ -143,7 +143,7 @@ function handleSSEEvent(evt: TTSSegmentEvent) {
         activeTasks.value.set(evt.task_id, {
             task_id: evt.task_id,
             chapter_id: evt.chapter_id,
-            chapter_title: "",
+            chapter_title: evt.chapter_title || "",
             status: evt.task_status,
             progress: evt.progress,
             total_count: evt.total,

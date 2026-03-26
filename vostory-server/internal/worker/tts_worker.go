@@ -208,44 +208,50 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 	}
 
 	var chapterID uint64
+	var chapterTitle string
 	if task.ChapterID != nil {
 		chapterID = *task.ChapterID
 	}
+	if task.Chapter != nil {
+		chapterTitle = task.Chapter.Title
+	}
 
 	w.publishEvent(ctx, TTSEvent{
-		Type:       "segment_done",
-		TaskID:     taskID,
-		ChapterID:  chapterID,
-		SegmentID:  segmentID,
-		Status:     segStatus,
-		ErrorMsg:   segErrMsg,
-		ClipID:     clipID,
-		AudioURL:   audioURL,
-		Progress:   progress,
-		Completed:  task.CompletedBatches,
-		Failed:     task.FailedBatches,
-		Total:      task.TotalBatches,
-		TaskDone:   taskDone,
-		TaskStatus: taskStatus,
+		Type:         "segment_done",
+		TaskID:       taskID,
+		ChapterID:    chapterID,
+		ChapterTitle: chapterTitle,
+		SegmentID:    segmentID,
+		Status:       segStatus,
+		ErrorMsg:     segErrMsg,
+		ClipID:       clipID,
+		AudioURL:     audioURL,
+		Progress:     progress,
+		Completed:    task.CompletedBatches,
+		Failed:       task.FailedBatches,
+		Total:        task.TotalBatches,
+		TaskDone:     taskDone,
+		TaskStatus:   taskStatus,
 	}, task.ProjectID)
 }
 
 // TTSEvent is the SSE event payload published via Redis Pub/Sub.
 type TTSEvent struct {
-	Type       string  `json:"type"`
-	TaskID     uint64  `json:"task_id"`
-	ChapterID  uint64  `json:"chapter_id"`
-	SegmentID  uint64  `json:"segment_id"`
-	Status     string  `json:"status"`
-	ErrorMsg   string  `json:"error_message,omitempty"`
-	ClipID     *uint64 `json:"clip_id,omitempty"`
-	AudioURL   string  `json:"audio_url,omitempty"`
-	Progress   int     `json:"progress"`
-	Completed  int     `json:"completed"`
-	Failed     int     `json:"failed"`
-	Total      int     `json:"total"`
-	TaskDone   bool    `json:"task_done"`
-	TaskStatus string  `json:"task_status"`
+	Type         string  `json:"type"`
+	TaskID       uint64  `json:"task_id"`
+	ChapterID    uint64  `json:"chapter_id"`
+	ChapterTitle string  `json:"chapter_title,omitempty"`
+	SegmentID    uint64  `json:"segment_id"`
+	Status       string  `json:"status"`
+	ErrorMsg     string  `json:"error_message,omitempty"`
+	ClipID       *uint64 `json:"clip_id,omitempty"`
+	AudioURL     string  `json:"audio_url,omitempty"`
+	Progress     int     `json:"progress"`
+	Completed    int     `json:"completed"`
+	Failed       int     `json:"failed"`
+	Total        int     `json:"total"`
+	TaskDone     bool    `json:"task_done"`
+	TaskStatus   string  `json:"task_status"`
 }
 
 func (w *TTSWorker) publishEvent(ctx context.Context, evt TTSEvent, projectID uint64) {

@@ -38,7 +38,7 @@ func (r *vsGenerationTaskRepository) Create(ctx context.Context, task *model.VsG
 
 func (r *vsGenerationTaskRepository) FindByID(ctx context.Context, id uint64) (*model.VsGenerationTask, error) {
 	var task model.VsGenerationTask
-	if err := r.db.WithContext(ctx).Where("task_id = ?", id).First(&task).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Chapter").Where("task_id = ?", id).First(&task).Error; err != nil {
 		return nil, err
 	}
 	return &task, nil
