@@ -333,9 +333,16 @@ func NewHTTPServer(
 				ttsRouter.GET("/audio/:segment_id", vsTTSSynthesizeHandler.GetAudio)
 				ttsRouter.POST("/batch-generate", vsTTSSynthesizeHandler.BatchGenerate)
 				ttsRouter.GET("/task/:task_id", vsTTSSynthesizeHandler.GetTaskProgress)
-				ttsRouter.GET("/project/:project_id/events", vsTTSSynthesizeHandler.StreamProjectEvents)
 				ttsRouter.GET("/stream/:clip_id", vsTTSSynthesizeHandler.StreamAudio)
 				ttsRouter.GET("/chapter/:chapter_id/active-task", vsTTSSynthesizeHandler.GetActiveTask)
+				ttsRouter.PUT("/segment/:segment_id/lock", vsTTSSynthesizeHandler.LockSegment)
+				ttsRouter.PUT("/segment/:segment_id/unlock", vsTTSSynthesizeHandler.UnlockSegment)
+				ttsRouter.PUT("/chapter/:chapter_id/lock", vsTTSSynthesizeHandler.BatchLockByChapter)
+				ttsRouter.PUT("/chapter/:chapter_id/unlock", vsTTSSynthesizeHandler.BatchUnlockByChapter)
+				ttsRouter.POST("/chapter/:chapter_id/cancel", vsTTSSynthesizeHandler.CancelChapterQueue)
+				ttsRouter.GET("/project/:project_id/active-tasks", vsTTSSynthesizeHandler.GetActiveTasksByProject)
+				ttsRouter.GET("/project/:project_id/events", vsTTSSynthesizeHandler.StreamProjectEvents)
+				ttsRouter.POST("/project/:project_id/cancel", vsTTSSynthesizeHandler.CancelProjectQueue)
 			}
 
 			pronunciationDictRouter := strictAuthRouter.Group("/pronunciation-dict")

@@ -11,6 +11,7 @@ type VsGenerationTaskRepository interface {
 	Create(ctx context.Context, task *model.VsGenerationTask) error
 	FindByID(ctx context.Context, id uint64) (*model.VsGenerationTask, error)
 	FindActiveByChapterID(ctx context.Context, chapterID uint64) (*model.VsGenerationTask, error)
+	FindActiveByProjectID(ctx context.Context, projectID uint64) ([]*model.VsGenerationTask, error)
 	FindAllByStatuses(ctx context.Context, statuses []string) ([]*model.VsGenerationTask, error)
 	UpdateProgress(ctx context.Context, id uint64, completed int, progress int) error
 	UpdateStatus(ctx context.Context, id uint64, status string, errMsg string) error
@@ -20,6 +21,7 @@ type VsGenerationTaskRepository interface {
 	SetFailed(ctx context.Context, id uint64, errMsg string) error
 	IncrementCompleted(ctx context.Context, id uint64) (int64, error)
 	IncrementFailed(ctx context.Context, id uint64) (int64, error)
+	ReduceTotalBatches(ctx context.Context, id uint64, count int) error
 }
 
 func NewVsGenerationTaskRepository(repository *Repository) VsGenerationTaskRepository {
@@ -145,4 +147,20 @@ func (r *vsGenerationTaskRepository) IncrementCompleted(ctx context.Context, id 
 		return 0, err
 	}
 	return int64(task.CompletedBatches), nil
+}
+
+func (r *vsGenerationTaskRepository) FindActiveByProjectID(ctx context.Context, projectID uint64) ([]*model.VsGenerationTask, error) {
+	var tasks []*model.VsGenerationTask
+	err := r.db.WithContext(ctx).
+		Preload("Chapter").
+		Where("project_id = ? AND status IN ?", projectID, []string{"pending", "running"}).
+		Order("task_id ASC").
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *vsGenerationTaskRepository) ReduceTotalBatches(ctx context.Context, id uint64, count int) error {
+	return r.db.WithContext(ctx).Model(&model.VsGenerationTask{}).
+		Where("task_id = ?", id).
+		Update("total_batches", r.db.Raw("GREATEST(total_batches - ?, 0)", count)).Error
 }

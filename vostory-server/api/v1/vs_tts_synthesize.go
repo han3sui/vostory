@@ -34,3 +34,25 @@ type TaskProgressResponse struct {
 	StartedAt      *time.Time `json:"started_at,omitempty"`
 	CompletedAt    *time.Time `json:"completed_at,omitempty"`
 }
+
+// ProjectTaskProgressResponse 项目级活跃任务进度
+type ProjectTaskProgressResponse struct {
+	TaskID         uint64  `json:"task_id"`
+	ChapterID      *uint64 `json:"chapter_id"`
+	ChapterTitle   string  `json:"chapter_title"`
+	Status         string  `json:"status"`
+	Progress       int     `json:"progress"`
+	TotalCount     int     `json:"total_count"`
+	CompletedCount int     `json:"completed_count"`
+	FailedCount    int     `json:"failed_count"`
+}
+
+// CancelQueueResponse 取消队列响应
+type CancelQueueResponse struct {
+	CancelledCount int64 `json:"cancelled_count"`
+}
+
+// BatchLockResponse 批量锁定/解锁响应
+type BatchLockResponse struct {
+	AffectedCount int64 `json:"affected_count"`
+}

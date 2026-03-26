@@ -21,6 +21,8 @@ type VsScriptSegmentRepository interface {
 	UpdateStatus(ctx context.Context, id uint64, status string) error
 	UpdateStatusWithError(ctx context.Context, id uint64, status string, errMsg string) error
 	FindByChapterIDAndStatus(ctx context.Context, chapterID uint64, status string) ([]*model.VsScriptSegment, error)
+	BatchUpdateStatus(ctx context.Context, ids []uint64, fromStatus, toStatus string) (int64, error)
+	BatchUpdateStatusByChapter(ctx context.Context, chapterID uint64, fromStatus, toStatus string) (int64, error)
 }
 
 func NewVsScriptSegmentRepository(repository *Repository) VsScriptSegmentRepository {
@@ -152,4 +154,18 @@ func (r *vsScriptSegmentRepository) FindByChapterIDAndStatus(ctx context.Context
 		return nil, err
 	}
 	return segments, nil
+}
+
+func (r *vsScriptSegmentRepository) BatchUpdateStatus(ctx context.Context, ids []uint64, fromStatus, toStatus string) (int64, error) {
+	result := r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Where("segment_id IN ? AND status = ?", ids, fromStatus).
+		Update("status", toStatus)
+	return result.RowsAffected, result.Error
+}
+
+func (r *vsScriptSegmentRepository) BatchUpdateStatusByChapter(ctx context.Context, chapterID uint64, fromStatus, toStatus string) (int64, error) {
+	result := r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Where("chapter_id = ? AND status = ?", chapterID, fromStatus).
+		Update("status", toStatus)
+	return result.RowsAffected, result.Error
 }

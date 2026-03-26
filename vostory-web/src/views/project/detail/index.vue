@@ -2,12 +2,20 @@
     <frame-view>
         <a-page-header :title="project?.name || '加载中...'" :show-back="true" @back="router.push('/project/list')">
             <template #subtitle>
-                <a-space v-if="project">
+                <a-space v-if="project" wrap>
                     <a-tag :color="statusColor(project.status)" size="small">
                         {{ statusLabel(project.status) }}
                     </a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_chapters }} 章</a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_characters }} 角色</a-tag>
+                    <template v-if="activeTaskList.length > 0">
+                        <a-tag v-for="t in activeTaskList" :key="t.task_id" size="small" color="orange">
+                            {{ t.chapter_title || '未知章节' }} {{ t.completed_count + t.failed_count }}/{{ t.total_count }}
+                        </a-tag>
+                        <a-popconfirm content="确认取消所有排队中的生成任务？" @ok="handleCancelAll">
+                            <a-button type="text" size="mini" status="danger">取消全部队列</a-button>
+                        </a-popconfirm>
+                    </template>
                 </a-space>
             </template>
         </a-page-header>
@@ -39,10 +47,17 @@
     </frame-view>
 </template>
 <script lang="ts" setup>
+import { Message } from "@arco-design/web-vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchEventSource } from "@fortaine/fetch-event-source";
 import { getProject, ProjectDetailType } from "@/config/apis/project";
-import { getProjectEventsURL, TTSSegmentEvent } from "@/config/apis/tts";
+import {
+    getProjectEventsURL,
+    getActiveTasksByProject,
+    cancelProjectQueue,
+    TTSSegmentEvent,
+    ProjectTaskProgress
+} from "@/config/apis/tts";
 import storage from "@/utils/tools/storage";
 import ProjectImport from "@/views/project/import/index.vue";
 import ProjectChapter from "@/views/chapter/index.vue";
@@ -86,16 +101,60 @@ watch(projectId, loadProject);
 
 defineExpose({ refreshProject: loadProject });
 
-// ── 项目级 SSE ──
+// ── 项目级 SSE + 全局任务进度 ──
 
 type TTSEventHandler = (evt: TTSSegmentEvent) => void;
 
 const ttsEventHandlers = ref<Set<TTSEventHandler>>(new Set());
+const activeTasks = ref<Map<number, ProjectTaskProgress>>(new Map());
 let sseController: AbortController | null = null;
+
+const activeTaskList = computed(() => Array.from(activeTasks.value.values()));
 
 function onTTSEvent(handler: TTSEventHandler) {
     ttsEventHandlers.value.add(handler);
     return () => ttsEventHandlers.value.delete(handler);
+}
+
+async function loadActiveTasks(pid: number) {
+    try {
+        const tasks = await getActiveTasksByProject(pid);
+        const map = new Map<number, ProjectTaskProgress>();
+        if (tasks) {
+            for (const t of tasks) map.set(t.task_id, t);
+        }
+        activeTasks.value = map;
+    } catch {
+        // ignore
+    }
+}
+
+function handleSSEEvent(evt: TTSSegmentEvent) {
+    ttsEventHandlers.value.forEach((fn) => fn(evt));
+
+    const existing = activeTasks.value.get(evt.task_id);
+    if (existing) {
+        existing.completed_count = evt.completed;
+        existing.failed_count = evt.failed;
+        existing.total_count = evt.total;
+        existing.progress = evt.progress;
+        existing.status = evt.task_status;
+    } else {
+        activeTasks.value.set(evt.task_id, {
+            task_id: evt.task_id,
+            chapter_id: evt.chapter_id,
+            chapter_title: "",
+            status: evt.task_status,
+            progress: evt.progress,
+            total_count: evt.total,
+            completed_count: evt.completed,
+            failed_count: evt.failed
+        });
+    }
+
+    if (evt.task_done) {
+        activeTasks.value.delete(evt.task_id);
+    }
 }
 
 function connectProjectSSE(pid: number) {
@@ -111,8 +170,7 @@ function connectProjectSSE(pid: number) {
         signal: controller.signal,
         onmessage(event: any) {
             if (event.event === "segment") {
-                const data: TTSSegmentEvent = JSON.parse(event.data);
-                ttsEventHandlers.value.forEach((fn) => fn(data));
+                handleSSEEvent(JSON.parse(event.data));
             }
         },
         onerror(error) {
@@ -129,11 +187,26 @@ function disconnectProjectSSE() {
     }
 }
 
+async function handleCancelAll() {
+    if (!projectId.value) return;
+    try {
+        const res = await cancelProjectQueue(projectId.value);
+        Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
+        await loadActiveTasks(projectId.value);
+    } catch {
+        Message.error("取消失败");
+    }
+}
+
 watch(
     projectId,
     (pid) => {
-        if (pid) connectProjectSSE(pid);
-        else disconnectProjectSSE();
+        if (pid) {
+            loadActiveTasks(pid);
+            connectProjectSSE(pid);
+        } else {
+            disconnectProjectSSE();
+        }
     },
     { immediate: true }
 );

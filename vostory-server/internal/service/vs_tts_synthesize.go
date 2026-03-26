@@ -40,7 +40,14 @@ type VsTTSSynthesizeService interface {
 	BatchGenerate(ctx context.Context, chapterID uint64) (*v1.BatchGenerateResponse, error)
 	GetTaskProgress(ctx context.Context, taskID uint64) (*v1.TaskProgressResponse, error)
 	GetActiveTaskByChapter(ctx context.Context, chapterID uint64) (*v1.TaskProgressResponse, error)
+	GetActiveTasksByProject(ctx context.Context, projectID uint64) ([]*v1.ProjectTaskProgressResponse, error)
 	GetAudioClipFile(ctx context.Context, clipID uint64) (filePath string, contentType string, err error)
+	LockSegment(ctx context.Context, segmentID uint64) error
+	UnlockSegment(ctx context.Context, segmentID uint64) error
+	BatchLockByChapter(ctx context.Context, chapterID uint64) (int64, error)
+	BatchUnlockByChapter(ctx context.Context, chapterID uint64) (int64, error)
+	CancelChapterQueue(ctx context.Context, chapterID uint64) (int64, error)
+	CancelProjectQueue(ctx context.Context, projectID uint64) (int64, error)
 }
 
 func NewVsTTSSynthesizeService(
@@ -348,7 +355,7 @@ func (s *vsTTSSynthesizeService) BatchGenerate(ctx context.Context, chapterID ui
 
 	var eligible []*model.VsScriptSegment
 	for _, seg := range segments {
-		if seg.CharacterID == nil || seg.Status == "queued" || seg.Status == "processing" {
+		if seg.CharacterID == nil || seg.Status == "queued" || seg.Status == "processing" || seg.Status == "locked" {
 			continue
 		}
 		eligible = append(eligible, seg)
@@ -441,6 +448,96 @@ func (s *vsTTSSynthesizeService) GetAudioClipFile(ctx context.Context, clipID ui
 	}
 
 	return clip.AudioURL, contentType, nil
+}
+
+func (s *vsTTSSynthesizeService) GetActiveTasksByProject(ctx context.Context, projectID uint64) ([]*v1.ProjectTaskProgressResponse, error) {
+	tasks, err := s.taskRepo.FindActiveByProjectID(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	var result []*v1.ProjectTaskProgressResponse
+	for _, t := range tasks {
+		item := &v1.ProjectTaskProgressResponse{
+			TaskID:         t.TaskID,
+			ChapterID:      t.ChapterID,
+			Status:         t.Status,
+			Progress:       t.Progress,
+			TotalCount:     t.TotalBatches,
+			CompletedCount: t.CompletedBatches,
+			FailedCount:    t.FailedBatches,
+		}
+		if t.Chapter != nil {
+			item.ChapterTitle = t.Chapter.Title
+		}
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+func (s *vsTTSSynthesizeService) LockSegment(ctx context.Context, segmentID uint64) error {
+	seg, err := s.segmentRepo.FindByID(ctx, segmentID)
+	if err != nil {
+		return fmt.Errorf("片段不存在")
+	}
+	if seg.Status != "generated" {
+		return fmt.Errorf("只有已生成状态的片段才能锁定，当前状态: %s", seg.Status)
+	}
+	return s.segmentRepo.UpdateStatus(ctx, segmentID, "locked")
+}
+
+func (s *vsTTSSynthesizeService) UnlockSegment(ctx context.Context, segmentID uint64) error {
+	seg, err := s.segmentRepo.FindByID(ctx, segmentID)
+	if err != nil {
+		return fmt.Errorf("片段不存在")
+	}
+	if seg.Status != "locked" {
+		return fmt.Errorf("只有已锁定状态的片段才能解锁，当前状态: %s", seg.Status)
+	}
+	return s.segmentRepo.UpdateStatus(ctx, segmentID, "generated")
+}
+
+func (s *vsTTSSynthesizeService) BatchLockByChapter(ctx context.Context, chapterID uint64) (int64, error) {
+	return s.segmentRepo.BatchUpdateStatusByChapter(ctx, chapterID, "generated", "locked")
+}
+
+func (s *vsTTSSynthesizeService) BatchUnlockByChapter(ctx context.Context, chapterID uint64) (int64, error) {
+	return s.segmentRepo.BatchUpdateStatusByChapter(ctx, chapterID, "locked", "generated")
+}
+
+func (s *vsTTSSynthesizeService) CancelChapterQueue(ctx context.Context, chapterID uint64) (int64, error) {
+	affected, err := s.segmentRepo.BatchUpdateStatusByChapter(ctx, chapterID, "queued", "cancelled")
+	if err != nil {
+		return 0, err
+	}
+	if affected > 0 {
+		task, _ := s.taskRepo.FindActiveByChapterID(ctx, chapterID)
+		if task != nil {
+			_ = s.taskRepo.ReduceTotalBatches(ctx, task.TaskID, int(affected))
+		}
+	}
+	return affected, nil
+}
+
+func (s *vsTTSSynthesizeService) CancelProjectQueue(ctx context.Context, projectID uint64) (int64, error) {
+	tasks, err := s.taskRepo.FindActiveByProjectID(ctx, projectID)
+	if err != nil {
+		return 0, err
+	}
+	var totalAffected int64
+	for _, task := range tasks {
+		if task.ChapterID == nil {
+			continue
+		}
+		affected, err := s.segmentRepo.BatchUpdateStatusByChapter(ctx, *task.ChapterID, "queued", "cancelled")
+		if err != nil {
+			continue
+		}
+		if affected > 0 {
+			_ = s.taskRepo.ReduceTotalBatches(ctx, task.TaskID, int(affected))
+			totalAffected += affected
+		}
+	}
+	return totalAffected, nil
 }
 
 func getLoginName(ctx context.Context) string {

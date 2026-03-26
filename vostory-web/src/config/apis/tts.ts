@@ -72,3 +72,42 @@ export function getProjectEventsURL(projectId: number): string {
     const base = envHelper.dev() ? envHelper.get("VITE_APP_API_URL") : "";
     return `${base}/api/v1/tts/project/${projectId}/events`;
 }
+
+export type ProjectTaskProgress = {
+    task_id: number;
+    chapter_id: number | null;
+    chapter_title: string;
+    status: string;
+    progress: number;
+    total_count: number;
+    completed_count: number;
+    failed_count: number;
+};
+
+export function getActiveTasksByProject(projectId: number): Promise<ProjectTaskProgress[]> {
+    return request({ url: `/api/v1/tts/project/${projectId}/active-tasks` });
+}
+
+export function lockSegment(segmentId: number) {
+    return request({ url: `/api/v1/tts/segment/${segmentId}/lock`, method: "put" });
+}
+
+export function unlockSegment(segmentId: number) {
+    return request({ url: `/api/v1/tts/segment/${segmentId}/unlock`, method: "put" });
+}
+
+export function batchLockChapter(chapterId: number): Promise<{ affected_count: number }> {
+    return request({ url: `/api/v1/tts/chapter/${chapterId}/lock`, method: "put" });
+}
+
+export function batchUnlockChapter(chapterId: number): Promise<{ affected_count: number }> {
+    return request({ url: `/api/v1/tts/chapter/${chapterId}/unlock`, method: "put" });
+}
+
+export function cancelChapterQueue(chapterId: number): Promise<{ cancelled_count: number }> {
+    return request({ url: `/api/v1/tts/chapter/${chapterId}/cancel`, method: "post" });
+}
+
+export function cancelProjectQueue(projectId: number): Promise<{ cancelled_count: number }> {
+    return request({ url: `/api/v1/tts/project/${projectId}/cancel`, method: "post" });
+}

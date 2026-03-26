@@ -13,7 +13,7 @@ type VsScriptSegment struct {
 	CharacterID     *uint64 `json:"character_id" gorm:"comment:说话人角色ID（旁白/描述时为空）"`
 	EmotionType     string  `json:"emotion_type" gorm:"size:50;comment:情绪类型（happy/sad/angry/fear/surprise/neutral等）"`
 	EmotionStrength string  `json:"emotion_strength" gorm:"size:20;default:'medium';comment:情绪强度（light/medium/strong）"`
-	Status          string  `json:"status" gorm:"size:20;default:'raw';comment:片段状态（raw/edited/generated）"`
+	Status          string  `json:"status" gorm:"size:20;default:'raw';comment:片段状态（raw/edited/queued/processing/generated/failed/locked/cancelled）"`
 	ErrorMessage    string  `json:"error_message" gorm:"size:2000;comment:失败原因"`
 	Version         int     `json:"version" gorm:"default:1;comment:版本号"`
 

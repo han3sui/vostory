@@ -183,6 +183,155 @@ func (h *VsTTSSynthesizeHandler) GetActiveTask(ctx *gin.Context) {
 	v1.HandleSuccess(ctx, result)
 }
 
+// GetActiveTasksByProject godoc
+// @Summary      查询项目活跃任务列表
+// @Description  查询指定项目下所有正在运行或等待中的生成任务
+// @Tags         TTS合成
+// @Param        project_id  path  int  true  "项目ID"
+// @Success      200  {object}  v1.Response
+// @Failure      400  {object}  v1.Response
+// @Router       /api/v1/tts/project/{project_id}/active-tasks [get]
+// @Id        tts:projectActiveTasks
+func (h *VsTTSSynthesizeHandler) GetActiveTasksByProject(ctx *gin.Context) {
+	projectID := cast.ToUint64(ctx.Param("project_id"))
+	if projectID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "project_id is required"), nil)
+		return
+	}
+	result, err := h.svc.GetActiveTasksByProject(ctx, projectID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, result)
+}
+
+// LockSegment godoc
+// @Summary      锁定片段
+// @Tags         TTS合成
+// @Param        segment_id  path  int  true  "片段ID"
+// @Success      200  {object}  v1.Response
+// @Router       /api/v1/tts/segment/{segment_id}/lock [put]
+// @Id        tts:lockSegment
+func (h *VsTTSSynthesizeHandler) LockSegment(ctx *gin.Context) {
+	segmentID := cast.ToUint64(ctx.Param("segment_id"))
+	if segmentID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "segment_id is required"), nil)
+		return
+	}
+	if err := h.svc.LockSegment(ctx, segmentID); err != nil {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, nil)
+}
+
+// UnlockSegment godoc
+// @Summary      解锁片段
+// @Tags         TTS合成
+// @Param        segment_id  path  int  true  "片段ID"
+// @Success      200  {object}  v1.Response
+// @Router       /api/v1/tts/segment/{segment_id}/unlock [put]
+// @Id        tts:unlockSegment
+func (h *VsTTSSynthesizeHandler) UnlockSegment(ctx *gin.Context) {
+	segmentID := cast.ToUint64(ctx.Param("segment_id"))
+	if segmentID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "segment_id is required"), nil)
+		return
+	}
+	if err := h.svc.UnlockSegment(ctx, segmentID); err != nil {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, nil)
+}
+
+// BatchLockByChapter godoc
+// @Summary      批量锁定章节下所有已生成片段
+// @Tags         TTS合成
+// @Param        chapter_id  path  int  true  "章节ID"
+// @Success      200  {object}  v1.Response
+// @Router       /api/v1/tts/chapter/{chapter_id}/lock [put]
+// @Id        tts:batchLock
+func (h *VsTTSSynthesizeHandler) BatchLockByChapter(ctx *gin.Context) {
+	chapterID := cast.ToUint64(ctx.Param("chapter_id"))
+	if chapterID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "chapter_id is required"), nil)
+		return
+	}
+	affected, err := h.svc.BatchLockByChapter(ctx, chapterID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, v1.BatchLockResponse{AffectedCount: affected})
+}
+
+// BatchUnlockByChapter godoc
+// @Summary      批量解锁章节下所有已锁定片段
+// @Tags         TTS合成
+// @Param        chapter_id  path  int  true  "章节ID"
+// @Success      200  {object}  v1.Response
+// @Router       /api/v1/tts/chapter/{chapter_id}/unlock [put]
+// @Id        tts:batchUnlock
+func (h *VsTTSSynthesizeHandler) BatchUnlockByChapter(ctx *gin.Context) {
+	chapterID := cast.ToUint64(ctx.Param("chapter_id"))
+	if chapterID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "chapter_id is required"), nil)
+		return
+	}
+	affected, err := h.svc.BatchUnlockByChapter(ctx, chapterID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, v1.BatchLockResponse{AffectedCount: affected})
+}
+
+// CancelChapterQueue godoc
+// @Summary      取消章节生成队列
+// @Description  取消指定章节下所有排队中的片段
+// @Tags         TTS合成
+// @Param        chapter_id  path  int  true  "章节ID"
+// @Success      200  {object}  v1.Response
+// @Router       /api/v1/tts/chapter/{chapter_id}/cancel [post]
+// @Id        tts:cancelChapter
+func (h *VsTTSSynthesizeHandler) CancelChapterQueue(ctx *gin.Context) {
+	chapterID := cast.ToUint64(ctx.Param("chapter_id"))
+	if chapterID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "chapter_id is required"), nil)
+		return
+	}
+	affected, err := h.svc.CancelChapterQueue(ctx, chapterID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, v1.CancelQueueResponse{CancelledCount: affected})
+}
+
+// CancelProjectQueue godoc
+// @Summary      取消项目生成队列
+// @Description  取消指定项目下所有排队中的片段
+// @Tags         TTS合成
+// @Param        project_id  path  int  true  "项目ID"
+// @Success      200  {object}  v1.Response
+// @Router       /api/v1/tts/project/{project_id}/cancel [post]
+// @Id        tts:cancelProject
+func (h *VsTTSSynthesizeHandler) CancelProjectQueue(ctx *gin.Context) {
+	projectID := cast.ToUint64(ctx.Param("project_id"))
+	if projectID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "project_id is required"), nil)
+		return
+	}
+	affected, err := h.svc.CancelProjectQueue(ctx, projectID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, v1.CancelQueueResponse{CancelledCount: affected})
+}
+
 // StreamProjectEvents godoc
 // @Summary      SSE 实时推送项目级 TTS 进度
 // @Description  通过 Server-Sent Events 实时推送整个项目的 TTS 生成事件（包含所有章节）

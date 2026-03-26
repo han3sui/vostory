@@ -26,17 +26,38 @@
                             v-if="hasPermission('tts:synthesize')"
                             type="primary"
                             size="small"
-                            :loading="batchGenerating"
-                            :disabled="generatableCount === 0 && !batchGenerating"
+                            :disabled="generatableCount === 0"
                             @click="handleBatchGenerate"
                         >
                             <template #icon><icon-sound /></template>
-                            <template v-if="batchGenerating && batchProgress.total > 0">
-                                生成中 {{ batchProgress.completed }}/{{ batchProgress.total }}
-                            </template>
-                            <template v-else>
-                                批量生成 ({{ generatableCount }})
-                            </template>
+                            批量生成 ({{ generatableCount }})
+                        </a-button>
+                        <a-popconfirm
+                            v-if="queuedCount > 0"
+                            content="确认取消当前章节所有排队中的片段？"
+                            @ok="handleCancelQueue"
+                        >
+                            <a-button type="outline" size="small" status="danger">
+                                取消队列 ({{ queuedCount }})
+                            </a-button>
+                        </a-popconfirm>
+                        <a-button
+                            v-if="generatedCount > 0"
+                            type="outline"
+                            size="small"
+                            @click="handleBatchLock"
+                        >
+                            <template #icon><icon-lock /></template>
+                            全部锁定 ({{ generatedCount }})
+                        </a-button>
+                        <a-button
+                            v-if="lockedCount > 0"
+                            type="outline"
+                            size="small"
+                            @click="handleBatchUnlock"
+                        >
+                            <template #icon><icon-unlock /></template>
+                            全部解锁 ({{ lockedCount }})
                         </a-button>
                         <a-button
                             v-if="hasPermission('chapter:split')"
@@ -148,6 +169,22 @@
                                         </a-button>
                                     </a-tooltip>
                                     <a-button
+                                        v-if="seg.status === 'generated'"
+                                        type="text"
+                                        size="mini"
+                                        @click="handleLock(seg)"
+                                    >
+                                        <template #icon><icon-lock /></template>
+                                    </a-button>
+                                    <a-button
+                                        v-if="seg.status === 'locked'"
+                                        type="text"
+                                        size="mini"
+                                        @click="handleUnlock(seg)"
+                                    >
+                                        <template #icon><icon-unlock /></template>
+                                    </a-button>
+                                    <a-button
                                         v-if="seg.clip_id"
                                         type="text"
                                         size="mini"
@@ -186,7 +223,7 @@
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
 import { Modal } from "@arco-design/web-vue";
-import { IconSound, IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
+import { IconSound, IconPlayArrow, IconPause, IconLock, IconUnlock } from "@arco-design/web-vue/es/icon";
 import {
     getSegmentsByChapter,
     updateScriptSegment,
@@ -194,7 +231,18 @@ import {
     ScriptSegmentDetailType
 } from "@/config/apis/script-segment";
 import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
-import { synthesizeSegment, batchGenerate, getActiveTask, getTTSStreamURL, TTSSegmentEvent } from "@/config/apis/tts";
+import {
+    synthesizeSegment,
+    batchGenerate,
+    getActiveTask,
+    getTTSStreamURL,
+    TTSSegmentEvent,
+    lockSegment,
+    unlockSegment,
+    batchLockChapter,
+    batchUnlockChapter,
+    cancelChapterQueue
+} from "@/config/apis/tts";
 import { hasPermission } from "@/views/utils";
 import request from "@/packages/request";
 import storage from "@/utils/tools/storage";
@@ -212,13 +260,14 @@ const loadingSegments = ref(false);
 const aligning = ref(false);
 const splitting = ref(false);
 const synthesizingId = ref<number | null>(null);
-const batchGenerating = ref(false);
-const batchProgress = ref({ total: 0, completed: 0, status: "" });
 const playingId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
 let currentBlobURL: string | null = null;
 
 const generatableCount = computed(() => segments.value.filter((s) => canGenerate(s)).length);
+const queuedCount = computed(() => segments.value.filter((s) => s.status === "queued").length);
+const generatedCount = computed(() => segments.value.filter((s) => s.status === "generated").length);
+const lockedCount = computed(() => segments.value.filter((s) => s.status === "locked").length);
 
 function canGenerate(seg: ScriptSegmentDetailType): boolean {
     return !disableReason(seg);
@@ -229,6 +278,7 @@ function disableReason(seg: ScriptSegmentDetailType): string {
     if (!seg.character_id) return "未指定说话人角色";
     if (seg.status === "queued") return "已在队列中等待生成";
     if (seg.status === "processing") return "正在生成中";
+    if (seg.status === "locked") return "片段已锁定";
     return "";
 }
 
@@ -261,15 +311,7 @@ async function selectChapter(ch: any) {
     }
 
     try {
-        const active = await getActiveTask(ch.id);
-        if (active && (active.status === "pending" || active.status === "running")) {
-            batchGenerating.value = true;
-            batchProgress.value = {
-                total: active.total_count,
-                completed: active.completed_count,
-                status: active.status
-            };
-        }
+        await getActiveTask(ch.id);
     } catch {
         // 无活跃任务则忽略
     }
@@ -378,15 +420,7 @@ function handleSegmentEvent(evt: TTSSegmentEvent) {
         synthesizingId.value = null;
     }
 
-    batchProgress.value = {
-        total: evt.total,
-        completed: evt.completed,
-        status: evt.task_status
-    };
-
     if (evt.task_done) {
-        batchGenerating.value = false;
-
         if (evt.failed > 0) {
             Message.warning(`批量生成完成：${evt.completed} 成功，${evt.failed} 失败`);
         } else if (evt.total > 1) {
@@ -413,19 +447,14 @@ async function handleBatchGenerate() {
 
     Modal.confirm({
         title: "批量生成配音",
-        content: `将为 ${todo.length} 个片段生成配音，已绑定角色和声音的片段才会被处理。是否继续？`,
+        content: `将为 ${todo.length} 个片段生成配音（已锁定的片段不会被覆盖）。是否继续？`,
         okText: "确认生成",
         cancelText: "取消",
         onOk: async () => {
-            batchGenerating.value = true;
-            batchProgress.value = { total: 0, completed: 0, status: "pending" };
             todo.forEach((seg) => (seg.status = "queued"));
-
             try {
-                const result = await batchGenerate(selectedChapterId.value!);
-                batchProgress.value = { total: result.total_count, completed: 0, status: "running" };
+                await batchGenerate(selectedChapterId.value!);
             } catch (e: any) {
-                batchGenerating.value = false;
                 todo.forEach((seg) => { if (seg.status === "queued") seg.status = "failed"; });
                 const msg = e?.response?.data?.message || e?.message || "";
                 if (msg.includes("已有正在运行的生成任务")) {
@@ -436,6 +465,57 @@ async function handleBatchGenerate() {
             }
         }
     });
+}
+
+async function handleLock(seg: ScriptSegmentDetailType) {
+    try {
+        await lockSegment(seg.id);
+        seg.status = "locked";
+    } catch {
+        Message.error("锁定失败");
+    }
+}
+
+async function handleUnlock(seg: ScriptSegmentDetailType) {
+    try {
+        await unlockSegment(seg.id);
+        seg.status = "generated";
+    } catch {
+        Message.error("解锁失败");
+    }
+}
+
+async function handleBatchLock() {
+    if (!selectedChapterId.value) return;
+    try {
+        const res = await batchLockChapter(selectedChapterId.value);
+        segments.value.forEach((s) => { if (s.status === "generated") s.status = "locked"; });
+        Message.success(`已锁定 ${res.affected_count} 个片段`);
+    } catch {
+        Message.error("批量锁定失败");
+    }
+}
+
+async function handleBatchUnlock() {
+    if (!selectedChapterId.value) return;
+    try {
+        const res = await batchUnlockChapter(selectedChapterId.value);
+        segments.value.forEach((s) => { if (s.status === "locked") s.status = "generated"; });
+        Message.success(`已解锁 ${res.affected_count} 个片段`);
+    } catch {
+        Message.error("批量解锁失败");
+    }
+}
+
+async function handleCancelQueue() {
+    if (!selectedChapterId.value) return;
+    try {
+        const res = await cancelChapterQueue(selectedChapterId.value);
+        segments.value.forEach((s) => { if (s.status === "queued") s.status = "cancelled"; });
+        Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
+    } catch {
+        Message.error("取消失败");
+    }
 }
 
 onUnmounted(() => {
@@ -506,7 +586,9 @@ function statusColor(status: string) {
         queued: "cyan",
         processing: "orangered",
         generated: "green",
-        failed: "red"
+        failed: "red",
+        locked: "purple",
+        cancelled: "orangered"
     };
     return map[status] || "gray";
 }
@@ -518,7 +600,9 @@ function statusLabel(status: string) {
         queued: "队列中",
         processing: "生成中",
         generated: "已生成",
-        failed: "生成失败"
+        failed: "生成失败",
+        locked: "已锁定",
+        cancelled: "已取消"
     };
     return map[status] || status;
 }

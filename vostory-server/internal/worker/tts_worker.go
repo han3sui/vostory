@@ -145,6 +145,16 @@ func (w *TTSWorker) consumeLoop(ctx context.Context) {
 }
 
 func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64) {
+	seg, err := w.segmentRepo.FindByID(ctx, segmentID)
+	if err != nil {
+		w.logger.Warn("segment not found, skipping", zap.Uint64("segment_id", segmentID))
+		return
+	}
+	if seg.Status == "cancelled" {
+		w.logger.Info("segment cancelled, skipping", zap.Uint64("segment_id", segmentID))
+		return
+	}
+
 	_ = w.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
 
 	synthResult, synthErr := w.ttsSvc.SynthesizeSegment(ctx, segmentID)
