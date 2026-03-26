@@ -208,25 +208,53 @@ func (s *vsCharacterExtractService) ExtractFromText(ctx context.Context, req *v1
 
 func (s *vsCharacterExtractService) saveCharacters(ctx context.Context, projectID uint64, result *llmExtractResult) (*v1.CharacterExtractResponse, error) {
 	existing, _ := s.characterRepo.FindByProjectID(ctx, projectID)
-	existingNames := make(map[string]bool)
+	existingMap := make(map[string]*model.VsCharacter)
 	for _, c := range existing {
-		existingNames[strings.ToLower(c.Name)] = true
+		existingMap[strings.ToLower(c.Name)] = c
 		for _, alias := range c.Aliases {
-			existingNames[strings.ToLower(alias)] = true
+			existingMap[strings.ToLower(alias)] = c
 		}
 	}
 
 	loginName := s.getLoginName(ctx)
 	deptID := s.getDeptID(ctx)
 	newCount := 0
+	updatedCount := 0
 	skippedCount := 0
 
 	for i, ch := range result.Characters {
 		if ch.Name == "" {
 			continue
 		}
-		if existingNames[strings.ToLower(ch.Name)] {
-			skippedCount++
+
+		if existChar, ok := existingMap[strings.ToLower(ch.Name)]; ok {
+			updated := false
+			if existChar.Gender == "unknown" && normalizeGender(ch.Gender) != "unknown" {
+				existChar.Gender = normalizeGender(ch.Gender)
+				updated = true
+			}
+			if existChar.Description == "" && strings.TrimSpace(ch.Description) != "" {
+				existChar.Description = strings.TrimSpace(ch.Description)
+				updated = true
+			}
+			if len(existChar.Aliases) == 0 && len(ch.Aliases) > 0 {
+				existChar.Aliases = model.StringList(ch.Aliases)
+				updated = true
+			}
+			if existChar.Level == "minor" && normalizeLevel(ch.Level) != "minor" {
+				existChar.Level = normalizeLevel(ch.Level)
+				updated = true
+			}
+			if updated {
+				existChar.UpdatedBy = loginName
+				if err := s.characterRepo.Update(ctx, existChar); err != nil {
+					s.logger.Warn(fmt.Sprintf("更新角色 %s 失败: %v", ch.Name, err))
+				} else {
+					updatedCount++
+				}
+			} else {
+				skippedCount++
+			}
 			continue
 		}
 
@@ -251,9 +279,9 @@ func (s *vsCharacterExtractService) saveCharacters(ctx context.Context, projectI
 			continue
 		}
 
-		existingNames[strings.ToLower(ch.Name)] = true
+		existingMap[strings.ToLower(ch.Name)] = character
 		for _, alias := range ch.Aliases {
-			existingNames[strings.ToLower(alias)] = true
+			existingMap[strings.ToLower(alias)] = character
 		}
 		newCount++
 	}
@@ -261,6 +289,7 @@ func (s *vsCharacterExtractService) saveCharacters(ctx context.Context, projectI
 	return &v1.CharacterExtractResponse{
 		ExtractedCount: len(result.Characters),
 		NewCount:       newCount,
+		UpdatedCount:   updatedCount,
 		SkippedCount:   skippedCount,
 	}, nil
 }

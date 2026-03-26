@@ -54,13 +54,13 @@ var DefaultPromptTemplateSeeds = []PromptTemplateSeed{
 1. 识别场景切换（基于时间跳跃、地点变化、视角切换）
 2. 在每个场景内，将文本切分为独立片段
 3. 每个片段标注类型：dialogue(对白)、narration(旁白)、monologue(独白)、description(描述)
-4. 对白和独白片段需识别说话人名称
+4. 对白和独白片段需识别说话人名称，并根据上下文推断该角色的性别和简要描述
 5. 标注每个片段的情绪：neutral/happy/sad/angry/fear/surprise/disgust
 6. 标注情绪强度：light/medium/strong
 7. content字段中的特殊字符（引号、反斜杠、换行等）必须按照JSON标准进行转义
 
 请严格以JSON格式返回，不要包含任何其他文字，不要使用markdown代码块包裹，结构如下：
-{"scenes":[{"title":"场景标题","description":"场景简述","segments":[{"type":"dialogue|narration|monologue|description","content":"片段文本内容","character":"说话人名称（非对白/独白时为空字符串）","emotion":"neutral|happy|sad|angry|fear|surprise|disgust","emotion_strength":"light|medium|strong"}]}]}
+{"scenes":[{"title":"场景标题","description":"场景简述","segments":[{"type":"dialogue|narration|monologue|description","content":"片段文本内容","character":"说话人名称（非对白/独白时为空字符串）","character_gender":"male|female|unknown（根据上下文推断，非对白/独白时为空字符串）","character_description":"角色简要描述，包含性格特点和身份信息（非对白/独白时为空字符串）","emotion":"neutral|happy|sad|angry|fear|surprise|disgust","emotion_strength":"light|medium|strong"}]}]}
 
 ---
 {{content}}`,

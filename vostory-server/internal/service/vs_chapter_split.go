@@ -79,11 +79,13 @@ type llmScene struct {
 }
 
 type llmSegment struct {
-	Type            string `json:"type"`
-	Content         string `json:"content"`
-	Character       string `json:"character"`
-	Emotion         string `json:"emotion"`
-	EmotionStrength string `json:"emotion_strength"`
+	Type                 string `json:"type"`
+	Content              string `json:"content"`
+	Character            string `json:"character"`
+	CharacterGender      string `json:"character_gender"`
+	CharacterDescription string `json:"character_description"`
+	Emotion              string `json:"emotion"`
+	EmotionStrength      string `json:"emotion_strength"`
 }
 
 func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint64) (*v1.ChapterSplitResponse, error) {
@@ -229,26 +231,28 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 
 				if segType == "narration" || segType == "description" {
 					charID = narratorID
-				} else if charName != "" {
-					charID = resolveCharacterID(charMap, charName)
-					if charID == nil {
-						newChar := &model.VsCharacter{
-							ProjectID: project.ProjectID,
-							Name:      charName,
-							Level:     "minor",
-							Gender:    "unknown",
-							Status:    "0",
-							BaseModel: model.BaseModel{
-								CreatedBy: loginName,
-								DeptID:    deptID,
-							},
-						}
-						if err := tx.Create(newChar).Error; err == nil {
-							charMap[strings.ToLower(charName)] = newChar.CharacterID
-							charID = &newChar.CharacterID
-							newCharacters++
-						}
+			} else if charName != "" {
+				charID = resolveCharacterID(charMap, charName)
+				if charID == nil {
+					gender := normalizeGender(seg.CharacterGender)
+					newChar := &model.VsCharacter{
+						ProjectID:   project.ProjectID,
+						Name:        charName,
+						Level:       "minor",
+						Gender:      gender,
+						Description: strings.TrimSpace(seg.CharacterDescription),
+						Status:      "0",
+						BaseModel: model.BaseModel{
+							CreatedBy: loginName,
+							DeptID:    deptID,
+						},
 					}
+					if err := tx.Create(newChar).Error; err == nil {
+						charMap[strings.ToLower(charName)] = newChar.CharacterID
+						charID = &newChar.CharacterID
+						newCharacters++
+					}
+				}
 				}
 
 				segment := &model.VsScriptSegment{
