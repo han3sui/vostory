@@ -65,7 +65,7 @@ func (w *TTSWorker) EnqueueSegment(ctx context.Context, taskID, segmentID uint64
 }
 
 func (w *TTSWorker) recoverTasks(ctx context.Context) {
-	tasks, err := w.taskRepo.FindAllByStatuses(ctx, []string{"running", "pending"})
+	tasks, err := w.taskRepo.FindAllByStatusesAndType(ctx, []string{"running", "pending"}, "tts_generate")
 	if err != nil {
 		w.logger.Error("recover tasks: query failed", zap.Error(err))
 		return
@@ -77,6 +77,11 @@ func (w *TTSWorker) recoverTasks(ctx context.Context) {
 	w.logger.Info("recovering interrupted tasks", zap.Int("count", len(tasks)))
 
 	for _, task := range tasks {
+		if task.ChapterID == nil {
+			w.logger.Warn("recover: task chapter_id is nil, skipping", zap.Uint64("task_id", task.TaskID))
+			continue
+		}
+
 		if task.Status == "running" {
 			if err := w.taskRepo.ResetStatus(ctx, task.TaskID, "pending"); err != nil {
 				w.logger.Error("recover: reset status failed",

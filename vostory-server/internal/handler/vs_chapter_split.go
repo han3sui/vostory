@@ -65,7 +65,9 @@ func (h *VsChapterSplitHandler) BatchSplit(ctx *gin.Context) {
 
 	loginName := ""
 	if v, ok := ctx.Get("login_name"); ok {
-		loginName = v.(string)
+		if s, ok := v.(string); ok {
+			loginName = s
+		}
 	}
 
 	result, err := h.svc.BatchSplitChapters(ctx, req.ProjectID, req.ChapterIDs, loginName)

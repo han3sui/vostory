@@ -333,13 +333,20 @@ func (s *vsChapterSplitService) BatchSplitChapters(ctx context.Context, projectI
 	if err := s.taskRepo.Create(ctx, task); err != nil {
 		return nil, fmt.Errorf("创建批量切割任务失败: %w", err)
 	}
-	_ = s.taskRepo.SetStarted(ctx, task.TaskID)
 
+	if err := s.taskRepo.SetStarted(ctx, task.TaskID); err != nil {
+		_ = s.taskRepo.SetFailed(ctx, task.TaskID, fmt.Sprintf("更新任务开始状态失败: %v", err))
+		return nil, fmt.Errorf("更新任务开始状态失败: %w", err)
+	}
+
+	pipe := s.rdb.TxPipeline()
 	for _, chID := range chapterIDs {
 		msg := fmt.Sprintf("%d:%d", task.TaskID, chID)
-		if err := s.rdb.LPush(ctx, "vs:llm:queue", msg).Err(); err != nil {
-			return nil, fmt.Errorf("章节 %d 入队失败: %w", chID, err)
-		}
+		pipe.LPush(ctx, "vs:llm:queue", msg)
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		_ = s.taskRepo.SetFailed(ctx, task.TaskID, fmt.Sprintf("任务入队失败: %v", err))
+		return nil, fmt.Errorf("批量入队失败: %w", err)
 	}
 
 	return &v1.BatchSplitResponse{

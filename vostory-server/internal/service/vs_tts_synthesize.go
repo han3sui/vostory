@@ -552,6 +552,9 @@ func (s *vsTTSSynthesizeService) CancelProjectQueue(ctx context.Context, project
 	}
 	var totalAffected int64
 	for _, task := range tasks {
+		if task.TaskType != "tts_generate" {
+			continue
+		}
 		affected, err := s.cancelTaskQueuedSegments(ctx, task)
 		if err != nil {
 			continue
@@ -563,6 +566,9 @@ func (s *vsTTSSynthesizeService) CancelProjectQueue(ctx context.Context, project
 
 // cancelTaskQueuedSegments 按 task.SegmentIDs 精确取消 queued 片段，并重算任务终态。
 func (s *vsTTSSynthesizeService) cancelTaskQueuedSegments(ctx context.Context, task *model.VsGenerationTask) (int64, error) {
+	if task.TaskType != "tts_generate" {
+		return 0, nil
+	}
 	if len(task.SegmentIDs) == 0 {
 		return 0, nil
 	}
