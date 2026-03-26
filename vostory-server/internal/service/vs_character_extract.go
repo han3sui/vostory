@@ -96,7 +96,8 @@ func (s *vsCharacterExtractService) ExtractCharacters(ctx context.Context, proje
 		Messages: []llm.Message{
 			{Role: "user", Content: prompt},
 		},
-		CustomParams: provider.CustomParams,
+		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
+		CustomParams:   provider.CustomParams,
 	})
 	costTime := time.Since(start).Milliseconds()
 
@@ -166,7 +167,8 @@ func (s *vsCharacterExtractService) ExtractFromText(ctx context.Context, req *v1
 		Messages: []llm.Message{
 			{Role: "user", Content: prompt},
 		},
-		CustomParams: provider.CustomParams,
+		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
+		CustomParams:   provider.CustomParams,
 	})
 	costTime := time.Since(start).Milliseconds()
 

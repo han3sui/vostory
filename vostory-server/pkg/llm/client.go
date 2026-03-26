@@ -17,13 +17,18 @@ type Message struct {
 }
 
 type ChatRequest struct {
-	BaseURL      string
-	APIKey       string
-	Model        string
-	Messages     []Message
-	MaxTokens    int
-	Temperature  float64
-	CustomParams map[string]interface{}
+	BaseURL        string
+	APIKey         string
+	Model          string
+	Messages       []Message
+	MaxTokens      int
+	Temperature    float64
+	ResponseFormat *ResponseFormat
+	CustomParams   map[string]interface{}
+}
+
+type ResponseFormat struct {
+	Type string `json:"type"`
 }
 
 type ChatResponse struct {
@@ -38,7 +43,7 @@ type Client struct {
 
 func NewClient() *Client {
 	return &Client{
-		httpClient: &http.Client{Timeout: 120 * time.Second},
+		httpClient: &http.Client{Timeout: 180 * time.Second},
 	}
 }
 
@@ -74,6 +79,9 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	}
 	if req.Temperature > 0 {
 		reqBody["temperature"] = req.Temperature
+	}
+	if req.ResponseFormat != nil {
+		reqBody["response_format"] = req.ResponseFormat
 	}
 
 	for k, v := range req.CustomParams {
@@ -125,7 +133,11 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	}
 
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("parse response JSON: %w", err)
+		preview := string(respBody)
+		if len(preview) > 500 {
+			preview = preview[:500]
+		}
+		return nil, fmt.Errorf("parse response JSON: %w\nresponse preview: %s", err, preview)
 	}
 
 	if len(result.Choices) == 0 {

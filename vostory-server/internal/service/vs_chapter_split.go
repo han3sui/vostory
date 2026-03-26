@@ -112,7 +112,8 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 		Messages: []llm.Message{
 			{Role: "user", Content: prompt},
 		},
-		CustomParams: provider.CustomParams,
+		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
+		CustomParams:   provider.CustomParams,
 	})
 
 	costTime := time.Since(start).Milliseconds()
@@ -324,7 +325,6 @@ func (s *vsChapterSplitService) resolvePrompt(ctx context.Context, project *mode
 func (s *vsChapterSplitService) parseLLMResponse(content string) (*llmSplitResult, error) {
 	content = strings.TrimSpace(content)
 
-	// Strip markdown code fences if present
 	if strings.HasPrefix(content, "```") {
 		lines := strings.SplitN(content, "\n", 2)
 		if len(lines) > 1 {
@@ -338,7 +338,7 @@ func (s *vsChapterSplitService) parseLLMResponse(content string) (*llmSplitResul
 
 	var result llmSplitResult
 	if err := json.Unmarshal([]byte(content), &result); err != nil {
-		return nil, fmt.Errorf("JSON 解析失败: %w\n原始内容: %s", err, truncate(content, 200))
+		return nil, fmt.Errorf("JSON 解析失败: %w\n原始内容: %s", err, truncate(content, 300))
 	}
 	if len(result.Scenes) == 0 {
 		return nil, fmt.Errorf("LLM 返回的场景列表为空")
