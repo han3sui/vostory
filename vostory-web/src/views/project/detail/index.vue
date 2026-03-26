@@ -9,8 +9,9 @@
                     <a-tag size="small" color="arcoblue">{{ project.total_chapters }} 章</a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_characters }} 角色</a-tag>
                     <template v-if="queueTaskList.length > 0">
-                        <a-tag size="small" color="orange">语音队列 {{ queueProcessedCount }}/{{ queueTotalCount }}</a-tag>
-                        <a-button type="text" size="mini" @click="queueDetailVisible = true">查看详情</a-button>
+                        <a-tag size="small" color="orange"
+                            >语音队列 {{ queueProcessedCount }}/{{ queueTotalCount }}</a-tag
+                        >
                         <a-popconfirm content="确认取消所有排队中的生成任务？" @ok="handleCancelAll">
                             <a-button type="text" size="mini" status="danger">取消全部队列</a-button>
                         </a-popconfirm>
@@ -43,29 +44,6 @@
                 <project-pronunciation-dict :project-id="projectId" />
             </a-tab-pane>
         </a-tabs>
-
-        <a-modal v-model:visible="queueDetailVisible" title="语音队列详情" width="760px" :footer="false">
-            <a-table :data="queueTaskList" row-key="task_id" :pagination="false" size="small">
-                <template #columns>
-                    <a-table-column title="任务ID" data-index="task_id" :width="100" />
-                    <a-table-column title="章节" :width="180">
-                        <template #cell="{ record }">
-                            {{ record.chapter_title || "未知章节" }}
-                        </template>
-                    </a-table-column>
-                    <a-table-column title="状态" :width="100">
-                        <template #cell="{ record }">
-                            {{ queueStatusLabel(record.status) }}
-                        </template>
-                    </a-table-column>
-                    <a-table-column title="进度">
-                        <template #cell="{ record }">
-                            {{ record.completed_count + record.failed_count }}/{{ record.total_count }}
-                        </template>
-                    </a-table-column>
-                </template>
-            </a-table>
-        </a-modal>
     </frame-view>
 </template>
 <script lang="ts" setup>
@@ -95,7 +73,6 @@ const router = useRouter();
 const projectId = computed(() => Number(route.params.id));
 const project = ref<ProjectDetailType | null>(null);
 const activeTab = ref("chapter");
-const queueDetailVisible = ref(false);
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
     draft: { label: "草稿", color: "gray" },
@@ -145,9 +122,7 @@ const queueTaskList = computed(() =>
 const queueProcessedCount = computed(() =>
     queueTaskList.value.reduce((sum, t) => sum + t.completed_count + t.failed_count, 0)
 );
-const queueTotalCount = computed(() =>
-    queueTaskList.value.reduce((sum, t) => sum + t.total_count, 0)
-);
+const queueTotalCount = computed(() => queueTaskList.value.reduce((sum, t) => sum + t.total_count, 0));
 
 function queueStatusLabel(status: string): string {
     if (status === "pending") return "待处理";

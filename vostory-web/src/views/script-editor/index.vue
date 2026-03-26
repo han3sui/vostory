@@ -41,21 +41,11 @@
                                 取消队列 ({{ queuedCount }})
                             </a-button>
                         </a-popconfirm>
-                        <a-button
-                            v-if="generatedCount > 0"
-                            type="outline"
-                            size="small"
-                            @click="handleBatchLock"
-                        >
+                        <a-button v-if="generatedCount > 0" type="outline" size="small" @click="handleBatchLock">
                             <template #icon><icon-lock /></template>
                             全部锁定 ({{ generatedCount }})
                         </a-button>
-                        <a-button
-                            v-if="lockedCount > 0"
-                            type="outline"
-                            size="small"
-                            @click="handleBatchUnlock"
-                        >
+                        <a-button v-if="lockedCount > 0" type="outline" size="small" @click="handleBatchUnlock">
                             <template #icon><icon-unlock /></template>
                             全部解锁 ({{ lockedCount }})
                         </a-button>
@@ -106,7 +96,11 @@
                                         :model-value="seg.character_id ?? undefined"
                                         size="mini"
                                         style="width: 120px"
-                                        :placeholder="seg.segment_type === 'narration' || seg.segment_type === 'description' ? '旁白角色' : '说话人'"
+                                        :placeholder="
+                                            seg.segment_type === 'narration' || seg.segment_type === 'description'
+                                                ? '旁白角色'
+                                                : '说话人'
+                                        "
                                         allow-clear
                                         @update:model-value="(v: any) => { seg.character_id = v ?? null; saveSegment(seg); }"
                                     >
@@ -251,12 +245,10 @@ const props = defineProps<{ projectId: number }>();
 
 const onTTSEvent = inject<(handler: (evt: TTSSegmentEvent) => void) => () => void>("onTTSEvent");
 const refreshProjectTTSQueue = inject<() => Promise<void>>("refreshProjectTTSQueue");
-const notifyTTSQueuedTask = inject<(payload: {
-    task_id: number;
-    chapter_id: number;
-    chapter_title?: string;
-    total_count: number;
-}) => void>("notifyTTSQueuedTask");
+const notifyTTSQueuedTask =
+    inject<(payload: { task_id: number; chapter_id: number; chapter_title?: string; total_count: number }) => void>(
+        "notifyTTSQueuedTask"
+    );
 
 const selectedChapterId = ref<number>();
 const currentChapter = ref<any>(null);
@@ -347,18 +339,13 @@ async function saveSegment(seg: ScriptSegmentDetailType) {
 async function handleAlign() {
     if (!selectedChapterId.value) return;
     aligning.value = true;
-    try {
-        const res: any = await request({
-            url: `/api/v1/chapter/${selectedChapterId.value}/align`,
-            method: "post"
-        });
-        Message.success(`精准填充完成，对齐了 ${res.aligned_count} 个片段`);
-        segments.value = await getSegmentsByChapter(selectedChapterId.value);
-    } catch {
-        Message.error("精准填充失败");
-    } finally {
-        aligning.value = false;
-    }
+    const res: any = await request({
+        url: `/api/v1/chapter/${selectedChapterId.value}/align`,
+        method: "post"
+    });
+    Message.success(`精准填充完成，对齐了 ${res.aligned_count} 个片段`);
+    segments.value = await getSegmentsByChapter(selectedChapterId.value);
+    aligning.value = false;
 }
 
 async function handleSplit() {
@@ -425,9 +412,6 @@ function handleSegmentEvent(evt: TTSSegmentEvent) {
         if (evt.status === "generated" && evt.clip_id) {
             seg.clip_id = evt.clip_id;
             seg.has_audio = true;
-            Message.success(`#${seg.segment_num} 生成完成`);
-        } else if (evt.status === "failed") {
-            Message.error(`#${seg.segment_num} 生成失败${evt.error_message ? "：" + evt.error_message : ""}`);
         }
     }
 
@@ -478,7 +462,9 @@ async function handleBatchGenerate() {
                     });
                 }
             } catch (e: any) {
-                todo.forEach((seg) => { if (seg.status === "queued") seg.status = "failed"; });
+                todo.forEach((seg) => {
+                    if (seg.status === "queued") seg.status = "failed";
+                });
                 const msg = e?.response?.data?.message || e?.message || "";
                 if (msg.includes("已有正在运行的生成任务")) {
                     Message.warning("该章节已有正在运行的批量生成任务，请等待完成");
@@ -491,55 +477,41 @@ async function handleBatchGenerate() {
 }
 
 async function handleLock(seg: ScriptSegmentDetailType) {
-    try {
-        await lockSegment(seg.id);
-        seg.status = "locked";
-    } catch {
-        Message.error("锁定失败");
-    }
+    await lockSegment(seg.id);
+    seg.status = "locked";
 }
 
 async function handleUnlock(seg: ScriptSegmentDetailType) {
-    try {
-        await unlockSegment(seg.id);
-        seg.status = "generated";
-    } catch {
-        Message.error("解锁失败");
-    }
+    await unlockSegment(seg.id);
+    seg.status = "generated";
 }
 
 async function handleBatchLock() {
     if (!selectedChapterId.value) return;
-    try {
-        const res = await batchLockChapter(selectedChapterId.value);
-        segments.value.forEach((s) => { if (s.status === "generated") s.status = "locked"; });
-        Message.success(`已锁定 ${res.affected_count} 个片段`);
-    } catch {
-        Message.error("批量锁定失败");
-    }
+    const res = await batchLockChapter(selectedChapterId.value);
+    segments.value.forEach((s) => {
+        if (s.status === "generated") s.status = "locked";
+    });
+    Message.success(`已锁定 ${res.affected_count} 个片段`);
 }
 
 async function handleBatchUnlock() {
     if (!selectedChapterId.value) return;
-    try {
-        const res = await batchUnlockChapter(selectedChapterId.value);
-        segments.value.forEach((s) => { if (s.status === "locked") s.status = "generated"; });
-        Message.success(`已解锁 ${res.affected_count} 个片段`);
-    } catch {
-        Message.error("批量解锁失败");
-    }
+    const res = await batchUnlockChapter(selectedChapterId.value);
+    segments.value.forEach((s) => {
+        if (s.status === "locked") s.status = "generated";
+    });
+    Message.success(`已解锁 ${res.affected_count} 个片段`);
 }
 
 async function handleCancelQueue() {
     if (!selectedChapterId.value) return;
-    try {
-        const res = await cancelChapterQueue(selectedChapterId.value);
-        segments.value.forEach((s) => { if (s.status === "queued") s.status = "cancelled"; });
-        if (refreshProjectTTSQueue) await refreshProjectTTSQueue();
-        Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
-    } catch {
-        Message.error("取消失败");
-    }
+    const res = await cancelChapterQueue(selectedChapterId.value);
+    segments.value.forEach((s) => {
+        if (s.status === "queued") s.status = "cancelled";
+    });
+    if (refreshProjectTTSQueue) await refreshProjectTTSQueue();
+    Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
 }
 
 onUnmounted(() => {
