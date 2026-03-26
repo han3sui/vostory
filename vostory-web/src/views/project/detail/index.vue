@@ -53,7 +53,6 @@ import { fetchEventSource } from "@fortaine/fetch-event-source";
 import { getProject, ProjectDetailType } from "@/config/apis/project";
 import {
     getProjectEventsURL,
-    getActiveTasksByProject,
     cancelProjectQueue,
     TTSSegmentEvent,
     ProjectTaskProgress
@@ -104,108 +103,43 @@ defineExpose({ refreshProject: loadProject });
 // ── 项目级 SSE + 全局任务进度 ──
 
 type TTSEventHandler = (evt: TTSSegmentEvent) => void;
-type QueueStatus = "pending" | "running";
-type EnqueueTaskPayload = {
-    task_id: number;
-    chapter_id: number;
-    chapter_title?: string;
-    total_count: number;
-};
 
 const ttsEventHandlers = ref<Set<TTSEventHandler>>(new Set());
 const activeTasks = ref<Map<number, ProjectTaskProgress>>(new Map());
 let sseController: AbortController | null = null;
 
-const queueTaskList = computed(() =>
-    Array.from(activeTasks.value.values()).filter((t) => t.status === "pending" || t.status === "running")
-);
+const queueTaskList = computed(() => Array.from(activeTasks.value.values()));
 const queueProcessedCount = computed(() =>
     queueTaskList.value.reduce((sum, t) => sum + t.completed_count + t.failed_count, 0)
 );
 const queueTotalCount = computed(() => queueTaskList.value.reduce((sum, t) => sum + t.total_count, 0));
-
-function queueStatusLabel(status: string): string {
-    if (status === "pending") return "待处理";
-    if (status === "running") return "处理中";
-    return status;
-}
-
-function isQueueStatus(status: string): status is QueueStatus {
-    return status === "pending" || status === "running";
-}
 
 function onTTSEvent(handler: TTSEventHandler) {
     ttsEventHandlers.value.add(handler);
     return () => ttsEventHandlers.value.delete(handler);
 }
 
-async function loadActiveTasks(pid: number) {
-    try {
-        const tasks = await getActiveTasksByProject(pid);
-        const map = new Map<number, ProjectTaskProgress>();
-        if (tasks) {
-            for (const t of tasks) {
-                if (isQueueStatus(t.status)) map.set(t.task_id, t);
-            }
-        }
-        activeTasks.value = map;
-    } catch {
-        // ignore
-    }
-}
-
-async function refreshProjectTTSQueue() {
-    if (!projectId.value) return;
-    await loadActiveTasks(projectId.value);
-}
-
-function notifyTTSQueuedTask(payload: EnqueueTaskPayload) {
-    const map = new Map(activeTasks.value);
-    if (!map.has(payload.task_id)) {
-        map.set(payload.task_id, {
-            task_id: payload.task_id,
-            chapter_id: payload.chapter_id,
-            chapter_title: payload.chapter_title || "",
-            status: "pending",
-            progress: 0,
-            total_count: payload.total_count,
-            completed_count: 0,
-            failed_count: 0
-        });
-    }
-    activeTasks.value = map;
-}
-
 function handleSSEEvent(evt: TTSSegmentEvent) {
     ttsEventHandlers.value.forEach((fn) => fn(evt));
 
     const map = new Map(activeTasks.value);
-    if (!isQueueStatus(evt.task_status) || evt.task_done) {
+
+    if (evt.task_done) {
         map.delete(evt.task_id);
         activeTasks.value = map;
         return;
     }
 
-    const existing = map.get(evt.task_id);
-    if (existing) {
-        existing.completed_count = evt.completed;
-        existing.failed_count = evt.failed;
-        existing.total_count = evt.total;
-        existing.progress = evt.progress;
-        existing.status = evt.task_status;
-    } else {
-        map.set(evt.task_id, {
-            task_id: evt.task_id,
-            chapter_id: evt.chapter_id,
-            chapter_title: evt.chapter_title || "",
-            status: evt.task_status,
-            progress: evt.progress,
-            total_count: evt.total,
-            completed_count: evt.completed,
-            failed_count: evt.failed
-        });
-    }
-
+    map.set(evt.task_id, {
+        task_id: evt.task_id,
+        chapter_id: evt.chapter_id,
+        chapter_title: evt.chapter_title || "",
+        status: evt.task_status,
+        progress: evt.progress,
+        total_count: evt.total,
+        completed_count: evt.completed,
+        failed_count: evt.failed
+    });
     activeTasks.value = map;
 }
 
@@ -244,7 +178,7 @@ async function handleCancelAll() {
     try {
         const res = await cancelProjectQueue(projectId.value);
         Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
-        await loadActiveTasks(projectId.value);
+        activeTasks.value = new Map();
     } catch {
         Message.error("取消失败");
     }
@@ -254,7 +188,7 @@ watch(
     projectId,
     (pid) => {
         if (pid) {
-            loadActiveTasks(pid);
+            activeTasks.value = new Map();
             connectProjectSSE(pid);
         } else {
             disconnectProjectSSE();
@@ -266,7 +200,5 @@ watch(
 onUnmounted(disconnectProjectSSE);
 
 provide("onTTSEvent", onTTSEvent);
-provide("refreshProjectTTSQueue", refreshProjectTTSQueue);
-provide("notifyTTSQueuedTask", notifyTTSQueuedTask);
 </script>
 <style lang="scss" scoped></style>

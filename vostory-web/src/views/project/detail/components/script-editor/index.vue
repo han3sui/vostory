@@ -160,7 +160,7 @@
                                             type="outline"
                                             size="mini"
                                             status="normal"
-                                            :loading="synthesizingId === seg.id"
+                                            :loading="synthesizingIds.has(seg.id)"
                                             :disabled="!canGenerate(seg)"
                                             @click="handleGenerate(seg)"
                                         >
@@ -280,11 +280,6 @@ import storage from "@/utils/tools/storage";
 const props = defineProps<{ projectId: number }>();
 
 const onTTSEvent = inject<(handler: (evt: TTSSegmentEvent) => void) => () => void>("onTTSEvent");
-const refreshProjectTTSQueue = inject<() => Promise<void>>("refreshProjectTTSQueue");
-const notifyTTSQueuedTask =
-    inject<(payload: { task_id: number; chapter_id: number; chapter_title?: string; total_count: number }) => void>(
-        "notifyTTSQueuedTask"
-    );
 
 const selectedChapterId = ref<number>();
 const currentChapter = ref<any>(null);
@@ -294,7 +289,7 @@ const characterOptions = ref<CharacterOptionType[]>([]);
 const loadingSegments = ref(false);
 const aligning = ref(false);
 const splitting = ref(false);
-const synthesizingId = ref<number | null>(null);
+const synthesizingIds = ref<Set<number>>(new Set());
 const playingId = ref<number | null>(null);
 const continuousPlayingFromId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
@@ -421,21 +416,16 @@ async function handleSplit() {
 async function handleGenerate(seg: ScriptSegmentDetailType) {
     if (!canGenerate(seg)) return;
 
-    synthesizingId.value = seg.id;
+    synthesizingIds.value = new Set([...synthesizingIds.value, seg.id]);
     seg.status = "queued";
     try {
-        const result = await synthesizeSegment(seg.id);
-        if (notifyTTSQueuedTask && selectedChapterId.value) {
-            notifyTTSQueuedTask({
-                task_id: result.task_id,
-                chapter_id: selectedChapterId.value,
-                chapter_title: currentChapter.value?.title,
-                total_count: result.total_count || 1
-            });
-        }
+        await synthesizeSegment(seg.id);
     } catch {
         seg.status = "failed";
-        synthesizingId.value = null;
+    } finally {
+        const next = new Set(synthesizingIds.value);
+        next.delete(seg.id);
+        synthesizingIds.value = next;
     }
 }
 
@@ -452,8 +442,10 @@ function handleSegmentEvent(evt: TTSSegmentEvent) {
         }
     }
 
-    if (evt.segment_id === synthesizingId.value && (evt.status === "generated" || evt.status === "failed")) {
-        synthesizingId.value = null;
+    if (synthesizingIds.value.has(evt.segment_id) && (evt.status === "generated" || evt.status === "failed")) {
+        const next = new Set(synthesizingIds.value);
+        next.delete(evt.segment_id);
+        synthesizingIds.value = next;
     }
 
     if (evt.task_done) {
@@ -489,15 +481,7 @@ async function handleBatchGenerate() {
         onOk: async () => {
             todo.forEach((seg) => (seg.status = "queued"));
             try {
-                const result = await batchGenerate(selectedChapterId.value!);
-                if (notifyTTSQueuedTask) {
-                    notifyTTSQueuedTask({
-                        task_id: result.task_id,
-                        chapter_id: selectedChapterId.value!,
-                        chapter_title: currentChapter.value?.title,
-                        total_count: result.total_count || todo.length
-                    });
-                }
+                await batchGenerate(selectedChapterId.value!);
             } catch (e: any) {
                 todo.forEach((seg) => {
                     if (seg.status === "queued") seg.status = "failed";
@@ -547,7 +531,6 @@ async function handleCancelQueue() {
     segments.value.forEach((s) => {
         if (s.status === "queued") s.status = "cancelled";
     });
-    if (refreshProjectTTSQueue) await refreshProjectTTSQueue();
     Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
 }
 
