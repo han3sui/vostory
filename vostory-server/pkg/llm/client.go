@@ -1,14 +1,11 @@
 package llm
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
-	"time"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 type Message struct {
@@ -37,116 +34,68 @@ type ChatResponse struct {
 	OutputTokens int
 }
 
-type Client struct {
-	httpClient *http.Client
-}
+type Client struct{}
 
 func NewClient() *Client {
-	return &Client{
-		httpClient: &http.Client{Timeout: 180 * time.Second},
-	}
+	return &Client{}
 }
 
-func (c *Client) buildURL(baseURL string) string {
-	baseURL = strings.TrimRight(baseURL, "/")
-	if strings.Contains(baseURL, "/v1") {
-		return baseURL + "/chat/completions"
+func (c *Client) buildConfig(baseURL, apiKey string) openai.ClientConfig {
+	config := openai.DefaultConfig(apiKey)
+	base := strings.TrimRight(baseURL, "/")
+	if !strings.HasSuffix(base, "/v1") {
+		base += "/v1"
 	}
-	return baseURL + "/v1/chat/completions"
+	config.BaseURL = base
+	return config
 }
 
 func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
-	chatURL := c.buildURL(req.BaseURL)
-
-	model := req.Model
-	if model == "" {
+	if req.Model == "" {
 		return nil, fmt.Errorf("model is required")
 	}
 
-	messages := make([]map[string]string, len(req.Messages))
+	config := c.buildConfig(req.BaseURL, req.APIKey)
+	client := openai.NewClientWithConfig(config)
+
+	messages := make([]openai.ChatCompletionMessage, len(req.Messages))
 	for i, m := range req.Messages {
-		messages[i] = map[string]string{"role": m.Role, "content": m.Content}
+		messages[i] = openai.ChatCompletionMessage{
+			Role:    m.Role,
+			Content: m.Content,
+		}
 	}
 
-	reqBody := map[string]interface{}{
-		"model":    model,
-		"messages": messages,
-		"stream":   false,
+	chatReq := openai.ChatCompletionRequest{
+		Model:    req.Model,
+		Messages: messages,
+		Stream:   false,
 	}
 
 	if req.MaxTokens > 0 {
-		reqBody["max_tokens"] = req.MaxTokens
+		chatReq.MaxTokens = req.MaxTokens
 	}
 	if req.Temperature > 0 {
-		reqBody["temperature"] = req.Temperature
+		chatReq.Temperature = float32(req.Temperature)
 	}
 	if req.ResponseFormat != nil {
-		reqBody["response_format"] = req.ResponseFormat
-	}
-
-	for k, v := range req.CustomParams {
-		if k != "model" && k != "messages" && k != "stream" {
-			reqBody[k] = v
+		chatReq.ResponseFormat = &openai.ChatCompletionResponseFormat{
+			Type: openai.ChatCompletionResponseFormatType(req.ResponseFormat.Type),
 		}
 	}
 
-	bodyBytes, err := json.Marshal(reqBody)
+	resp, err := client.CreateChatCompletion(ctx, chatReq)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request body: %w", err)
+		return nil, fmt.Errorf("LLM API error: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", chatURL, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	if req.APIKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+req.APIKey)
-	}
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB limit
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("LLM API error HTTP %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-		Usage struct {
-			PromptTokens     int `json:"prompt_tokens"`
-			CompletionTokens int `json:"completion_tokens"`
-		} `json:"usage"`
-	}
-
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		preview := string(respBody)
-		if len(preview) > 500 {
-			preview = preview[:500]
-		}
-		return nil, fmt.Errorf("parse response JSON: %w\nresponse preview: %s", err, preview)
-	}
-
-	if len(result.Choices) == 0 {
+	if len(resp.Choices) == 0 {
 		return nil, fmt.Errorf("LLM returned empty choices")
 	}
 
 	return &ChatResponse{
-		Content:      result.Choices[0].Message.Content,
-		InputTokens:  result.Usage.PromptTokens,
-		OutputTokens: result.Usage.CompletionTokens,
+		Content:      resp.Choices[0].Message.Content,
+		InputTokens:  resp.Usage.PromptTokens,
+		OutputTokens: resp.Usage.CompletionTokens,
 	}, nil
 }
