@@ -1,23 +1,27 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cast"
 )
 
 type VsTTSSynthesizeHandler struct {
 	*Handler
 	svc service.VsTTSSynthesizeService
+	rdb *redis.Client
 }
 
-func NewVsTTSSynthesizeHandler(handler *Handler, svc service.VsTTSSynthesizeService) *VsTTSSynthesizeHandler {
-	return &VsTTSSynthesizeHandler{Handler: handler, svc: svc}
+func NewVsTTSSynthesizeHandler(handler *Handler, svc service.VsTTSSynthesizeService, rdb *redis.Client) *VsTTSSynthesizeHandler {
+	return &VsTTSSynthesizeHandler{Handler: handler, svc: svc, rdb: rdb}
 }
 
 // Synthesize godoc
@@ -177,4 +181,65 @@ func (h *VsTTSSynthesizeHandler) GetActiveTask(ctx *gin.Context) {
 	}
 
 	v1.HandleSuccess(ctx, result)
+}
+
+// StreamProjectEvents godoc
+// @Summary      SSE 实时推送项目级 TTS 进度
+// @Description  通过 Server-Sent Events 实时推送整个项目的 TTS 生成事件（包含所有章节）
+// @Tags         TTS合成
+// @Produce      text/event-stream
+// @Param        project_id  path  int  true  "项目ID"
+// @Success      200  {string}  string  "SSE stream"
+// @Failure      400  {object}  v1.Response
+// @Router       /api/v1/tts/project/{project_id}/events [get]
+// @Id        tts:projectEvents
+func (h *VsTTSSynthesizeHandler) StreamProjectEvents(ctx *gin.Context) {
+	projectID := cast.ToUint64(ctx.Param("project_id"))
+	if projectID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "project_id is required"), nil)
+		return
+	}
+
+	ctx.Header("Content-Type", "text/event-stream")
+	ctx.Header("Cache-Control", "no-cache")
+	ctx.Header("Connection", "keep-alive")
+	ctx.Header("X-Accel-Buffering", "no")
+
+	channel := fmt.Sprintf("vs:tts:events:project:%d", projectID)
+	sub := h.rdb.Subscribe(ctx.Request.Context(), channel)
+	defer sub.Close()
+
+	connEvent := fmt.Sprintf("event: connected\ndata: {\"project_id\":%d}\n\n", projectID)
+	if _, err := ctx.Writer.Write([]byte(connEvent)); err != nil {
+		return
+	}
+	ctx.Writer.Flush()
+
+	heartbeat := time.NewTicker(25 * time.Second)
+	defer heartbeat.Stop()
+
+	ch := sub.Channel()
+	for {
+		select {
+		case msg, ok := <-ch:
+			if !ok {
+				return
+			}
+			event := fmt.Sprintf("event: segment\ndata: %s\n\n", msg.Payload)
+			if _, err := ctx.Writer.Write([]byte(event)); err != nil {
+				return
+			}
+			ctx.Writer.Flush()
+
+		case <-heartbeat.C:
+			hb := fmt.Sprintf("event: heartbeat\ndata: {\"ts\":%d}\n\n", time.Now().UnixMilli())
+			if _, err := ctx.Writer.Write([]byte(hb)); err != nil {
+				return
+			}
+			ctx.Writer.Flush()
+
+		case <-ctx.Request.Context().Done():
+			return
+		}
+	}
 }

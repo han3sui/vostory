@@ -40,7 +40,10 @@
 </template>
 <script lang="ts" setup>
 import { useRoute, useRouter } from "vue-router";
+import { fetchEventSource } from "@fortaine/fetch-event-source";
 import { getProject, ProjectDetailType } from "@/config/apis/project";
+import { getProjectEventsURL, TTSSegmentEvent } from "@/config/apis/tts";
+import storage from "@/utils/tools/storage";
 import ProjectImport from "@/views/project/import/index.vue";
 import ProjectChapter from "@/views/chapter/index.vue";
 import ProjectScriptEditor from "@/views/script-editor/index.vue";
@@ -82,5 +85,61 @@ onMounted(loadProject);
 watch(projectId, loadProject);
 
 defineExpose({ refreshProject: loadProject });
+
+// ── 项目级 SSE ──
+
+type TTSEventHandler = (evt: TTSSegmentEvent) => void;
+
+const ttsEventHandlers = ref<Set<TTSEventHandler>>(new Set());
+let sseController: AbortController | null = null;
+
+function onTTSEvent(handler: TTSEventHandler) {
+    ttsEventHandlers.value.add(handler);
+    return () => ttsEventHandlers.value.delete(handler);
+}
+
+function connectProjectSSE(pid: number) {
+    disconnectProjectSSE();
+
+    const controller = new AbortController();
+    sseController = controller;
+    const token = storage.getToken();
+
+    fetchEventSource(getProjectEventsURL(pid), {
+        headers: { Authorization: `Bearer ${token}` },
+        openWhenHidden: true,
+        signal: controller.signal,
+        onmessage(event: any) {
+            if (event.event === "segment") {
+                const data: TTSSegmentEvent = JSON.parse(event.data);
+                ttsEventHandlers.value.forEach((fn) => fn(data));
+            }
+        },
+        onerror(error) {
+            console.error("Project SSE error", error);
+            throw error;
+        }
+    });
+}
+
+function disconnectProjectSSE() {
+    if (sseController) {
+        sseController.abort();
+        sseController = null;
+    }
+}
+
+watch(
+    projectId,
+    (pid) => {
+        if (pid) connectProjectSSE(pid);
+        else disconnectProjectSSE();
+    },
+    { immediate: true }
+);
+
+onUnmounted(disconnectProjectSSE);
+
+provide("onTTSEvent", onTTSEvent);
 </script>
 <style lang="scss" scoped></style>

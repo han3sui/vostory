@@ -333,6 +333,7 @@ func NewHTTPServer(
 				ttsRouter.GET("/audio/:segment_id", vsTTSSynthesizeHandler.GetAudio)
 				ttsRouter.POST("/batch-generate", vsTTSSynthesizeHandler.BatchGenerate)
 				ttsRouter.GET("/task/:task_id", vsTTSSynthesizeHandler.GetTaskProgress)
+				ttsRouter.GET("/project/:project_id/events", vsTTSSynthesizeHandler.StreamProjectEvents)
 				ttsRouter.GET("/stream/:clip_id", vsTTSSynthesizeHandler.StreamAudio)
 				ttsRouter.GET("/chapter/:chapter_id/active-task", vsTTSSynthesizeHandler.GetActiveTask)
 			}

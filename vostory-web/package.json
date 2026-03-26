@@ -14,6 +14,7 @@
         "@arco-design/web-vue": "2.56.3",
         "@easyfe/admin-component": "latest",
         "@easyfe/web-request": "^1.0.2",
+        "@fortaine/fetch-event-source": "^3.0.6",
         "@guolao/vue-monaco-editor": "^1.6.0",
         "@skjnldsv/vue-plyr": "^7.4.0",
         "@types/dush": "^3.0.1",

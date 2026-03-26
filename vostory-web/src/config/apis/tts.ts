@@ -50,3 +50,25 @@ export function getTTSStreamURL(clipId: number): string {
     const base = envHelper.get("VITE_APP_API_URL") || "";
     return `${base}/api/v1/tts/stream/${clipId}`;
 }
+
+export type TTSSegmentEvent = {
+    type: string;
+    task_id: number;
+    chapter_id: number;
+    segment_id: number;
+    status: string;
+    error_message?: string;
+    clip_id?: number;
+    audio_url?: string;
+    progress: number;
+    completed: number;
+    failed: number;
+    total: number;
+    task_done: boolean;
+    task_status: string;
+};
+
+export function getProjectEventsURL(projectId: number): string {
+    const base = envHelper.dev() ? envHelper.get("VITE_APP_API_URL") : "";
+    return `${base}/api/v1/tts/project/${projectId}/events`;
+}

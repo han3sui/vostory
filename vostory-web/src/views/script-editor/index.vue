@@ -194,12 +194,14 @@ import {
     ScriptSegmentDetailType
 } from "@/config/apis/script-segment";
 import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
-import { synthesizeSegment, batchGenerate, getTaskProgress, getActiveTask, getSegmentAudio, getTTSStreamURL } from "@/config/apis/tts";
+import { synthesizeSegment, batchGenerate, getActiveTask, getTTSStreamURL, TTSSegmentEvent } from "@/config/apis/tts";
 import { hasPermission } from "@/views/utils";
 import request from "@/packages/request";
 import storage from "@/utils/tools/storage";
 
 const props = defineProps<{ projectId: number }>();
+
+const onTTSEvent = inject<(handler: (evt: TTSSegmentEvent) => void) => () => void>("onTTSEvent");
 
 const selectedChapterId = ref<number>();
 const currentChapter = ref<any>(null);
@@ -212,8 +214,6 @@ const splitting = ref(false);
 const synthesizingId = ref<number | null>(null);
 const batchGenerating = ref(false);
 const batchProgress = ref({ total: 0, completed: 0, status: "" });
-let batchPollTimer: ReturnType<typeof setInterval> | null = null;
-const singlePollTimers: ReturnType<typeof setInterval>[] = [];
 const playingId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
 let currentBlobURL: string | null = null;
@@ -251,8 +251,6 @@ onMounted(loadChapters);
 watch(() => props.projectId, loadChapters);
 
 async function selectChapter(ch: any) {
-    stopBatchPolling();
-
     selectedChapterId.value = ch.id;
     currentChapter.value = ch;
     loadingSegments.value = true;
@@ -271,7 +269,6 @@ async function selectChapter(ch: any) {
                 completed: active.completed_count,
                 status: active.status
             };
-            startBatchPolling(active.task_id);
         }
     } catch {
         // 无活跃任务则忽略
@@ -354,42 +351,57 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
     synthesizingId.value = seg.id;
     seg.status = "queued";
     try {
-        const result = await synthesizeSegment(seg.id);
-        pollSingleTask(result.task_id, seg);
+        await synthesizeSegment(seg.id);
     } catch {
         seg.status = "failed";
         synthesizingId.value = null;
     }
 }
 
-function pollSingleTask(taskId: number, seg: ScriptSegmentDetailType) {
-    const timer = setInterval(async () => {
-        try {
-            const progress = await getTaskProgress(taskId);
-            if (progress.status === "completed" || progress.status === "failed") {
-                clearInterval(timer);
-                synthesizingId.value = null;
+function handleSegmentEvent(evt: TTSSegmentEvent) {
+    if (evt.chapter_id !== selectedChapterId.value) return;
 
-                if (progress.status === "completed") {
-                    const audio = await getSegmentAudio(seg.id).catch(() => null);
-                    if (audio) {
-                        seg.clip_id = audio.clip_id;
-                        seg.has_audio = true;
-                    }
-                    seg.status = "generated";
-                    Message.success(`#${seg.segment_num} 生成完成`);
-                } else {
-                    seg.status = "failed";
-                    Message.error(`#${seg.segment_num} 生成失败${progress.error_message ? "：" + progress.error_message : ""}`);
-                }
-            }
-        } catch {
-            // 轮询失败不中断
+    const seg = segments.value.find((s) => s.id === evt.segment_id);
+    if (seg) {
+        seg.status = evt.status;
+        seg.error_message = evt.error_message || "";
+        if (evt.status === "generated" && evt.clip_id) {
+            seg.clip_id = evt.clip_id;
+            seg.has_audio = true;
+            Message.success(`#${seg.segment_num} 生成完成`);
+        } else if (evt.status === "failed") {
+            Message.error(`#${seg.segment_num} 生成失败${evt.error_message ? "：" + evt.error_message : ""}`);
         }
-    }, 1500);
+    }
 
-    singlePollTimers.push(timer);
+    if (evt.segment_id === synthesizingId.value && (evt.status === "generated" || evt.status === "failed")) {
+        synthesizingId.value = null;
+    }
+
+    batchProgress.value = {
+        total: evt.total,
+        completed: evt.completed,
+        status: evt.task_status
+    };
+
+    if (evt.task_done) {
+        batchGenerating.value = false;
+
+        if (evt.failed > 0) {
+            Message.warning(`批量生成完成：${evt.completed} 成功，${evt.failed} 失败`);
+        } else if (evt.total > 1) {
+            Message.success(`批量生成完成：${evt.completed} 个片段`);
+        }
+    }
 }
+
+let unsubscribeTTSEvent: (() => void) | null = null;
+
+onMounted(() => {
+    if (onTTSEvent) {
+        unsubscribeTTSEvent = onTTSEvent(handleSegmentEvent);
+    }
+});
 
 async function handleBatchGenerate() {
     if (!selectedChapterId.value) return;
@@ -412,7 +424,6 @@ async function handleBatchGenerate() {
             try {
                 const result = await batchGenerate(selectedChapterId.value!);
                 batchProgress.value = { total: result.total_count, completed: 0, status: "running" };
-                startBatchPolling(result.task_id);
             } catch (e: any) {
                 batchGenerating.value = false;
                 todo.forEach((seg) => { if (seg.status === "queued") seg.status = "failed"; });
@@ -427,57 +438,8 @@ async function handleBatchGenerate() {
     });
 }
 
-function stopBatchPolling() {
-    if (batchPollTimer) {
-        clearInterval(batchPollTimer);
-        batchPollTimer = null;
-    }
-    batchGenerating.value = false;
-    batchProgress.value = { total: 0, completed: 0, status: "" };
-}
-
-function startBatchPolling(taskId: number) {
-    stopBatchPolling();
-    batchGenerating.value = true;
-
-    let pollCount = 0;
-    batchPollTimer = setInterval(async () => {
-        try {
-            const progress = await getTaskProgress(taskId);
-            batchProgress.value = {
-                total: progress.total_count,
-                completed: progress.completed_count,
-                status: progress.status
-            };
-
-            pollCount++;
-            if (selectedChapterId.value && pollCount % 3 === 0) {
-                segments.value = await getSegmentsByChapter(selectedChapterId.value);
-            }
-
-            if (progress.status === "completed" || progress.status === "failed") {
-                stopBatchPolling();
-
-                if (selectedChapterId.value) {
-                    segments.value = await getSegmentsByChapter(selectedChapterId.value);
-                }
-
-                if (progress.error_message) {
-                    Message.warning(`批量生成完成：${progress.error_message}`);
-                } else {
-                    Message.success(`批量生成完成：${progress.completed_count} 个片段`);
-                }
-            }
-        } catch {
-            // 轮询失败不中断，继续等待
-        }
-    }, 2000);
-}
-
 onUnmounted(() => {
-    stopBatchPolling();
-    singlePollTimers.forEach((t) => clearInterval(t));
-    singlePollTimers.length = 0;
+    if (unsubscribeTTSEvent) unsubscribeTTSEvent();
     stopAudio();
 });
 

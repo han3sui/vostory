@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -146,7 +147,11 @@ func (w *TTSWorker) consumeLoop(ctx context.Context) {
 func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64) {
 	_ = w.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
 
-	_, synthErr := w.ttsSvc.SynthesizeSegment(ctx, segmentID)
+	synthResult, synthErr := w.ttsSvc.SynthesizeSegment(ctx, segmentID)
+
+	var segStatus, segErrMsg string
+	var clipID *uint64
+	var audioURL string
 
 	if synthErr != nil {
 		w.logger.Warn("segment synthesis failed",
@@ -155,10 +160,17 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 		if _, err := w.taskRepo.IncrementFailed(ctx, taskID); err != nil {
 			w.logger.Error("increment failed count error", zap.Uint64("task_id", taskID), zap.Error(err))
 		}
+		segStatus = "failed"
+		segErrMsg = synthErr.Error()
 	} else {
 		if _, err := w.taskRepo.IncrementCompleted(ctx, taskID); err != nil {
 			w.logger.Error("increment completed failed", zap.Uint64("task_id", taskID), zap.Error(err))
 			return
+		}
+		segStatus = "generated"
+		if synthResult != nil {
+			clipID = &synthResult.ClipID
+			audioURL = synthResult.AudioURL
 		}
 	}
 
@@ -171,12 +183,66 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 	progress := processed * 100 / task.TotalBatches
 	_ = w.taskRepo.UpdateProgress(ctx, taskID, task.CompletedBatches, progress)
 
+	taskDone := false
+	taskStatus := task.Status
 	if processed >= task.TotalBatches {
+		taskDone = true
 		if task.FailedBatches > 0 {
+			taskStatus = "failed"
 			_ = w.taskRepo.SetFailed(ctx, taskID,
 				fmt.Sprintf("%d/%d segments failed", task.FailedBatches, task.TotalBatches))
 		} else {
+			taskStatus = "completed"
 			_ = w.taskRepo.SetCompleted(ctx, taskID)
 		}
 	}
+
+	var chapterID uint64
+	if task.ChapterID != nil {
+		chapterID = *task.ChapterID
+	}
+
+	w.publishEvent(ctx, TTSEvent{
+		Type:       "segment_done",
+		TaskID:     taskID,
+		ChapterID:  chapterID,
+		SegmentID:  segmentID,
+		Status:     segStatus,
+		ErrorMsg:   segErrMsg,
+		ClipID:     clipID,
+		AudioURL:   audioURL,
+		Progress:   progress,
+		Completed:  task.CompletedBatches,
+		Failed:     task.FailedBatches,
+		Total:      task.TotalBatches,
+		TaskDone:   taskDone,
+		TaskStatus: taskStatus,
+	}, task.ProjectID)
+}
+
+// TTSEvent is the SSE event payload published via Redis Pub/Sub.
+type TTSEvent struct {
+	Type       string  `json:"type"`
+	TaskID     uint64  `json:"task_id"`
+	ChapterID  uint64  `json:"chapter_id"`
+	SegmentID  uint64  `json:"segment_id"`
+	Status     string  `json:"status"`
+	ErrorMsg   string  `json:"error_message,omitempty"`
+	ClipID     *uint64 `json:"clip_id,omitempty"`
+	AudioURL   string  `json:"audio_url,omitempty"`
+	Progress   int     `json:"progress"`
+	Completed  int     `json:"completed"`
+	Failed     int     `json:"failed"`
+	Total      int     `json:"total"`
+	TaskDone   bool    `json:"task_done"`
+	TaskStatus string  `json:"task_status"`
+}
+
+func (w *TTSWorker) publishEvent(ctx context.Context, evt TTSEvent, projectID uint64) {
+	data, err := json.Marshal(evt)
+	if err != nil {
+		return
+	}
+	channel := fmt.Sprintf("vs:tts:events:project:%d", projectID)
+	w.rdb.Publish(ctx, channel, string(data))
 }
