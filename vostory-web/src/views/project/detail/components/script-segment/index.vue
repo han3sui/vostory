@@ -31,10 +31,21 @@
 import { Modal } from "@arco-design/web-vue";
 import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
 import { getScriptSegmentList, updateScriptSegment, deleteScriptSegment } from "@/config/apis/script-segment";
+import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 
 const props = defineProps<{ projectId: number }>();
+
+const characterOptions = ref<CharacterOptionType[]>([]);
+
+async function loadCharacters() {
+    if (!props.projectId) return;
+    characterOptions.value = await getCharactersByProject(props.projectId);
+}
+
+onMounted(loadCharacters);
+watch(() => props.projectId, loadCharacters);
 
 const TYPE_MAP: Record<string, { label: string; color: string }> = {
     dialogue: { label: "对白", color: "blue" },
@@ -68,9 +79,17 @@ function typeColor(t: string) {
 const table = ref();
 const filterData = ref<Record<string, any>>({});
 
+const characterSelectOptions = computed(() => characterOptions.value.map((c) => ({ label: c.name, value: c.id })));
+
 const getFilterConfig = computed(() => {
     return [
         formHelper.input("章节ID", "chapter_id", { span: 4, debounce: 500 }),
+        formHelper.select("角色", "character_id", characterSelectOptions.value, {
+            span: 5,
+            allowClear: true,
+            allowSearch: true,
+            virtualListProps: { height: 200 }
+        }),
         formHelper.select("片段类型", "segment_type", SEGMENT_TYPES, { span: 5 }),
         formHelper.select(
             "状态",
