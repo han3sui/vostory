@@ -26,7 +26,7 @@ type VsVoiceProfile struct {
 	Description       string       `json:"description" gorm:"size:500;comment:声音描述"`
 	ReferenceAudioURL string       `json:"reference_audio_url" gorm:"size:500;comment:项目级参考音频（覆盖全局）"`
 	ReferenceText     string       `json:"reference_text" gorm:"size:1000;comment:参考音频对应文本"`
-	TTSProviderID     *uint64      `json:"tts_provider_id" gorm:"comment:TTS提供商（覆盖项目默认）"`
+	TTSProviderID     *uint64      `json:"tts_provider_id" gorm:"comment:TTS提供商（已废弃，不再使用，以项目级为准）"`
 	TTSParams         TTSParamsMap `json:"tts_params" gorm:"type:text;comment:TTS额外参数"`
 	Status            string       `json:"status" gorm:"size:1;default:'0';comment:状态（0正常 1停用）"`
 

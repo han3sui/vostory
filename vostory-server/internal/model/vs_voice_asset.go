@@ -10,7 +10,7 @@ type VsVoiceAsset struct {
 	Description       string     `json:"description" gorm:"size:500;comment:描述"`
 	ReferenceAudioURL string     `json:"reference_audio_url" gorm:"size:500;comment:默认参考音频路径"`
 	ReferenceText     string     `json:"reference_text" gorm:"size:1000;comment:参考音频对应文本"`
-	TTSProviderID     *uint64    `json:"tts_provider_id" gorm:"comment:关联的TTS提供商"`
+	TTSProviderID     *uint64    `json:"tts_provider_id" gorm:"comment:关联的TTS提供商（已废弃，不再使用，以项目级为准）"`
 	Tags              StringList `json:"tags" gorm:"type:text;comment:标签"`
 	Status            string     `json:"status" gorm:"size:1;default:'0';comment:状态（0正常 1停用）"`
 

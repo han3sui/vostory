@@ -56,7 +56,6 @@ import {
     disableVoiceAsset,
     VoiceAssetDetailType
 } from "@/config/apis/voice-asset";
-import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
 import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceAudioBlob } from "@/config/apis/upload";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
@@ -70,17 +69,7 @@ const GENDERS = [
 const table = ref();
 const filterData = ref({});
 const playingId = ref<number>(0);
-const ttsProviderOptions = ref<{ label: string; value: number }[]>([]);
 let currentAudio: HTMLAudioElement | null = null;
-
-async function loadTTSProviders() {
-    const res = await getTTSProviderList({ page: 1, size: 100, status: "0" });
-    ttsProviderOptions.value = (res.data || []).map((p: TTSProviderDetailType) => ({
-        label: `${p.name} (${p.provider_type})`,
-        value: p.id
-    }));
-}
-onMounted(loadTTSProviders);
 
 let currentBlobURL = "";
 
@@ -150,7 +139,6 @@ const tableConfig = computed(() => {
             tableHelper.default("描述", "description"),
             tableHelper.slot("audioSlot"),
             tableHelper.default("参考文本", "reference_text"),
-            tableHelper.default("TTS 提供商", "tts_provider_name"),
             tableHelper.slot("tagsSlot"),
             tableHelper.slot("switchSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
@@ -213,10 +201,6 @@ function onEdit(v: Record<string, any> | null) {
             formHelper.select("性别", "gender", GENDERS),
             formHelper.textarea("描述", "description", {
                 placeholder: "描述该音色的特征，如音色温暖、低沉、清脆等"
-            }),
-            formHelper.select("TTS 提供商", "tts_provider_id", ttsProviderOptions.value, {
-                allowClear: true,
-                placeholder: "选择 TTS 提供商"
             }),
             formHelper.upload("参考音频", "reference_audio_url", {
                 accept: ".mp3,.wav,.flac,.ogg",

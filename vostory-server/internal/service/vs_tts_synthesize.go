@@ -122,7 +122,7 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 		return failAndReturn(fmt.Sprintf("声音配置不存在: %v", err))
 	}
 
-	provider, err := s.resolveTTSProvider(ctx, voiceProfile, segment.ChapterID)
+	provider, err := s.resolveTTSProvider(ctx, segment.ChapterID)
 	if err != nil {
 		return failAndReturn(fmt.Sprintf("TTS 提供商不可用: %v", err))
 	}
@@ -183,22 +183,26 @@ func (s *vsTTSSynthesizeService) GetSegmentAudio(ctx context.Context, segmentID 
 	}, nil
 }
 
-func (s *vsTTSSynthesizeService) resolveTTSProvider(ctx context.Context, profile *model.VsVoiceProfile, chapterID uint64) (*model.VsTTSProvider, error) {
-	if profile.TTSProviderID != nil {
-		provider, err := s.ttsProviderRepo.FindByID(ctx, *profile.TTSProviderID)
-		if err == nil && provider.Status == "0" {
-			return provider, nil
-		}
+func (s *vsTTSSynthesizeService) resolveTTSProvider(ctx context.Context, chapterID uint64) (*model.VsTTSProvider, error) {
+	chapter, err := s.chapterRepo.FindByID(ctx, chapterID)
+	if err != nil {
+		return nil, fmt.Errorf("章节不存在: %w", err)
 	}
-
-	chapter, err := s.segmentRepo.FindByID(ctx, chapterID)
-	_ = chapter
-
-	providers, err := s.ttsProviderRepo.FindAllEnabled(ctx)
-	if err != nil || len(providers) == 0 {
-		return nil, fmt.Errorf("没有可用的 TTS 提供商，请先在 AI 配置中添加")
+	project, err := s.projectRepo.FindByID(ctx, chapter.ProjectID)
+	if err != nil {
+		return nil, fmt.Errorf("项目不存在: %w", err)
 	}
-	return providers[0], nil
+	if project.TTSProviderID == nil {
+		return nil, fmt.Errorf("项目「%s」未设置 TTS 提供商，请在项目设置中选择", project.Name)
+	}
+	provider, err := s.ttsProviderRepo.FindByID(ctx, *project.TTSProviderID)
+	if err != nil {
+		return nil, fmt.Errorf("项目绑定的 TTS 提供商不存在，请重新设置")
+	}
+	if provider.Status != "0" {
+		return nil, fmt.Errorf("项目绑定的 TTS 提供商「%s」已停用，请更换", provider.Name)
+	}
+	return provider, nil
 }
 
 func (s *vsTTSSynthesizeService) applyPronunciationDict(ctx context.Context, segment *model.VsScriptSegment) string {

@@ -65,7 +65,6 @@ import {
     disableVoiceProfile,
     VoiceProfileDetailType
 } from "@/config/apis/voice-profile";
-import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
 import { getVoiceAssetList, VoiceAssetDetailType } from "@/config/apis/voice-asset";
 import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceAudioBlob } from "@/config/apis/upload";
 import { hasPermission, PageTableConfig } from "@/views/utils";
@@ -80,16 +79,6 @@ const filterData = ref<Record<string, any>>({});
 const emotionDrawerVisible = ref(false);
 const emotionDrawerProfileId = ref<number>(0);
 const emotionDrawerProfileName = ref("");
-const ttsProviderOptions = ref<{ label: string; value: number }[]>([]);
-
-async function loadTTSProviders() {
-    const res = await getTTSProviderList({ page: 1, size: 100, status: "0" });
-    ttsProviderOptions.value = (res.data || []).map((p: TTSProviderDetailType) => ({
-        label: `${p.name} (${p.provider_type})`,
-        value: p.id
-    }));
-}
-onMounted(loadTTSProviders);
 
 const getFilterConfig = computed(() => {
     return [formHelper.input("名称", "name", { span: 6, debounce: 500 })];
@@ -127,7 +116,6 @@ const tableConfig = computed(() => {
             tableHelper.default("描述", "description"),
             tableHelper.default("参考文本", "reference_text"),
             tableHelper.slot("previewSlot"),
-            tableHelper.default("TTS 提供商", "tts_provider_name"),
             tableHelper.slot("statusSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
             tableHelper.btns("操作", [
@@ -176,10 +164,6 @@ function getFormConfig(isEdit: boolean) {
         formHelper.select("性别", "gender", GENDERS, { allowClear: true }),
         formHelper.textarea("描述", "description", {
             placeholder: "描述该声音的特征，如音色温暖、低沉、清脆等"
-        }),
-        formHelper.select("TTS 提供商", "tts_provider_id", ttsProviderOptions.value, {
-            allowClear: true,
-            placeholder: "选择 TTS 提供商"
         }),
         formHelper.upload("参考音频", "reference_audio_url", {
             accept: ".mp3,.wav,.flac,.ogg",
@@ -269,8 +253,7 @@ function handleOpenImport() {
                         return { text: found?.label || item.gender, status: "normal" };
                     }),
                     tableHelper.default("描述", "description"),
-                    tableHelper.default("参考文本", "reference_text"),
-                    tableHelper.default("TTS 提供商", "tts_provider_name")
+                    tableHelper.default("参考文本", "reference_text")
                 ]
             },
             filterConfig: [
@@ -294,8 +277,7 @@ function handleOpenImport() {
                         description: asset.description,
                         voice_asset_id: asset.id,
                         reference_audio_url: asset.reference_audio_url,
-                        reference_text: asset.reference_text,
-                        tts_provider_id: asset.tts_provider_id
+                        reference_text: asset.reference_text
                     });
                     successCount++;
                 } catch {
