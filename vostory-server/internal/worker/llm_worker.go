@@ -86,6 +86,11 @@ func (w *LLMWorker) recoverTasks(ctx context.Context) {
 				continue
 			}
 			msg := fmt.Sprintf("%d:%d", task.TaskID, chID)
+			// 防止服务重启恢复时重复入队同一消息。
+			if err := w.rdb.LRem(ctx, llmQueueKey, 0, msg).Err(); err != nil {
+				w.logger.Warn("llm recover: remove duplicate queue message failed",
+					zap.Uint64("task_id", task.TaskID), zap.Uint64("chapter_id", chID), zap.Error(err))
+			}
 			if err := w.rdb.LPush(ctx, llmQueueKey, msg).Err(); err != nil {
 				w.logger.Error("llm recover: enqueue chapter failed",
 					zap.Uint64("task_id", task.TaskID), zap.Uint64("chapter_id", chID), zap.Error(err))
@@ -138,8 +143,11 @@ func (w *LLMWorker) processChapter(ctx context.Context, taskID, chapterID uint64
 		w.logger.Error("task not found", zap.Uint64("task_id", taskID))
 		return
 	}
-	if task.Status == "cancelled" {
-		w.logger.Info("task cancelled, skipping", zap.Uint64("task_id", taskID))
+	if task.Status != "pending" && task.Status != "running" {
+		w.logger.Info("task is not active, skipping stale queue message",
+			zap.Uint64("task_id", taskID),
+			zap.Uint64("chapter_id", chapterID),
+			zap.String("task_status", task.Status))
 		return
 	}
 
