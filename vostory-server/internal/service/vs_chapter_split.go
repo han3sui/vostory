@@ -169,9 +169,16 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 	loginName := s.getLoginName(ctx)
 	deptID := s.getDeptID(ctx)
 
+	// 在事务之前，先收集 LLM 结果中所有角色名，预创建不存在的角色
+	newCharacters, err := s.ensureCharacters(ctx, result, project.ProjectID, charMap, loginName, deptID)
+	if err != nil {
+		return nil, fmt.Errorf("预创建角色失败: %w", err)
+	}
+
+	narratorID := resolveCharacterID(charMap, "旁白")
+
 	var totalScenes int
 	var totalSegments int
-	var newCharacters int
 
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Unscoped().Where("chapter_id = ?", chapterID).Delete(&model.VsScriptSegment{}).Error; err != nil {
@@ -179,28 +186,6 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 		}
 		if err := tx.Unscoped().Where("chapter_id = ?", chapterID).Delete(&model.VsScene{}).Error; err != nil {
 			return fmt.Errorf("清理旧场景失败: %w", err)
-		}
-
-		narratorID := resolveCharacterID(charMap, "旁白")
-		if narratorID == nil {
-			narrator := &model.VsCharacter{
-				ProjectID:   project.ProjectID,
-				Name:        "旁白",
-				Level:       "supporting",
-				Gender:      "unknown",
-				Description: "系统内置旁白角色，用于旁白与描述类型片段的语音合成",
-				Status:      "0",
-				SortOrder:   9999,
-				BaseModel: model.BaseModel{
-					CreatedBy: loginName,
-					DeptID:    deptID,
-				},
-			}
-			if err := tx.Create(narrator).Error; err == nil {
-				charMap[strings.ToLower("旁白")] = narrator.CharacterID
-				narratorID = &narrator.CharacterID
-				newCharacters++
-			}
 		}
 
 		segmentNum := 0
@@ -231,28 +216,8 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 
 				if segType == "narration" || segType == "description" {
 					charID = narratorID
-			} else if charName != "" {
-				charID = resolveCharacterID(charMap, charName)
-				if charID == nil {
-					gender := normalizeGender(seg.CharacterGender)
-					newChar := &model.VsCharacter{
-						ProjectID:   project.ProjectID,
-						Name:        charName,
-						Level:       "minor",
-						Gender:      gender,
-						Description: strings.TrimSpace(seg.CharacterDescription),
-						Status:      "0",
-						BaseModel: model.BaseModel{
-							CreatedBy: loginName,
-							DeptID:    deptID,
-						},
-					}
-					if err := tx.Create(newChar).Error; err == nil {
-						charMap[strings.ToLower(charName)] = newChar.CharacterID
-						charID = &newChar.CharacterID
-						newCharacters++
-					}
-				}
+				} else if charName != "" {
+					charID = resolveCharacterID(charMap, charName)
 				}
 
 				segment := &model.VsScriptSegment{
@@ -483,6 +448,113 @@ func normalizeStrength(s string) string {
 	default:
 		return "medium"
 	}
+}
+
+// ensureCharacters 从 LLM 结果中收集所有角色名（含"旁白"），
+// 与 charMap 对比后，仅创建不存在的角色，并将新角色 ID 写回 charMap。
+// 返回新创建的角色数量。
+func (s *vsChapterSplitService) ensureCharacters(
+	ctx context.Context,
+	result *llmSplitResult,
+	projectID uint64,
+	charMap map[string]uint64,
+	loginName string,
+	deptID uint,
+) (int, error) {
+	type charInfo struct {
+		name        string
+		gender      string
+		description string
+		level       string
+		sortOrder   int
+	}
+
+	needed := make(map[string]*charInfo)
+
+	if resolveCharacterID(charMap, "旁白") == nil {
+		needed["旁白"] = &charInfo{
+			name:        "旁白",
+			gender:      "unknown",
+			description: "系统内置旁白角色，用于旁白与描述类型片段的语音合成",
+			level:       "supporting",
+			sortOrder:   9999,
+		}
+	}
+
+	for _, sc := range result.Scenes {
+		for _, seg := range sc.Segments {
+			segType := normalizeSegmentType(seg.Type)
+			if segType == "narration" || segType == "description" {
+				continue
+			}
+			charName := strings.TrimSpace(seg.Character)
+			if charName == "" {
+				continue
+			}
+			key := strings.ToLower(charName)
+			if _, exists := charMap[key]; exists {
+				continue
+			}
+			if _, queued := needed[key]; queued {
+				continue
+			}
+			needed[key] = &charInfo{
+				name:        charName,
+				gender:      normalizeGender(seg.CharacterGender),
+				description: strings.TrimSpace(seg.CharacterDescription),
+				level:       "minor",
+			}
+		}
+	}
+
+	if len(needed) == 0 {
+		return 0, nil
+	}
+
+	// 一次性查出库中已存在但 charMap 里没有的角色（如被停用或软删恢复的）
+	neededNames := make([]string, 0, len(needed))
+	for _, info := range needed {
+		neededNames = append(neededNames, info.name)
+	}
+	var existingChars []*model.VsCharacter
+	if err := s.db.WithContext(ctx).
+		Where("project_id = ? AND name IN ?", projectID, neededNames).
+		Find(&existingChars).Error; err == nil {
+		for _, ec := range existingChars {
+			key := strings.ToLower(ec.Name)
+			charMap[key] = ec.CharacterID
+			delete(needed, key)
+		}
+	}
+
+	if len(needed) == 0 {
+		return 0, nil
+	}
+
+	// 批量创建真正不存在的角色
+	toCreate := make([]*model.VsCharacter, 0, len(needed))
+	for _, info := range needed {
+		toCreate = append(toCreate, &model.VsCharacter{
+			ProjectID:   projectID,
+			Name:        info.name,
+			Level:       info.level,
+			Gender:      info.gender,
+			Description: info.description,
+			Status:      "0",
+			SortOrder:   info.sortOrder,
+			BaseModel: model.BaseModel{
+				CreatedBy: loginName,
+				DeptID:    deptID,
+			},
+		})
+	}
+	if err := s.db.WithContext(ctx).CreateInBatches(toCreate, 100).Error; err != nil {
+		return 0, fmt.Errorf("批量创建角色失败: %w", err)
+	}
+	for _, c := range toCreate {
+		charMap[strings.ToLower(c.Name)] = c.CharacterID
+	}
+	return len(toCreate), nil
 }
 
 func truncate(s string, maxLen int) string {
