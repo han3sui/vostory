@@ -14,6 +14,8 @@ type VsVoiceProfileListQuery struct {
 type VsVoiceProfileCreateRequest struct {
 	ProjectID         uint64                 `json:"project_id" binding:"required"`
 	Name              string                 `json:"name" binding:"required"`
+	Gender            string                 `json:"gender"`
+	Description       string                 `json:"description"`
 	VoiceAssetID      *uint64                `json:"voice_asset_id"`
 	ReferenceAudioURL string                 `json:"reference_audio_url"`
 	ReferenceText     string                 `json:"reference_text"`
@@ -33,6 +35,8 @@ type VsVoiceProfileDetailResponse struct {
 	ID                uint64                 `json:"id"`
 	ProjectID         uint64                 `json:"project_id"`
 	Name              string                 `json:"name"`
+	Gender            string                 `json:"gender"`
+	Description       string                 `json:"description"`
 	VoiceAssetID      *uint64                `json:"voice_asset_id"`
 	ReferenceAudioURL string                 `json:"reference_audio_url"`
 	ReferenceText     string                 `json:"reference_text"`

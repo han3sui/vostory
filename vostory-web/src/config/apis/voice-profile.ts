@@ -4,6 +4,8 @@ export type VoiceProfileDetailType = {
     id: number;
     project_id: number;
     name: string;
+    gender: string;
+    description: string;
     voice_asset_id: number | null;
     reference_audio_url: string;
     reference_text: string;

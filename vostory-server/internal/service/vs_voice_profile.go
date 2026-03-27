@@ -36,6 +36,8 @@ func (s *vsVoiceProfileService) Create(ctx context.Context, request *v1.VsVoiceP
 	profile := &model.VsVoiceProfile{
 		ProjectID:         request.ProjectID,
 		Name:              request.Name,
+		Gender:            request.Gender,
+		Description:       request.Description,
 		VoiceAssetID:      request.VoiceAssetID,
 		ReferenceAudioURL: request.ReferenceAudioURL,
 		ReferenceText:     request.ReferenceText,
@@ -58,6 +60,8 @@ func (s *vsVoiceProfileService) Update(ctx context.Context, request *v1.VsVoiceP
 	}
 
 	existing.Name = request.Name
+	existing.Gender = request.Gender
+	existing.Description = request.Description
 	existing.VoiceAssetID = request.VoiceAssetID
 	existing.ReferenceAudioURL = request.ReferenceAudioURL
 	existing.ReferenceText = request.ReferenceText
@@ -137,6 +141,8 @@ func (s *vsVoiceProfileService) convertToDetailResponse(p *model.VsVoiceProfile)
 		ID:                p.VoiceProfileID,
 		ProjectID:         p.ProjectID,
 		Name:              p.Name,
+		Gender:            p.Gender,
+		Description:       p.Description,
 		VoiceAssetID:      p.VoiceAssetID,
 		ReferenceAudioURL: p.ReferenceAudioURL,
 		ReferenceText:     p.ReferenceText,

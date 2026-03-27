@@ -22,6 +22,8 @@ type VsVoiceProfile struct {
 	ProjectID         uint64       `json:"project_id" gorm:"not null;index;comment:所属项目"`
 	VoiceAssetID      *uint64      `json:"voice_asset_id" gorm:"comment:引用的全局声音资产"`
 	Name              string       `json:"name" gorm:"size:100;not null;comment:配置名称"`
+	Gender            string       `json:"gender" gorm:"size:10;comment:性别（male/female/unknown）"`
+	Description       string       `json:"description" gorm:"size:500;comment:声音描述"`
 	ReferenceAudioURL string       `json:"reference_audio_url" gorm:"size:500;comment:项目级参考音频（覆盖全局）"`
 	ReferenceText     string       `json:"reference_text" gorm:"size:1000;comment:参考音频对应文本"`
 	TTSProviderID     *uint64      `json:"tts_provider_id" gorm:"comment:TTS提供商（覆盖项目默认）"`

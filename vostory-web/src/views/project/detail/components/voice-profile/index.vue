@@ -120,6 +120,11 @@ const tableConfig = computed(() => {
         ],
         columns: [
             tableHelper.default("名称", "name"),
+            tableHelper.status("性别", "gender", (item: any) => {
+                const found = GENDERS.find((g) => g.value === item.gender);
+                return { text: found?.label || item.gender || "-", status: "normal" };
+            }),
+            tableHelper.default("描述", "description"),
             tableHelper.default("参考文本", "reference_text"),
             tableHelper.slot("previewSlot"),
             tableHelper.default("TTS 提供商", "tts_provider_name"),
@@ -152,6 +157,12 @@ const tableConfig = computed(() => {
     });
 });
 
+const GENDERS = [
+    { label: "男", value: "male" },
+    { label: "女", value: "female" },
+    { label: "未知", value: "unknown" }
+];
+
 const getData = computed(() => {
     return {
         fn: getVoiceProfileList,
@@ -162,6 +173,10 @@ const getData = computed(() => {
 function getFormConfig(isEdit: boolean) {
     return [
         formHelper.input("配置名称", "name", { rules: [ruleHelper.require("请输入名称")] }),
+        formHelper.select("性别", "gender", GENDERS, { allowClear: true }),
+        formHelper.textarea("描述", "description", {
+            placeholder: "描述该声音的特征，如音色温暖、低沉、清脆等"
+        }),
         formHelper.select("TTS 提供商", "tts_provider_id", ttsProviderOptions.value, {
             allowClear: true,
             placeholder: "选择 TTS 提供商"
@@ -227,12 +242,6 @@ function handleEmotionDrawer(row: VoiceProfileDetailType) {
     emotionDrawerVisible.value = true;
 }
 
-const GENDERS = [
-    { label: "男", value: "male" },
-    { label: "女", value: "female" },
-    { label: "未知", value: "unknown" }
-];
-
 function handleOpenImport() {
     const importFilterData = ref<any>({});
     ArcoModalTableShow({
@@ -281,6 +290,8 @@ function handleOpenImport() {
                     await addVoiceProfile({
                         project_id: props.projectId,
                         name: asset.name,
+                        gender: asset.gender,
+                        description: asset.description,
                         voice_asset_id: asset.id,
                         reference_audio_url: asset.reference_audio_url,
                         reference_text: asset.reference_text,
