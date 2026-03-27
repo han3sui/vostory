@@ -5,21 +5,21 @@
             <div class="chapter-batch-bar">
                 <a-checkbox
                     v-if="chapters.length > 0 && hasPermission('chapter:split')"
-                    :model-value="checkedChapterIds.length === chapters.length && chapters.length > 0"
-                    :indeterminate="checkedChapterIds.length > 0 && checkedChapterIds.length < chapters.length"
+                    :model-value="checkedChapterIds.size === chapters.length && chapters.length > 0"
+                    :indeterminate="checkedChapterIds.size > 0 && checkedChapterIds.size < chapters.length"
                     @change="toggleAllChapters"
                 >
                     全选
                 </a-checkbox>
                 <a-space v-if="chapters.length > 0" size="mini">
                     <a-button
-                        v-if="checkedChapterIds.length > 0 && hasPermission('chapter:split')"
+                        v-if="checkedChapterIds.size > 0 && hasPermission('chapter:split')"
                         type="primary"
                         size="mini"
                         :loading="batchSplitting"
                         @click="handleBatchSplit"
                     >
-                        批量切割 ({{ checkedChapterIds.length }})
+                        批量切割 ({{ checkedChapterIds.size }})
                     </a-button>
                     <a-tooltip content="刷新章节列表">
                         <a-button size="mini" :loading="refreshingChapters" @click="handleRefreshChapters">
@@ -43,7 +43,7 @@
                 >
                     <a-checkbox
                         v-if="hasPermission('chapter:split')"
-                        :model-value="checkedChapterIds.includes(ch.id)"
+                        :model-value="checkedChapterIds.has(ch.id)"
                         class="chapter-checkbox"
                         @change="
                             (v: boolean | (string | boolean | number)[]) => toggleChapterCheck(ch.id, v as boolean)
@@ -75,28 +75,28 @@
                             v-if="hasPermission('tts:synthesize')"
                             type="primary"
                             size="small"
-                            :disabled="generatableCount === 0"
+                            :disabled="segmentStats.generatable === 0"
                             @click="handleBatchGenerate"
                         >
                             <template #icon><icon-sound /></template>
-                            批量生成 ({{ generatableCount }})
+                            批量生成 ({{ segmentStats.generatable }})
                         </a-button>
                         <a-popconfirm
-                            v-if="queuedCount > 0"
+                            v-if="segmentStats.queued > 0"
                             content="确认取消当前章节所有排队中的片段？"
                             @ok="handleCancelQueue"
                         >
                             <a-button type="outline" size="small" status="danger">
-                                取消队列 ({{ queuedCount }})
+                                取消队列 ({{ segmentStats.queued }})
                             </a-button>
                         </a-popconfirm>
-                        <a-button v-if="generatedCount > 0" type="outline" size="small" @click="handleBatchLock">
+                        <a-button v-if="segmentStats.generated > 0" type="outline" size="small" @click="handleBatchLock">
                             <template #icon><icon-lock /></template>
-                            全部锁定 ({{ generatedCount }})
+                            全部锁定 ({{ segmentStats.generated }})
                         </a-button>
-                        <a-button v-if="lockedCount > 0" type="outline" size="small" @click="handleBatchUnlock">
+                        <a-button v-if="segmentStats.locked > 0" type="outline" size="small" @click="handleBatchUnlock">
                             <template #icon><icon-unlock /></template>
-                            全部解锁 ({{ lockedCount }})
+                            全部解锁 ({{ segmentStats.locked }})
                         </a-button>
                         <a-button
                             v-if="hasPermission('chapter:split')"
@@ -350,13 +350,19 @@ const aligning = ref(false);
 const splitting = ref(false);
 const batchSplitting = ref(false);
 const refreshingChapters = ref(false);
-const checkedChapterIds = ref<number[]>([]);
+const checkedChapterIds = ref<Set<number>>(new Set());
 const splittingChapterIds = ref<Set<number>>(new Set());
 const synthesizingIds = ref<Set<number>>(new Set());
+const segmentById = ref<Map<number, ScriptSegmentDetailType>>(new Map());
 const playingId = ref<number | null>(null);
 const continuousPlayingFromId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
 let currentBlobURL: string | null = null;
+
+function setSegments(next: ScriptSegmentDetailType[]) {
+    segments.value = next;
+    segmentById.value = new Map(next.map((s) => [s.id, s]));
+}
 
 const characterMap = computed(() => {
     const map: Record<number, string> = {};
@@ -366,10 +372,23 @@ const characterMap = computed(() => {
     return map;
 });
 
-const generatableCount = computed(() => segments.value.filter((s) => canGenerate(s)).length);
-const queuedCount = computed(() => segments.value.filter((s) => s.status === "queued").length);
-const generatedCount = computed(() => segments.value.filter((s) => s.status === "generated").length);
-const lockedCount = computed(() => segments.value.filter((s) => s.status === "locked").length);
+const segmentStats = computed(() => {
+    let generatable = 0;
+    let queued = 0;
+    let generated = 0;
+    let locked = 0;
+    for (const seg of segments.value) {
+        switch (seg.status) {
+            case "queued": queued++; break;
+            case "generated": generated++; break;
+            case "locked": locked++; break;
+        }
+        if (seg.content?.trim() && seg.character_id && seg.status !== "queued" && seg.status !== "processing" && seg.status !== "locked") {
+            generatable++;
+        }
+    }
+    return { generatable, queued, generated, locked };
+});
 
 function canGenerate(seg: ScriptSegmentDetailType): boolean {
     return !disableReason(seg);
@@ -386,7 +405,7 @@ function disableReason(seg: ScriptSegmentDetailType): string {
 
 async function loadChapters() {
     chapters.value = [];
-    segments.value = [];
+    setSegments([]);
     selectedChapterId.value = undefined;
     currentChapter.value = null;
     if (!props.projectId) return;
@@ -428,7 +447,7 @@ async function handleRefreshChapters() {
         chapters.value = res || [];
         characterOptions.value = await getCharactersByProject(props.projectId);
         if (prevSelectedId && chapters.value.some((ch: any) => ch.id === prevSelectedId)) {
-            segments.value = await getSegmentsByChapter(prevSelectedId);
+            setSegments(await getSegmentsByChapter(prevSelectedId));
         }
         await syncSplittingChapterIds();
     } finally {
@@ -444,7 +463,7 @@ async function selectChapter(ch: any) {
     currentChapter.value = ch;
     loadingSegments.value = true;
     try {
-        segments.value = await getSegmentsByChapter(ch.id);
+        setSegments(await getSegmentsByChapter(ch.id));
     } finally {
         loadingSegments.value = false;
     }
@@ -555,7 +574,7 @@ async function handleAlign() {
         method: "post"
     });
     Message.success(`精准填充完成，对齐了 ${res.aligned_count} 个片段`);
-    segments.value = await getSegmentsByChapter(selectedChapterId.value);
+    setSegments(await getSegmentsByChapter(selectedChapterId.value));
     aligning.value = false;
 }
 
@@ -571,7 +590,7 @@ async function handleSplit() {
                 msg += `，自动发现 ${res.new_characters} 个新角色`;
             }
             Message.success(msg);
-            segments.value = await getSegmentsByChapter(selectedChapterId.value!);
+            setSegments(await getSegmentsByChapter(selectedChapterId.value!));
             characterOptions.value = await getCharactersByProject(props.projectId);
         } finally {
             splitting.value = false;
@@ -594,38 +613,39 @@ async function handleSplit() {
 
 function toggleAllChapters(checked: boolean | (string | boolean | number)[]) {
     if (checked) {
-        checkedChapterIds.value = chapters.value.map((ch: any) => ch.id);
+        checkedChapterIds.value = new Set(chapters.value.map((ch: any) => ch.id));
     } else {
-        checkedChapterIds.value = [];
+        checkedChapterIds.value = new Set();
     }
 }
 
 function toggleChapterCheck(chapterId: number, checked: boolean) {
+    const next = new Set(checkedChapterIds.value);
     if (checked) {
-        if (!checkedChapterIds.value.includes(chapterId)) {
-            checkedChapterIds.value = [...checkedChapterIds.value, chapterId];
-        }
+        next.add(chapterId);
     } else {
-        checkedChapterIds.value = checkedChapterIds.value.filter((id) => id !== chapterId);
+        next.delete(chapterId);
     }
+    checkedChapterIds.value = next;
 }
 
 async function handleBatchSplit() {
-    if (checkedChapterIds.value.length === 0) return;
+    if (checkedChapterIds.value.size === 0) return;
+    const checkedArr = [...checkedChapterIds.value];
 
     Modal.confirm({
         title: "批量智能切割",
-        content: `将对 ${checkedChapterIds.value.length} 个章节依次进行智能切割，已有片段的章节将被覆盖。是否继续？`,
+        content: `将对 ${checkedArr.length} 个章节依次进行智能切割，已有片段的章节将被覆盖。是否继续？`,
         okText: "确认切割",
         cancelText: "取消",
         onOk: async () => {
             batchSplitting.value = true;
             try {
-                const res = await batchSplitChapters(props.projectId, checkedChapterIds.value);
+                const res = await batchSplitChapters(props.projectId, checkedArr);
                 const ids = new Set(splittingChapterIds.value);
-                checkedChapterIds.value.forEach((id) => ids.add(id));
+                checkedArr.forEach((id) => ids.add(id));
                 splittingChapterIds.value = ids;
-                checkedChapterIds.value = [];
+                checkedChapterIds.value = new Set();
                 Message.success(`已提交 ${res.total} 个章节到切割队列`);
             } catch (e: any) {
                 const msg = e?.response?.data?.message || e?.message || "批量切割提交失败";
@@ -658,7 +678,7 @@ function handleChapterSplitEvent(evt: any) {
 
     if (evt.chapter_id === selectedChapterId.value) {
         getSegmentsByChapter(evt.chapter_id).then((segs) => {
-            segments.value = segs;
+            setSegments(segs);
         });
         getCharactersByProject(props.projectId).then((chars) => {
             characterOptions.value = chars;
@@ -693,7 +713,7 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
 function handleSegmentEvent(evt: TTSSegmentEvent) {
     if (evt.chapter_id !== selectedChapterId.value) return;
 
-    const seg = segments.value.find((s) => s.id === evt.segment_id);
+    const seg = segmentById.value.get(evt.segment_id);
     if (seg) {
         seg.status = evt.status;
         seg.error_message = evt.error_message || "";
@@ -800,6 +820,7 @@ async function handleCancelQueue() {
 onUnmounted(() => {
     if (unsubscribeTTSEvent) unsubscribeTTSEvent();
     if (unsubscribeLLMEvent) unsubscribeLLMEvent();
+    segmentById.value.clear();
     stopAudio();
 });
 
