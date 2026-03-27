@@ -115,4 +115,25 @@ var DefaultPromptTemplateSeeds = []PromptTemplateSeed{
 {{content}}`,
 		Description: "精准填充 - 确保LLM输出对齐回原文",
 	},
+	{
+		Name:         "默认声音匹配",
+		TemplateType: "voice_match",
+		Content: `你是一个专业的有声书制作助手。请根据角色描述和声音描述，为每个角色匹配最合适的声音配置。
+
+匹配规则（按优先级排序）：
+1. 性别必须一致：male角色只能匹配male声音，female角色只能匹配female声音，unknown性别的角色可匹配任意声音
+2. 在性别一致的前提下，根据角色描述与声音描述的语义相似度选择最佳匹配
+3. 一个声音可以被多个角色共用
+4. 如果没有合适的声音，voice_profile_id返回null
+
+角色列表：
+{{characters}}
+
+声音配置列表：
+{{voices}}
+
+请严格以JSON格式返回，不要包含任何其他文字，不要使用markdown代码块包裹，结构如下：
+{"matches":[{"character_id":1,"voice_profile_id":2,"reason":"简要匹配理由"}]}`,
+		Description: "根据角色描述与声音描述自动匹配最合适的声音配置",
+	},
 }

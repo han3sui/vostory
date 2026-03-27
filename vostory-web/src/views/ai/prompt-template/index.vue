@@ -46,7 +46,8 @@ const TEMPLATE_TYPES = [
     { label: "对白解析", value: "dialogue_parse" },
     { label: "情绪标注", value: "emotion_tag" },
     { label: "场景切分", value: "scene_split" },
-    { label: "文本校正", value: "text_correct" }
+    { label: "文本校正", value: "text_correct" },
+    { label: "声音匹配", value: "voice_match" }
 ];
 
 const table = ref();

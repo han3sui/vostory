@@ -68,6 +68,7 @@ import {
     disableCharacter,
     extractCharacters,
     extractFromText,
+    voiceMatchCharacters,
     CharacterDetailType
 } from "@/config/apis/character";
 import { getVoiceProfilesByProject, VoiceProfileOptionType } from "@/config/apis/voice-profile";
@@ -101,6 +102,7 @@ const extracting = ref(false);
 const showSmartImportModal = ref(false);
 const smartImportText = ref("");
 const smartImporting = ref(false);
+const voiceMatching = ref(false);
 const voiceProfileOptions = ref<VoiceProfileOptionType[]>([]);
 
 async function loadVoiceProfiles() {
@@ -161,6 +163,13 @@ const tableConfig = computed(() => {
             ])
         ],
         trBtns: [
+            {
+                label: "自动匹配声音",
+                type: "outline",
+                loading: voiceMatching.value,
+                if: () => hasPermission("character:voice_match"),
+                handler: handleVoiceMatch
+            },
             {
                 label: "智能录入",
                 type: "outline",
@@ -228,6 +237,28 @@ async function onEdit(v: Record<string, any> | null) {
                 await addCharacter(data);
             }
             table.value.refresh();
+        }
+    });
+}
+
+async function handleVoiceMatch() {
+    Modal.confirm({
+        title: "自动匹配声音",
+        content: "将使用 LLM 根据角色描述和声音描述自动匹配声音配置，已绑定声音的角色会自动跳过。是否继续？",
+        okText: "开始匹配",
+        cancelText: "取消",
+        onBeforeOk: async () => {
+            voiceMatching.value = true;
+            try {
+                const res = await voiceMatchCharacters(props.projectId);
+                const parts = [`匹配完成：成功 ${res.matched_count} 个`];
+                if (res.skipped_count > 0) parts.push(`跳过 ${res.skipped_count} 个（已绑定）`);
+                if (res.failed_count > 0) parts.push(`未匹配 ${res.failed_count} 个`);
+                Message.success(parts.join("，"));
+                table.value.refresh();
+            } finally {
+                voiceMatching.value = false;
+            }
         }
     });
 }

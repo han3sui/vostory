@@ -87,3 +87,22 @@ export function extractFromText(projectId: number, text: string): Promise<Charac
         timeout: 0
     });
 }
+
+export type VoiceMatchResult = {
+    matched_count: number;
+    skipped_count: number;
+    failed_count: number;
+    details?: {
+        character_id: number;
+        character_name: string;
+        voice_profile_id: number;
+        voice_name: string;
+        reason: string;
+    }[];
+    input_tokens: number;
+    output_tokens: number;
+};
+
+export function voiceMatchCharacters(projectId: number): Promise<VoiceMatchResult> {
+    return request({ url: `/api/v1/character/voice-match/${projectId}`, method: "post", timeout: 0 });
+}
