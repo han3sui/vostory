@@ -469,11 +469,13 @@ func (s *vsTTSSynthesizeService) GetActiveTasksByProject(ctx context.Context, pr
 		item := &v1.ProjectTaskProgressResponse{
 			TaskID:         t.TaskID,
 			ChapterID:      t.ChapterID,
+			TaskType:       t.TaskType,
 			Status:         t.Status,
 			Progress:       t.Progress,
 			TotalCount:     t.TotalBatches,
 			CompletedCount: t.CompletedBatches,
 			FailedCount:    t.FailedBatches,
+			SegmentIDs:     []uint64(t.SegmentIDs),
 		}
 		if t.Chapter != nil {
 			item.ChapterTitle = t.Chapter.Title

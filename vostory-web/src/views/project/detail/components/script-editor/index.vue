@@ -321,6 +321,7 @@ import {
     synthesizeSegment,
     batchGenerate,
     getActiveTask,
+    getActiveTasksByProject,
     getTTSStreamURL,
     TTSSegmentEvent,
     lockSegment,
@@ -386,6 +387,24 @@ async function loadChapters() {
     chapters.value = res || [];
 
     characterOptions.value = await getCharactersByProject(props.projectId);
+    await syncSplittingChapterIds();
+}
+
+async function syncSplittingChapterIds() {
+    if (!props.projectId) return;
+    try {
+        const tasks = await getActiveTasksByProject(props.projectId);
+        const ids = new Set<number>();
+        for (const task of tasks) {
+            if (task.task_type === "chapter_split" && task.segment_ids) {
+                const processed = task.completed_count + task.failed_count;
+                task.segment_ids.slice(processed).forEach((id) => ids.add(id));
+            }
+        }
+        splittingChapterIds.value = ids;
+    } catch {
+        // 查询失败不影响主流程
+    }
 }
 
 async function handleRefreshChapters() {
@@ -401,6 +420,7 @@ async function handleRefreshChapters() {
         if (prevSelectedId && chapters.value.some((ch: any) => ch.id === prevSelectedId)) {
             segments.value = await getSegmentsByChapter(prevSelectedId);
         }
+        await syncSplittingChapterIds();
     } finally {
         refreshingChapters.value = false;
     }

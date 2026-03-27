@@ -1,6 +1,8 @@
 package v1
 
-import "time"
+import (
+	"time"
+)
 
 // TTSSynthesizeResponse TTS 合成响应
 type TTSSynthesizeResponse struct {
@@ -37,14 +39,16 @@ type TaskProgressResponse struct {
 
 // ProjectTaskProgressResponse 项目级活跃任务进度
 type ProjectTaskProgressResponse struct {
-	TaskID         uint64  `json:"task_id"`
-	ChapterID      *uint64 `json:"chapter_id"`
-	ChapterTitle   string  `json:"chapter_title"`
-	Status         string  `json:"status"`
-	Progress       int     `json:"progress"`
-	TotalCount     int     `json:"total_count"`
-	CompletedCount int     `json:"completed_count"`
-	FailedCount    int     `json:"failed_count"`
+	TaskID         uint64   `json:"task_id"`
+	ChapterID      *uint64  `json:"chapter_id"`
+	ChapterTitle   string   `json:"chapter_title"`
+	TaskType       string   `json:"task_type"`
+	Status         string   `json:"status"`
+	Progress       int      `json:"progress"`
+	TotalCount     int      `json:"total_count"`
+	CompletedCount int      `json:"completed_count"`
+	FailedCount    int      `json:"failed_count"`
+	SegmentIDs     []uint64 `json:"segment_ids,omitempty"`
 }
 
 // CancelQueueResponse 取消队列响应
