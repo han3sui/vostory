@@ -90,7 +90,12 @@
                                 取消队列 ({{ segmentStats.queued }})
                             </a-button>
                         </a-popconfirm>
-                        <a-button v-if="segmentStats.generated > 0" type="outline" size="small" @click="handleBatchLock">
+                        <a-button
+                            v-if="segmentStats.generated > 0"
+                            type="outline"
+                            size="small"
+                            @click="handleBatchLock"
+                        >
                             <template #icon><icon-lock /></template>
                             全部锁定 ({{ segmentStats.generated }})
                         </a-button>
@@ -119,12 +124,8 @@
                     </a-space>
                 </div>
 
-                <div class="segment-scroll">
-                    <div v-if="loadingSegments" class="loading-area">
-                        <a-spin />
-                    </div>
-
-                    <div v-else class="segment-list">
+                <div ref="segmentScrollRef" class="segment-scroll">
+                    <div class="segment-list">
                         <div
                             v-for="seg in segments"
                             :key="seg.id"
@@ -322,7 +323,6 @@ import {
 import {
     synthesizeSegment,
     batchGenerate,
-    getActiveTask,
     getActiveTasksByProject,
     getTTSStreamURL,
     TTSSegmentEvent,
@@ -340,12 +340,12 @@ const props = defineProps<{ projectId: number }>();
 
 const onTTSEvent = inject<(handler: (evt: TTSSegmentEvent) => void) => () => void>("onTTSEvent");
 
+const segmentScrollRef = ref<HTMLElement>();
 const selectedChapterId = ref<number>();
 const currentChapter = ref<any>(null);
 const chapters = ref<any[]>([]);
 const segments = ref<ScriptSegmentDetailType[]>([]);
 const characterOptions = ref<CharacterOptionType[]>([]);
-const loadingSegments = ref(false);
 const aligning = ref(false);
 const splitting = ref(false);
 const batchSplitting = ref(false);
@@ -379,11 +379,23 @@ const segmentStats = computed(() => {
     let locked = 0;
     for (const seg of segments.value) {
         switch (seg.status) {
-            case "queued": queued++; break;
-            case "generated": generated++; break;
-            case "locked": locked++; break;
+            case "queued":
+                queued++;
+                break;
+            case "generated":
+                generated++;
+                break;
+            case "locked":
+                locked++;
+                break;
         }
-        if (seg.content?.trim() && seg.character_id && seg.status !== "queued" && seg.status !== "processing" && seg.status !== "locked") {
+        if (
+            seg.content?.trim() &&
+            seg.character_id &&
+            seg.status !== "queued" &&
+            seg.status !== "processing" &&
+            seg.status !== "locked"
+        ) {
             generatable++;
         }
     }
@@ -461,18 +473,8 @@ watch(() => props.projectId, loadChapters);
 async function selectChapter(ch: any) {
     selectedChapterId.value = ch.id;
     currentChapter.value = ch;
-    loadingSegments.value = true;
-    try {
-        setSegments(await getSegmentsByChapter(ch.id));
-    } finally {
-        loadingSegments.value = false;
-    }
-
-    try {
-        await getActiveTask(ch.id);
-    } catch {
-        // 无活跃任务则忽略
-    }
+    setSegments(await getSegmentsByChapter(ch.id));
+    segmentScrollRef.value?.scrollTo({ top: 0 });
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1140,12 +1142,6 @@ function statusLabel(status: string) {
         font-weight: 500;
         margin: 0;
     }
-}
-
-.loading-area {
-    display: flex;
-    justify-content: center;
-    padding: 40px 0;
 }
 
 .segment-list {

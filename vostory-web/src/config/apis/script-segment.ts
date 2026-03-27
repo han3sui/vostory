@@ -58,7 +58,7 @@ export function deleteScriptSegment(id: number) {
 }
 
 export function getSegmentsByChapter(chapterId: number): Promise<ScriptSegmentDetailType[]> {
-    return request({ url: `/api/v1/common/script-segment/chapter/${chapterId}` });
+    return request({ url: `/api/v1/common/script-segment/chapter/${chapterId}`, loading: true });
 }
 
 export type ChapterSplitResult = {
