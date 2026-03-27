@@ -38,7 +38,7 @@ func (r *vsCharacterRepository) Update(ctx context.Context, character *model.VsC
 }
 
 func (r *vsCharacterRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Where("character_id = ?", id).Delete(&model.VsCharacter{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("character_id = ?", id).Delete(&model.VsCharacter{}).Error
 }
 
 func (r *vsCharacterRepository) FindByID(ctx context.Context, id uint64) (*model.VsCharacter, error) {

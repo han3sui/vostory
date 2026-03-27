@@ -511,13 +511,13 @@ func (s *vsChapterSplitService) ensureCharacters(
 		return 0, nil
 	}
 
-	// 一次性查出库中已存在但 charMap 里没有的角色（如被停用或软删恢复的）
+	// 一次性查出库中已存在的角色（含被停用和软删除的，与唯一索引覆盖范围一致）
 	neededNames := make([]string, 0, len(needed))
 	for _, info := range needed {
 		neededNames = append(neededNames, info.name)
 	}
 	var existingChars []*model.VsCharacter
-	if err := s.db.WithContext(ctx).
+	if err := s.db.WithContext(ctx).Unscoped().
 		Where("project_id = ? AND name IN ?", projectID, neededNames).
 		Find(&existingChars).Error; err == nil {
 		for _, ec := range existingChars {
