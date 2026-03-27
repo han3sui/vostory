@@ -148,22 +148,19 @@
                                             <a-option value="description">描述</a-option>
                                         </a-select>
 
-                                        <a-select
-                                            :model-value="seg.character_id ?? undefined"
-                                            size="mini"
-                                            style="width: 120px"
-                                            :placeholder="
-                                                seg.segment_type === 'narration' || seg.segment_type === 'description'
-                                                    ? '旁白角色'
-                                                    : '说话人'
-                                            "
-                                            allow-clear
-                                            @update:model-value="(v: any) => { seg.character_id = v ?? null; saveSegment(seg); }"
-                                        >
-                                            <a-option v-for="c in characterOptions" :key="c.id" :value="c.id">
-                                                {{ c.name }}
-                                            </a-option>
-                                        </a-select>
+                                        <a-button size="mini" type="text" @click="handleSelectCharacter(seg)">
+                                            <span v-if="seg.character_id && characterMap[seg.character_id]">
+                                                {{ characterMap[seg.character_id] }}
+                                            </span>
+                                            <span v-else class="character-placeholder">
+                                                {{
+                                                    seg.segment_type === "narration" ||
+                                                    seg.segment_type === "description"
+                                                        ? "旁白角色"
+                                                        : "说话人"
+                                                }}
+                                            </span>
+                                        </a-button>
 
                                         <a-select
                                             v-model="seg.emotion_type"
@@ -299,8 +296,8 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { Message } from "@arco-design/web-vue";
-import { Modal } from "@arco-design/web-vue";
+import { Message, Modal } from "@arco-design/web-vue";
+import { ArcoModalTableShow, formHelper, tableHelper } from "@easyfe/admin-component";
 import {
     IconSound,
     IconPlayArrow,
@@ -316,7 +313,12 @@ import {
     batchSplitChapters,
     ScriptSegmentDetailType
 } from "@/config/apis/script-segment";
-import { getCharactersByProject, CharacterOptionType } from "@/config/apis/character";
+import {
+    getCharactersByProject,
+    getCharacterList,
+    CharacterOptionType,
+    CharacterDetailType
+} from "@/config/apis/character";
 import {
     synthesizeSegment,
     batchGenerate,
@@ -330,7 +332,7 @@ import {
     batchUnlockChapter,
     cancelChapterQueue
 } from "@/config/apis/tts";
-import { hasPermission } from "@/views/utils";
+import { hasPermission, PageTableConfig } from "@/views/utils";
 import request from "@/packages/request";
 import storage from "@/utils/tools/storage";
 
@@ -355,6 +357,14 @@ const playingId = ref<number | null>(null);
 const continuousPlayingFromId = ref<number | null>(null);
 let currentAudioEl: HTMLAudioElement | null = null;
 let currentBlobURL: string | null = null;
+
+const characterMap = computed(() => {
+    const map: Record<number, string> = {};
+    characterOptions.value.forEach((c) => {
+        map[c.id] = c.name;
+    });
+    return map;
+});
 
 const generatableCount = computed(() => segments.value.filter((s) => canGenerate(s)).length);
 const queuedCount = computed(() => segments.value.filter((s) => s.status === "queued").length);
@@ -464,6 +474,77 @@ async function saveSegment(seg: ScriptSegmentDetailType) {
             Message.error("保存失败");
         }
     }, 500);
+}
+
+const LEVELS = [
+    { label: "主角", value: "main" },
+    { label: "配角", value: "supporting" },
+    { label: "龙套", value: "minor" }
+];
+const GENDERS = [
+    { label: "男", value: "male" },
+    { label: "女", value: "female" },
+    { label: "未知", value: "unknown" }
+];
+
+function handleSelectCharacter(seg: ScriptSegmentDetailType) {
+    const filterData = ref<Record<string, any>>({});
+    ArcoModalTableShow({
+        modalConfig: {
+            title: "选择角色",
+            width: "1200px"
+        },
+        defaultSelected: seg.character_id ? [seg.character_id] : [],
+        tableConfig: {
+            tableConfig: {
+                arcoProps: {
+                    rowKey: "id",
+                    rowSelection: {
+                        type: "radio",
+                        showCheckedAll: false
+                    }
+                },
+                ...PageTableConfig,
+                showRefresh: false,
+                maxHeight: "40vh",
+                columns: [
+                    tableHelper.default("角色名称", "name"),
+                    tableHelper.status("性别", "gender", (item: any) => {
+                        const found = GENDERS.find((g) => g.value === item.gender);
+                        return { text: found?.label || item.gender, status: "normal" };
+                    }),
+                    tableHelper.status("层级", "level", (item: any) => {
+                        const found = LEVELS.find((l) => l.value === item.level);
+                        return { text: found?.label || item.level, status: "normal" };
+                    }),
+                    tableHelper.default("描述", "description"),
+                    tableHelper.default("声音配置", "voice_profile_name")
+                ]
+            },
+            filterConfig: [
+                formHelper.input("角色名称", "name", { span: 8, debounce: 500 }),
+                formHelper.select("层级", "level", LEVELS, { span: 8 }),
+                formHelper.select("性别", "gender", GENDERS, { span: 8 })
+            ],
+            filterData: filterData.value,
+            req: {
+                fn: getCharacterList,
+                params: { project_id: props.projectId, status: "0", ...filterData.value }
+            }
+        },
+        ok: async (selected: CharacterDetailType[]) => {
+            if (selected.length > 0) {
+                const char = selected[0];
+                seg.character_id = char.id;
+                if (!characterMap.value[char.id]) {
+                    characterOptions.value = [...characterOptions.value, { id: char.id, name: char.name }];
+                }
+            } else {
+                seg.character_id = null;
+            }
+            saveSegment(seg);
+        }
+    });
 }
 
 async function handleAlign() {
@@ -1159,5 +1240,9 @@ function statusLabel(status: string) {
     &:hover {
         background-color: var(--color-fill-2);
     }
+}
+
+.character-placeholder {
+    color: var(--color-text-3);
 }
 </style>
