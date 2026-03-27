@@ -3,35 +3,47 @@
         <!-- 左侧章节列表 -->
         <div class="chapter-sidebar">
             <div class="chapter-batch-bar">
-                <a-checkbox
-                    v-if="chapters.length > 0 && hasPermission('chapter:split')"
-                    :model-value="checkedChapterIds.size === chapters.length && chapters.length > 0"
-                    :indeterminate="checkedChapterIds.size > 0 && checkedChapterIds.size < chapters.length"
-                    @change="toggleAllChapters"
-                >
-                    全选
-                </a-checkbox>
-                <a-space v-if="chapters.length > 0" size="mini">
-                    <a-button
-                        v-if="checkedChapterIds.size > 0 && hasPermission('chapter:split')"
-                        type="primary"
-                        size="mini"
-                        :loading="batchSplitting"
-                        @click="handleBatchSplit"
+                <div class="chapter-batch-top">
+                    <a-checkbox
+                        v-if="chapters.length > 0 && hasPermission('chapter:split')"
+                        :model-value="checkedChapterIds.size === chapters.length && chapters.length > 0"
+                        :indeterminate="checkedChapterIds.size > 0 && checkedChapterIds.size < chapters.length"
+                        @change="toggleAllChapters"
                     >
-                        批量切割 ({{ checkedChapterIds.size }})
-                    </a-button>
-                    <a-tooltip content="刷新章节列表">
-                        <a-button size="mini" :loading="refreshingChapters" @click="handleRefreshChapters">
-                            <template #icon><icon-refresh /></template>
+                        全选
+                    </a-checkbox>
+                    <a-space v-if="chapters.length > 0" size="mini">
+                        <a-tooltip v-if="hasPermission('chapter:split')" content="选中所有未切割的章节">
+                            <a-button
+                                size="mini"
+                                type="outline"
+                                :disabled="unsplitChapterIds.length === 0"
+                                @click="selectUnsplitChapters"
+                            >
+                                <template #icon><icon-filter /></template>
+                                {{ unsplitChapterIds.length }}
+                            </a-button>
+                        </a-tooltip>
+                        <a-tooltip content="刷新章节列表">
+                            <a-button size="mini" :loading="refreshingChapters" @click="handleRefreshChapters">
+                                <template #icon><icon-refresh /></template>
+                            </a-button>
+                        </a-tooltip>
+                    </a-space>
+                </div>
+                <transition name="batch-slide">
+                    <div
+                        v-if="checkedChapterIds.size > 0 && hasPermission('chapter:split')"
+                        class="chapter-batch-actions"
+                    >
+                        <span class="batch-hint">已选 {{ checkedChapterIds.size }} 章</span>
+                        <span class="batch-spacer" />
+                        <a-button size="mini" type="text" @click="clearCheckedChapters">清空</a-button>
+                        <a-button type="primary" size="mini" :loading="batchSplitting" @click="handleBatchSplit">
+                            批量切割
                         </a-button>
-                    </a-tooltip>
-                </a-space>
-                <a-tooltip v-else content="刷新章节列表">
-                    <a-button size="mini" :loading="refreshingChapters" @click="handleRefreshChapters">
-                        <template #icon><icon-refresh /></template>
-                    </a-button>
-                </a-tooltip>
+                    </div>
+                </transition>
             </div>
             <div class="chapter-list">
                 <div
@@ -305,7 +317,8 @@ import {
     IconPause,
     IconLock,
     IconUnlock,
-    IconDragDotVertical
+    IconDragDotVertical,
+    IconFilter
 } from "@arco-design/web-vue/es/icon";
 import {
     getSegmentsByChapter,
@@ -401,6 +414,12 @@ const segmentStats = computed(() => {
     }
     return { generatable, queued, generated, locked };
 });
+
+const unsplitChapterIds = computed<number[]>(() =>
+    chapters.value
+        .filter((ch: any) => Number(ch?.segment_count || 0) <= 0 && !splittingChapterIds.value.has(ch.id))
+        .map((ch: any) => ch.id)
+);
 
 function canGenerate(seg: ScriptSegmentDetailType): boolean {
     return !disableReason(seg);
@@ -619,6 +638,14 @@ function toggleAllChapters(checked: boolean | (string | boolean | number)[]) {
     } else {
         checkedChapterIds.value = new Set();
     }
+}
+
+function selectUnsplitChapters() {
+    checkedChapterIds.value = new Set(unsplitChapterIds.value);
+}
+
+function clearCheckedChapters() {
+    checkedChapterIds.value = new Set();
 }
 
 function toggleChapterCheck(chapterId: number, checked: boolean) {
@@ -1050,12 +1077,59 @@ function statusLabel(status: string) {
 
 .chapter-batch-bar {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
+    flex-direction: column;
+    align-items: stretch;
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
     background-color: var(--color-bg-2);
+}
+
+.chapter-batch-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    min-height: 24px;
+}
+
+.chapter-batch-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: rgb(var(--primary-1));
+    border-top: 1px solid var(--color-border-2);
+}
+
+.batch-hint {
+    font-size: 12px;
+    color: rgb(var(--primary-6));
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.batch-spacer {
+    flex: 1;
+}
+
+.batch-slide-enter-active,
+.batch-slide-leave-active {
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.batch-slide-enter-from,
+.batch-slide-leave-to {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+}
+
+.batch-slide-enter-to,
+.batch-slide-leave-from {
+    max-height: 40px;
+    opacity: 1;
 }
 
 .chapter-item {
