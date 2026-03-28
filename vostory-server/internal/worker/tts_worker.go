@@ -99,21 +99,25 @@ func (w *TTSWorker) recoverTasks(ctx context.Context) {
 				if seg.CharacterID == nil {
 					continue
 				}
-				if seg.Status == "queued" || seg.Status == "processing" {
-					_ = w.segmentRepo.UpdateStatus(ctx, seg.SegmentID, "queued")
-					if err := w.rdb.LPush(ctx, redisQueueKey, fmt.Sprintf("%d:%d", task.TaskID, seg.SegmentID)).Err(); err != nil {
-						w.logger.Error("recover: enqueue segment failed",
-							zap.Uint64("task_id", task.TaskID), zap.Uint64("segment_id", seg.SegmentID), zap.Error(err))
-					}
-				}
-			}
-		} else {
-			for _, seg := range segments {
-				if err := w.rdb.LPush(ctx, redisQueueKey, fmt.Sprintf("%d:%d", task.TaskID, seg.SegmentID)).Err(); err != nil {
+			if seg.Status == "queued" || seg.Status == "processing" {
+				_ = w.segmentRepo.UpdateStatus(ctx, seg.SegmentID, "queued")
+				msg := fmt.Sprintf("%d:%d", task.TaskID, seg.SegmentID)
+				_ = w.rdb.LRem(ctx, redisQueueKey, 0, msg).Err()
+				if err := w.rdb.LPush(ctx, redisQueueKey, msg).Err(); err != nil {
 					w.logger.Error("recover: enqueue segment failed",
 						zap.Uint64("task_id", task.TaskID), zap.Uint64("segment_id", seg.SegmentID), zap.Error(err))
 				}
 			}
+			}
+		} else {
+		for _, seg := range segments {
+			msg := fmt.Sprintf("%d:%d", task.TaskID, seg.SegmentID)
+			_ = w.rdb.LRem(ctx, redisQueueKey, 0, msg).Err()
+			if err := w.rdb.LPush(ctx, redisQueueKey, msg).Err(); err != nil {
+				w.logger.Error("recover: enqueue segment failed",
+					zap.Uint64("task_id", task.TaskID), zap.Uint64("segment_id", seg.SegmentID), zap.Error(err))
+			}
+		}
 		}
 	}
 }
