@@ -54,7 +54,7 @@ import { Message } from "@arco-design/web-vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchEventSource } from "@fortaine/fetch-event-source";
 import { getProject, ProjectDetailType } from "@/config/apis/project";
-import { getProjectEventsURL, cancelProjectQueue, TTSSegmentEvent, ProjectTaskProgress } from "@/config/apis/tts";
+import { getProjectEventsURL, cancelProjectQueue, getActiveTasksByProject, TTSSegmentEvent, ProjectTaskProgress } from "@/config/apis/tts";
 import storage from "@/utils/tools/storage";
 import ProjectImport from "./components/import/index.vue";
 import ProjectChapter from "./components/chapter/index.vue";
@@ -193,11 +193,26 @@ async function handleCancelAll() {
     }
 }
 
+async function loadActiveTasks(pid: number) {
+    try {
+        const tasks = await getActiveTasksByProject(pid);
+        if (!tasks || tasks.length === 0) return;
+        const map = new Map(activeTasks.value);
+        for (const t of tasks) {
+            map.set(t.task_id, t);
+        }
+        activeTasks.value = map;
+    } catch {
+        // 静默失败，SSE 后续会补充
+    }
+}
+
 watch(
     projectId,
     (pid) => {
         if (pid) {
             activeTasks.value = new Map();
+            loadActiveTasks(pid);
             connectProjectSSE(pid);
         } else {
             disconnectProjectSSE();

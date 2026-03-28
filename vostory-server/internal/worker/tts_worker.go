@@ -153,10 +153,12 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 	seg, err := w.segmentRepo.FindByID(ctx, segmentID)
 	if err != nil {
 		w.logger.Warn("segment not found, skipping", zap.Uint64("segment_id", segmentID))
+		w.incrementFailedAndPublish(ctx, taskID, segmentID, "skipped", "segment not found")
 		return
 	}
 	if seg.Status == "cancelled" {
 		w.logger.Info("segment cancelled, skipping", zap.Uint64("segment_id", segmentID))
+		w.incrementFailedAndPublish(ctx, taskID, segmentID, "cancelled", "")
 		return
 	}
 
@@ -239,6 +241,59 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 		ErrorMsg:     segErrMsg,
 		ClipID:       clipID,
 		AudioURL:     audioURL,
+		Progress:     progress,
+		Completed:    task.CompletedBatches,
+		Failed:       task.FailedBatches,
+		Total:        task.TotalBatches,
+		TaskDone:     taskDone,
+		TaskStatus:   taskStatus,
+	}, task.ProjectID)
+}
+
+func (w *TTSWorker) incrementFailedAndPublish(ctx context.Context, taskID, segmentID uint64, segStatus, errMsg string) {
+	if _, err := w.taskRepo.IncrementFailed(ctx, taskID); err != nil {
+		w.logger.Error("increment failed count error", zap.Uint64("task_id", taskID), zap.Error(err))
+	}
+
+	task, err := w.taskRepo.FindByID(ctx, taskID)
+	if err != nil {
+		return
+	}
+
+	processed := task.CompletedBatches + task.FailedBatches
+	progress := 0
+	if task.TotalBatches > 0 {
+		progress = processed * 100 / task.TotalBatches
+		if progress > 100 {
+			progress = 100
+		}
+	}
+	_ = w.taskRepo.UpdateProgress(ctx, taskID, task.CompletedBatches, progress)
+
+	taskDone := task.TotalBatches <= 0 || processed >= task.TotalBatches
+	taskStatus := task.Status
+	if taskDone {
+		taskStatus = "failed"
+		_ = w.taskRepo.SetFailed(ctx, taskID, fmt.Sprintf("%d/%d segments failed", task.FailedBatches, task.TotalBatches))
+	}
+
+	var chapterID uint64
+	var chapterTitle string
+	if task.ChapterID != nil {
+		chapterID = *task.ChapterID
+	}
+	if task.Chapter != nil {
+		chapterTitle = task.Chapter.Title
+	}
+
+	w.publishEvent(ctx, TTSEvent{
+		Type:         "segment_done",
+		TaskID:       taskID,
+		ChapterID:    chapterID,
+		ChapterTitle: chapterTitle,
+		SegmentID:    segmentID,
+		Status:       segStatus,
+		ErrorMsg:     errMsg,
 		Progress:     progress,
 		Completed:    task.CompletedBatches,
 		Failed:       task.FailedBatches,
