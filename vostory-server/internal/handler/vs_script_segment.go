@@ -188,3 +188,32 @@ func (h *VsScriptSegmentHandler) GetByChapter(ctx *gin.Context) {
 	}
 	v1.HandleSuccess(ctx, segments)
 }
+
+// InsertAfter godoc
+// @Summary      在指定片段之后插入新片段
+// @Description  在指定片段之后插入一个新的空白片段，自动重排序号
+// @Tags         脚本片段管理
+// @Accept       json
+// @Produce      json
+// @Param        id       path      int                              true  "目标片段ID"
+// @Param        request  body      v1.VsScriptSegmentInsertRequest  true  "插入请求"
+// @Success      200      {object}  v1.Response
+// @Failure      400      {object}  v1.Response
+// @Failure      500      {object}  v1.Response
+// @Router       /api/v1/script-segment/insert-after/{id} [post]
+// @Id        script-segment:insertAfter
+func (h *VsScriptSegmentHandler) InsertAfter(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "ID is required"), nil)
+		return
+	}
+	request := &v1.VsScriptSegmentInsertRequest{}
+	_ = ctx.ShouldBindJSON(request)
+	result, err := h.svc.InsertAfter(ctx, cast.ToUint64(id), request)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, result)
+}

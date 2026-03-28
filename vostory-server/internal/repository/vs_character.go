@@ -16,6 +16,7 @@ type VsCharacterRepository interface {
 	FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsCharacter, error)
 	Enable(ctx context.Context, id uint64) error
 	Disable(ctx context.Context, id uint64) error
+	FindByVoiceProfileID(ctx context.Context, voiceProfileID uint64) ([]*model.VsCharacter, error)
 }
 
 func NewVsCharacterRepository(repository *Repository) VsCharacterRepository {
@@ -101,4 +102,14 @@ func (r *vsCharacterRepository) Enable(ctx context.Context, id uint64) error {
 func (r *vsCharacterRepository) Disable(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Model(&model.VsCharacter{}).
 		Where("character_id = ?", id).Update("status", "1").Error
+}
+
+func (r *vsCharacterRepository) FindByVoiceProfileID(ctx context.Context, voiceProfileID uint64) ([]*model.VsCharacter, error) {
+	var characters []*model.VsCharacter
+	if err := r.db.WithContext(ctx).
+		Where("voice_profile_id = ? AND status = '0'", voiceProfileID).
+		Find(&characters).Error; err != nil {
+		return nil, err
+	}
+	return characters, nil
 }

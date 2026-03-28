@@ -114,3 +114,30 @@ export function cancelChapterQueue(chapterId: number): Promise<{ cancelled_count
 export function cancelProjectQueue(projectId: number): Promise<{ cancelled_count: number }> {
     return request({ url: `/api/v1/tts/project/${projectId}/cancel`, method: "post" });
 }
+
+export type ExportJobResult = {
+    export_job_id: number;
+    status: string;
+    format: string;
+    file_size: number;
+    duration: number;
+    error?: string;
+    completed_at?: string;
+};
+
+export function exportChapterAudio(chapterId: number, format: string): Promise<ExportJobResult> {
+    return request({ url: `/api/v1/tts/chapter/${chapterId}/export`, method: "post", data: { format }, timeout: 0 });
+}
+
+export function getExportJob(exportJobId: number): Promise<ExportJobResult> {
+    return request({ url: `/api/v1/tts/export/${exportJobId}` });
+}
+
+export function getExportDownloadURL(exportJobId: number): string {
+    const base = envHelper.get("VITE_APP_API_URL") || "";
+    return `${base}/api/v1/tts/export/${exportJobId}/download`;
+}
+
+export function regenerateByVoiceProfile(voiceProfileId: number): Promise<BatchGenerateResult> {
+    return request({ url: `/api/v1/tts/voice-profile/${voiceProfileId}/regenerate`, method: "post" });
+}

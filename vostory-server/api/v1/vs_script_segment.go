@@ -39,6 +39,12 @@ type VsScriptSegmentUpdateRequest struct {
 	Status          string  `json:"status"`            // 片段状态
 }
 
+// VsScriptSegmentInsertRequest 在指定片段之后插入新片段
+type VsScriptSegmentInsertRequest struct {
+	SegmentType string `json:"segment_type"` // 片段类型（默认 narration）
+	Content     string `json:"content"`      // 片段文本
+}
+
 // VsScriptSegmentDetailResponse 脚本片段详情响应
 type VsScriptSegmentDetailResponse struct {
 	ID              uint64    `json:"id"`

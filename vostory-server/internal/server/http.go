@@ -57,6 +57,7 @@ func NewHTTPServer(
 	vsVoiceAssetHandler *handler.VsVoiceAssetHandler,
 	vsCommonUploadHandler *handler.VsCommonUploadHandler,
 	vsVoiceMatchHandler *handler.VsVoiceMatchHandler,
+	vsExportJobHandler *handler.VsExportJobHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -283,6 +284,7 @@ func NewHTTPServer(
 				scriptSegmentRouter.POST("", vsScriptSegmentHandler.Create)
 				scriptSegmentRouter.PUT("/:id", vsScriptSegmentHandler.Update)
 				scriptSegmentRouter.DELETE("/:id", vsScriptSegmentHandler.Delete)
+				scriptSegmentRouter.POST("/insert-after/:id", vsScriptSegmentHandler.InsertAfter)
 			}
 
 			characterRouter := strictAuthRouter.Group("/character")
@@ -347,6 +349,10 @@ func NewHTTPServer(
 				ttsRouter.GET("/project/:project_id/active-tasks", vsTTSSynthesizeHandler.GetActiveTasksByProject)
 				ttsRouter.GET("/project/:project_id/events", vsTTSSynthesizeHandler.StreamProjectEvents)
 				ttsRouter.POST("/project/:project_id/cancel", vsTTSSynthesizeHandler.CancelProjectQueue)
+				ttsRouter.POST("/chapter/:chapter_id/export", vsExportJobHandler.ExportChapterAudio)
+				ttsRouter.GET("/export/:export_job_id", vsExportJobHandler.GetExportJob)
+				ttsRouter.GET("/export/:export_job_id/download", vsExportJobHandler.DownloadExport)
+				ttsRouter.POST("/voice-profile/:voice_profile_id/regenerate", vsTTSSynthesizeHandler.RegenerateByVoiceProfile)
 			}
 
 			pronunciationDictRouter := strictAuthRouter.Group("/pronunciation-dict")

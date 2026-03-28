@@ -5,6 +5,8 @@ import (
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
+
+	"gorm.io/gorm"
 )
 
 type VsScriptSegmentRepository interface {
@@ -23,6 +25,9 @@ type VsScriptSegmentRepository interface {
 	FindByChapterIDAndStatus(ctx context.Context, chapterID uint64, status string) ([]*model.VsScriptSegment, error)
 	BatchUpdateStatus(ctx context.Context, ids []uint64, fromStatus, toStatus string) (int64, error)
 	BatchUpdateStatusByChapter(ctx context.Context, chapterID uint64, fromStatus, toStatus string) (int64, error)
+	IncrementSegmentNumAfter(ctx context.Context, chapterID uint64, afterNum int) error
+	ReorderSegmentNums(ctx context.Context, chapterID uint64) error
+	FindByCharacterIDs(ctx context.Context, characterIDs []uint64) ([]*model.VsScriptSegment, error)
 }
 
 func NewVsScriptSegmentRepository(repository *Repository) VsScriptSegmentRepository {
@@ -171,4 +176,40 @@ func (r *vsScriptSegmentRepository) BatchUpdateStatusByChapter(ctx context.Conte
 		Where("chapter_id = ? AND status = ?", chapterID, fromStatus).
 		Update("status", toStatus)
 	return result.RowsAffected, result.Error
+}
+
+func (r *vsScriptSegmentRepository) IncrementSegmentNumAfter(ctx context.Context, chapterID uint64, afterNum int) error {
+	return r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Where("chapter_id = ? AND segment_num > ?", chapterID, afterNum).
+		UpdateColumn("segment_num", gorm.Expr("segment_num + 1")).Error
+}
+
+func (r *vsScriptSegmentRepository) ReorderSegmentNums(ctx context.Context, chapterID uint64) error {
+	segments, err := r.FindByChapterID(ctx, chapterID)
+	if err != nil {
+		return err
+	}
+	for i, seg := range segments {
+		newNum := i + 1
+		if seg.SegmentNum != newNum {
+			r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+				Where("segment_id = ?", seg.SegmentID).
+				Update("segment_num", newNum)
+		}
+	}
+	return nil
+}
+
+func (r *vsScriptSegmentRepository) FindByCharacterIDs(ctx context.Context, characterIDs []uint64) ([]*model.VsScriptSegment, error) {
+	if len(characterIDs) == 0 {
+		return nil, nil
+	}
+	var segments []*model.VsScriptSegment
+	if err := r.db.WithContext(ctx).
+		Where("character_id IN ?", characterIDs).
+		Order("chapter_id ASC, segment_num ASC").
+		Find(&segments).Error; err != nil {
+		return nil, err
+	}
+	return segments, nil
 }

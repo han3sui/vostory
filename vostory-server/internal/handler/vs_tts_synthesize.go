@@ -392,3 +392,28 @@ func (h *VsTTSSynthesizeHandler) StreamProjectEvents(ctx *gin.Context) {
 		}
 	}
 }
+
+// RegenerateByVoiceProfile godoc
+// @Summary      按声音配置重新生成配音
+// @Description  重新生成整个项目中使用指定声音配置的所有片段配音（已锁定的片段除外）
+// @Tags         TTS合成
+// @Param        voice_profile_id  path  int  true  "声音配置ID"
+// @Success      200  {object}  v1.Response
+// @Failure      400  {object}  v1.Response
+// @Failure      500  {object}  v1.Response
+// @Router       /api/v1/tts/voice-profile/{voice_profile_id}/regenerate [post]
+// @Id        tts:regenerateByVoiceProfile
+func (h *VsTTSSynthesizeHandler) RegenerateByVoiceProfile(ctx *gin.Context) {
+	voiceProfileID := cast.ToUint64(ctx.Param("voice_profile_id"))
+	if voiceProfileID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "voice_profile_id is required"), nil)
+		return
+	}
+
+	result, err := h.svc.RegenerateByVoiceProfile(ctx, voiceProfileID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, result)
+}

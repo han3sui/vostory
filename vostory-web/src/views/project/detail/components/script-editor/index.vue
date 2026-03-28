@@ -133,6 +133,16 @@
                         >
                             精准填充
                         </a-button>
+                        <a-dropdown v-if="segmentStats.hasAudio > 0" @select="handleExport">
+                            <a-button type="outline" size="small" :loading="exporting">
+                                <template #icon><icon-download /></template>
+                                导出音频
+                            </a-button>
+                            <template #content>
+                                <a-doption value="wav">导出 WAV</a-doption>
+                                <a-doption value="mp3">导出 MP3</a-doption>
+                            </template>
+                        </a-dropdown>
                     </a-space>
                 </div>
 
@@ -283,6 +293,24 @@
                                                 </div>
                                             </template>
                                         </a-trigger>
+                                        <span class="segment-spacer" />
+                                        <a-tooltip content="在下方插入片段">
+                                            <a-button
+                                                type="text"
+                                                size="mini"
+                                                @click="handleInsertAfter(seg)"
+                                            >
+                                                <template #icon><icon-plus /></template>
+                                            </a-button>
+                                        </a-tooltip>
+                                        <a-popconfirm
+                                            content="确认删除该片段？"
+                                            @ok="handleDeleteSegment(seg)"
+                                        >
+                                            <a-button type="text" size="mini" status="danger">
+                                                <template #icon><icon-delete /></template>
+                                            </a-button>
+                                        </a-popconfirm>
                                     </div>
 
                                     <a-textarea
@@ -318,11 +346,16 @@ import {
     IconLock,
     IconUnlock,
     IconDragDotVertical,
-    IconFilter
+    IconFilter,
+    IconDownload,
+    IconPlus,
+    IconDelete
 } from "@arco-design/web-vue/es/icon";
 import {
     getSegmentsByChapter,
     updateScriptSegment,
+    deleteScriptSegment,
+    insertSegmentAfter,
     splitChapter,
     batchSplitChapters,
     ScriptSegmentDetailType
@@ -343,7 +376,9 @@ import {
     unlockSegment,
     batchLockChapter,
     batchUnlockChapter,
-    cancelChapterQueue
+    cancelChapterQueue,
+    exportChapterAudio,
+    getExportDownloadURL
 } from "@/config/apis/tts";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import request from "@/packages/request";
@@ -390,7 +425,9 @@ const segmentStats = computed(() => {
     let queued = 0;
     let generated = 0;
     let locked = 0;
+    let hasAudio = 0;
     for (const seg of segments.value) {
+        if (seg.clip_id) hasAudio++;
         switch (seg.status) {
             case "queued":
                 queued++;
@@ -412,7 +449,7 @@ const segmentStats = computed(() => {
             generatable++;
         }
     }
-    return { generatable, queued, generated, locked };
+    return { generatable, queued, generated, locked, hasAudio };
 });
 
 const unsplitChapterIds = computed<number[]>(() =>
@@ -846,6 +883,68 @@ async function handleCancelQueue() {
     Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
 }
 
+const exporting = ref(false);
+
+async function handleExport(format: string | number | Record<string, any> | undefined) {
+    if (!selectedChapterId.value || typeof format !== "string") return;
+    exporting.value = true;
+    try {
+        const result = await exportChapterAudio(selectedChapterId.value, format);
+        if (result.status === "completed") {
+            Message.success("导出完成，正在下载...");
+            const url = getExportDownloadURL(result.export_job_id);
+            const resp = await fetch(url, {
+                headers: { Authorization: `Bearer ${storage.getToken()}` }
+            });
+            if (!resp.ok) {
+                Message.error("下载失败");
+                return;
+            }
+            const blob = await resp.blob();
+            const blobURL = URL.createObjectURL(blob);
+            const ext = format === "mp3" ? ".mp3" : ".wav";
+            const a = document.createElement("a");
+            a.href = blobURL;
+            a.download = `${currentChapter.value?.title || "chapter"}${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobURL);
+        } else {
+            Message.error("导出失败: " + (result.error || "未知错误"));
+        }
+    } catch (e: any) {
+        const msg = e?.response?.data?.message || e?.message || "导出失败";
+        Message.error(msg);
+    } finally {
+        exporting.value = false;
+    }
+}
+
+async function handleDeleteSegment(seg: ScriptSegmentDetailType) {
+    try {
+        await deleteScriptSegment(seg.id);
+        Message.success("片段已删除");
+        if (selectedChapterId.value) {
+            setSegments(await getSegmentsByChapter(selectedChapterId.value));
+        }
+    } catch {
+        Message.error("删除失败");
+    }
+}
+
+async function handleInsertAfter(seg: ScriptSegmentDetailType) {
+    try {
+        await insertSegmentAfter(seg.id, { segment_type: seg.segment_type, content: "" });
+        Message.success("已插入新片段");
+        if (selectedChapterId.value) {
+            setSegments(await getSegmentsByChapter(selectedChapterId.value));
+        }
+    } catch {
+        Message.error("插入失败");
+    }
+}
+
 onUnmounted(() => {
     if (unsubscribeTTSEvent) unsubscribeTTSEvent();
     if (unsubscribeLLMEvent) unsubscribeLLMEvent();
@@ -1274,6 +1373,10 @@ function statusLabel(status: string) {
     gap: 8px;
     margin-bottom: 8px;
     flex-wrap: wrap;
+}
+
+.segment-spacer {
+    flex: 1;
 }
 
 .version-label {

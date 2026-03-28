@@ -85,3 +85,10 @@ export function batchSplitChapters(projectId: number, chapterIds: number[]): Pro
         data: { project_id: projectId, chapter_ids: chapterIds }
     });
 }
+
+export function insertSegmentAfter(
+    segmentId: number,
+    data: { segment_type?: string; content?: string }
+): Promise<ScriptSegmentDetailType> {
+    return request({ url: `/api/v1/script-segment/insert-after/${segmentId}`, method: "post", data });
+}

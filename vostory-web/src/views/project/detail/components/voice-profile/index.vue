@@ -68,6 +68,7 @@ import {
 } from "@/config/apis/voice-profile";
 import { getVoiceAssetList, VoiceAssetDetailType } from "@/config/apis/voice-asset";
 import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceAudioBlob } from "@/config/apis/upload";
+import { regenerateByVoiceProfile } from "@/config/apis/tts";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import { IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
 import { cloneDeep } from "lodash-es";
@@ -124,6 +125,13 @@ const tableConfig = computed(() => {
                     label: "情绪音频",
                     handler(row: Record<string, any>) {
                         handleEmotionDrawer(row as VoiceProfileDetailType);
+                    }
+                },
+                {
+                    label: "重新生成",
+                    if: () => hasPermission("tts:synthesize"),
+                    handler(row: Record<string, any>) {
+                        handleRegenerate(row as VoiceProfileDetailType);
                     }
                 },
                 {
@@ -217,6 +225,24 @@ function handleDelete(row: VoiceProfileDetailType) {
             await deleteVoiceProfile(row.id);
             Message.success("删除成功");
             table.value.refresh();
+        }
+    });
+}
+
+function handleRegenerate(row: VoiceProfileDetailType) {
+    Modal.confirm({
+        title: "重新生成配音",
+        content: `将重新生成项目中所有使用声音配置【${row.name}】的角色对应的片段配音（已锁定的片段不受影响）。是否继续？`,
+        okText: "确认生成",
+        cancelText: "取消",
+        onOk: async () => {
+            try {
+                const res = await regenerateByVoiceProfile(row.id);
+                Message.success(`已提交 ${res.total_count} 个片段到生成队列`);
+            } catch (e: any) {
+                const msg = e?.response?.data?.message || e?.message || "重新生成失败";
+                Message.error(msg);
+            }
         }
     });
 }

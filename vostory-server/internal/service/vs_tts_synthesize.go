@@ -49,6 +49,7 @@ type VsTTSSynthesizeService interface {
 	BatchUnlockByChapter(ctx context.Context, chapterID uint64) (int64, error)
 	CancelChapterQueue(ctx context.Context, chapterID uint64) (int64, error)
 	CancelProjectQueue(ctx context.Context, projectID uint64) (int64, error)
+	RegenerateByVoiceProfile(ctx context.Context, voiceProfileID uint64) (*v1.BatchGenerateResponse, error)
 }
 
 func NewVsTTSSynthesizeService(
@@ -601,6 +602,89 @@ func (s *vsTTSSynthesizeService) cancelTaskQueuedSegments(ctx context.Context, t
 		}
 	}
 	return affected, nil
+}
+
+func (s *vsTTSSynthesizeService) RegenerateByVoiceProfile(ctx context.Context, voiceProfileID uint64) (*v1.BatchGenerateResponse, error) {
+	profile, err := s.voiceProfileRepo.FindByID(ctx, voiceProfileID)
+	if err != nil {
+		return nil, fmt.Errorf("声音配置不存在: %w", err)
+	}
+
+	characters, err := s.characterRepo.FindByVoiceProfileID(ctx, profile.VoiceProfileID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+	if len(characters) == 0 {
+		return nil, fmt.Errorf("没有角色绑定了该声音配置")
+	}
+
+	characterIDs := make([]uint64, len(characters))
+	for i, c := range characters {
+		characterIDs[i] = c.CharacterID
+	}
+
+	segments, err := s.segmentRepo.FindByCharacterIDs(ctx, characterIDs)
+	if err != nil {
+		return nil, fmt.Errorf("查询片段失败: %w", err)
+	}
+
+	var eligible []*model.VsScriptSegment
+	for _, seg := range segments {
+		if seg.Status == "queued" || seg.Status == "processing" || seg.Status == "locked" {
+			continue
+		}
+		if seg.Content == "" {
+			continue
+		}
+		eligible = append(eligible, seg)
+	}
+
+	if len(eligible) == 0 {
+		return nil, fmt.Errorf("没有可重新生成的片段（所有片段可能已锁定或为空）")
+	}
+
+	chapterSegMap := make(map[uint64][]uint64)
+	for _, seg := range eligible {
+		chapterSegMap[seg.ChapterID] = append(chapterSegMap[seg.ChapterID], seg.SegmentID)
+	}
+
+	var totalCount int
+	var firstTaskID uint64
+	for chapterID, segIDs := range chapterSegMap {
+		projectID, err := s.getProjectIDByChapter(ctx, chapterID)
+		if err != nil {
+			continue
+		}
+		task := &model.VsGenerationTask{
+			ProjectID:    projectID,
+			ChapterID:    &chapterID,
+			TaskType:     "tts_generate",
+			Status:       "running",
+			TotalBatches: len(segIDs),
+			SegmentIDs:   model.Uint64Array(segIDs),
+		}
+		if err := s.taskRepo.Create(ctx, task); err != nil {
+			continue
+		}
+		if firstTaskID == 0 {
+			firstTaskID = task.TaskID
+		}
+		if err := s.enqueueSegments(ctx, task, segIDs); err != nil {
+			_ = s.taskRepo.UpdateStatus(ctx, task.TaskID, "failed", err.Error())
+			continue
+		}
+		totalCount += len(segIDs)
+	}
+
+	if totalCount == 0 {
+		return nil, fmt.Errorf("任务创建失败")
+	}
+
+	return &v1.BatchGenerateResponse{
+		TaskID:       firstTaskID,
+		TotalCount:   totalCount,
+		SkippedCount: len(segments) - len(eligible),
+	}, nil
 }
 
 func getLoginName(ctx context.Context) string {

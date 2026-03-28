@@ -13,6 +13,7 @@ type VsScriptSegmentService interface {
 	Create(ctx context.Context, request *v1.VsScriptSegmentCreateRequest) error
 	Update(ctx context.Context, request *v1.VsScriptSegmentUpdateRequest) error
 	Delete(ctx context.Context, id uint64) error
+	InsertAfter(ctx context.Context, afterSegmentID uint64, request *v1.VsScriptSegmentInsertRequest) (*v1.VsScriptSegmentDetailResponse, error)
 	FindByID(ctx context.Context, id uint64) (*v1.VsScriptSegmentDetailResponse, error)
 	FindWithPagination(ctx context.Context, query *v1.VsScriptSegmentListQuery) ([]*v1.VsScriptSegmentDetailResponse, int64, error)
 	FindByChapterID(ctx context.Context, chapterID uint64) ([]*v1.VsScriptSegmentDetailResponse, error)
@@ -87,7 +88,58 @@ func (s *vsScriptSegmentService) Update(ctx context.Context, request *v1.VsScrip
 }
 
 func (s *vsScriptSegmentService) Delete(ctx context.Context, id uint64) error {
-	return s.repo.Delete(ctx, id)
+	seg, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("片段不存在")
+	}
+	chapterID := seg.ChapterID
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	if err := s.repo.ReorderSegmentNums(ctx, chapterID); err != nil {
+		return fmt.Errorf("重排序号失败: %w", err)
+	}
+	return nil
+}
+
+func (s *vsScriptSegmentService) InsertAfter(ctx context.Context, afterSegmentID uint64, request *v1.VsScriptSegmentInsertRequest) (*v1.VsScriptSegmentDetailResponse, error) {
+	afterSeg, err := s.repo.FindByID(ctx, afterSegmentID)
+	if err != nil {
+		return nil, fmt.Errorf("目标片段不存在")
+	}
+
+	if err := s.repo.IncrementSegmentNumAfter(ctx, afterSeg.ChapterID, afterSeg.SegmentNum); err != nil {
+		return nil, fmt.Errorf("调整序号失败: %w", err)
+	}
+
+	segType := request.SegmentType
+	if segType == "" {
+		segType = "narration"
+	}
+
+	newSeg := &model.VsScriptSegment{
+		ProjectID:   afterSeg.ProjectID,
+		SceneID:     afterSeg.SceneID,
+		ChapterID:   afterSeg.ChapterID,
+		SegmentNum:  afterSeg.SegmentNum + 1,
+		SegmentType: segType,
+		Content:     request.Content,
+		Status:      "raw",
+		Version:     1,
+		BaseModel: model.BaseModel{
+			CreatedBy: ctx.Value("login_name").(string),
+			DeptID:    ctx.Value("dept_id").(uint),
+		},
+	}
+	if err := s.repo.Create(ctx, newSeg); err != nil {
+		return nil, fmt.Errorf("创建片段失败: %w", err)
+	}
+
+	created, err := s.repo.FindByID(ctx, newSeg.SegmentID)
+	if err != nil {
+		return nil, err
+	}
+	return s.convertToDetailResponse(created), nil
 }
 
 func (s *vsScriptSegmentService) FindByID(ctx context.Context, id uint64) (*v1.VsScriptSegmentDetailResponse, error) {
