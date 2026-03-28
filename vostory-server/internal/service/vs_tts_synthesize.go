@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	v1 "iot-alert-center/api/v1"
+	"iot-alert-center/internal/audio"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/tts"
@@ -150,6 +151,13 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 		return failAndReturn(fmt.Sprintf("TTS 合成失败: %v", err))
 	}
 
+	normalizedData, normErr := audio.NormalizeLoudness(audioData, -16.0)
+	if normErr != nil {
+		s.logger.Warn(fmt.Sprintf("音量归一化失败，使用原始音频: %v", normErr))
+	} else {
+		audioData = normalizedData
+	}
+
 	audioURL, fileSize, err := s.saveAudioFile(segment, audioData)
 	if err != nil {
 		return failAndReturn(fmt.Sprintf("保存音频文件失败: %v", err))
@@ -208,11 +216,8 @@ func (s *vsTTSSynthesizeService) resolveTTSProvider(ctx context.Context, chapter
 func (s *vsTTSSynthesizeService) applyPronunciationDict(ctx context.Context, segment *model.VsScriptSegment) string {
 	text := segment.Content
 
-	projectDicts, _ := s.pronunciationDictRepo.FindByProjectID(ctx, 0)
-	_ = projectDicts
-
-	dicts, err := s.pronunciationDictRepo.FindByProjectID(ctx, segment.ChapterID)
-	if err != nil {
+	dicts, err := s.pronunciationDictRepo.FindByProjectID(ctx, segment.ProjectID)
+	if err != nil || len(dicts) == 0 {
 		return text
 	}
 
