@@ -135,11 +135,15 @@ func (s *vsVoiceMatchService) MatchVoices(ctx context.Context, projectID uint64)
 	voices := make([]voiceInput, len(voiceProfiles))
 	voiceMap := make(map[uint64]*model.VsVoiceProfile, len(voiceProfiles))
 	for i, v := range voiceProfiles {
+		desc := v.Description
+		if desc == "" && v.VoiceAsset != nil {
+			desc = v.VoiceAsset.Description
+		}
 		voices[i] = voiceInput{
 			ID:          v.VoiceProfileID,
 			Name:        v.Name,
 			Gender:      v.Gender,
-			Description: v.Description,
+			Description: desc,
 		}
 		voiceMap[v.VoiceProfileID] = v
 	}

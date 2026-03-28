@@ -97,6 +97,7 @@ func (r *vsVoiceProfileRepository) FindWithPagination(ctx context.Context, query
 func (r *vsVoiceProfileRepository) FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsVoiceProfile, error) {
 	var profiles []*model.VsVoiceProfile
 	if err := r.db.WithContext(ctx).
+		Preload("VoiceAsset").
 		Where("project_id = ? AND status = '0'", projectID).
 		Order("voice_profile_id ASC").Find(&profiles).Error; err != nil {
 		return nil, err
