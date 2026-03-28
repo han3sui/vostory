@@ -70,7 +70,7 @@ export function getReferenceAudioStreamURL(source: ReferenceAudioSource, id: num
  * 通过流接口播放参考音频，返回 Blob URL。
  */
 export async function fetchReferenceAudioBlob(source: ReferenceAudioSource, id: number): Promise<string> {
-    const url = getReferenceAudioStreamURL(source, id);
+    const url = `${getReferenceAudioStreamURL(source, id)}&_t=${Date.now()}`;
     const token = storage.getToken();
     const resp = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
