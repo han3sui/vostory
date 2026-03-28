@@ -33,6 +33,20 @@
                     </template>
                 </a-table-column>
             </template>
+            <template #previewSlot>
+                <a-table-column title="试听">
+                    <template #cell="{ record }">
+                        <a-button v-if="record.voice_profile_id" type="text" size="mini" @click="togglePreview(record)">
+                            <template #icon>
+                                <icon-play-arrow v-if="previewingId !== record.voice_profile_id" />
+                                <icon-pause v-else />
+                            </template>
+                            {{ previewingId === record.voice_profile_id ? "停止" : "试听" }}
+                        </a-button>
+                        <span v-else style="color: var(--color-text-3)">-</span>
+                    </template>
+                </a-table-column>
+            </template>
         </arco-table>
         <a-modal
             v-model:visible="showSmartImportModal"
@@ -76,6 +90,8 @@ import {
     CharacterDetailType
 } from "@/config/apis/character";
 import { getVoiceProfilesByProject, VoiceProfileOptionType } from "@/config/apis/voice-profile";
+import { fetchReferenceAudioBlob } from "@/config/apis/upload";
+import { IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 
@@ -140,7 +156,7 @@ const tableConfig = computed(() => {
             tableHelper.slot("levelSlot"),
             tableHelper.default("描述", "description"),
             tableHelper.default("声音配置", "voice_profile_name"),
-            tableHelper.default("排序", "sort_order"),
+            tableHelper.slot("previewSlot"),
             tableHelper.slot("switchSlot"),
             tableHelper.date("更新时间", "updated_at", { format: "YYYY-MM-DD HH:mm:ss" }),
             tableHelper.btns("操作", [
@@ -311,6 +327,63 @@ async function handleSmartImport(done: (closed: boolean) => void) {
         smartImporting.value = false;
     }
 }
+
+const previewingId = ref<number | null>(null);
+const previewLoadingId = ref<number | null>(null);
+let previewAudioEl: HTMLAudioElement | null = null;
+let previewBlobURL: string | null = null;
+
+function stopPreview() {
+    if (previewAudioEl) {
+        previewAudioEl.pause();
+        previewAudioEl = null;
+    }
+    if (previewBlobURL) {
+        URL.revokeObjectURL(previewBlobURL);
+        previewBlobURL = null;
+    }
+    previewingId.value = null;
+    previewLoadingId.value = null;
+}
+
+async function togglePreview(row: CharacterDetailType) {
+    const vpId = row.voice_profile_id;
+    if (!vpId) return;
+
+    if (previewingId.value === vpId) {
+        stopPreview();
+        return;
+    }
+
+    stopPreview();
+    previewLoadingId.value = vpId;
+
+    try {
+        const blobURL = await fetchReferenceAudioBlob("voice-profile", vpId);
+        if (previewLoadingId.value !== vpId) {
+            URL.revokeObjectURL(blobURL);
+            return;
+        }
+
+        previewBlobURL = blobURL;
+        const audio = new Audio(blobURL);
+        previewAudioEl = audio;
+        previewingId.value = vpId;
+        previewLoadingId.value = null;
+
+        audio.addEventListener("ended", () => stopPreview());
+        audio.addEventListener("error", () => {
+            Message.warning("音频播放失败");
+            stopPreview();
+        });
+        await audio.play();
+    } catch {
+        Message.warning("音频加载失败");
+        stopPreview();
+    }
+}
+
+onUnmounted(stopPreview);
 
 async function handleToggle(row: CharacterDetailType) {
     try {
