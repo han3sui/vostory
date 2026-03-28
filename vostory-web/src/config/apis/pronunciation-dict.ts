@@ -2,10 +2,7 @@ import request from "@/packages/request";
 
 export type PronunciationDictDetailType = {
     id: number;
-    workspace_id: number;
-    workspace_name: string;
-    project_id: number | null;
-    project_name: string;
+    project_id: number;
     word: string;
     phoneme: string;
     remark: string;
@@ -16,7 +13,6 @@ export type PronunciationDictDetailType = {
 export type PronunciationDictListParams = {
     page?: number;
     size?: number;
-    workspace_id?: number;
     project_id?: number;
     word?: string;
 };
@@ -44,11 +40,4 @@ export function updatePronunciationDict(data: Partial<PronunciationDictDetailTyp
 
 export function deletePronunciationDict(id: number) {
     return request({ url: `/api/v1/pronunciation-dict/${id}`, method: "delete" });
-}
-
-export function getEffectivePronunciationDict(
-    workspaceId: number,
-    projectId: number
-): Promise<PronunciationDictDetailType[]> {
-    return request({ url: `/api/v1/common/pronunciation-dict/${workspaceId}/${projectId}` });
 }

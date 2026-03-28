@@ -14,7 +14,6 @@ type VsPronunciationDictRepository interface {
 	FindByID(ctx context.Context, id uint64) (*model.VsPronunciationDict, error)
 	FindWithPagination(ctx context.Context, query *v1.VsPronunciationDictListQuery) ([]*model.VsPronunciationDict, int64, error)
 	FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsPronunciationDict, error)
-	FindGlobalByWorkspaceID(ctx context.Context, workspaceID uint64) ([]*model.VsPronunciationDict, error)
 }
 
 func NewVsPronunciationDictRepository(repository *Repository) VsPronunciationDictRepository {
@@ -32,7 +31,7 @@ func (r *vsPronunciationDictRepository) Create(ctx context.Context, dict *model.
 func (r *vsPronunciationDictRepository) Update(ctx context.Context, dict *model.VsPronunciationDict) error {
 	return r.db.WithContext(ctx).Model(dict).
 		Where("dict_id = ?", dict.DictID).
-		Omit("created_by", "created_at", "dict_id", "workspace_id", "project_id").
+		Omit("created_by", "created_at", "dict_id", "project_id").
 		Updates(dict).Error
 }
 
@@ -42,7 +41,7 @@ func (r *vsPronunciationDictRepository) Delete(ctx context.Context, id uint64) e
 
 func (r *vsPronunciationDictRepository) FindByID(ctx context.Context, id uint64) (*model.VsPronunciationDict, error) {
 	var dict model.VsPronunciationDict
-	if err := r.db.WithContext(ctx).Preload("Project").Preload("Workspace").
+	if err := r.db.WithContext(ctx).
 		Where("dict_id = ?", id).First(&dict).Error; err != nil {
 		return nil, err
 	}
@@ -53,13 +52,8 @@ func (r *vsPronunciationDictRepository) FindWithPagination(ctx context.Context, 
 	var dicts []*model.VsPronunciationDict
 	db := r.db.WithContext(ctx).Model(&model.VsPronunciationDict{})
 
-	if query.WorkspaceID > 0 {
-		db = db.Where("workspace_id = ?", query.WorkspaceID)
-	}
 	if query.ProjectID > 0 {
 		db = db.Where("project_id = ?", query.ProjectID)
-	} else if query.ProjectID == 0 {
-		db = db.Where("project_id IS NULL")
 	}
 	if query.Word != "" {
 		db = db.Where("word LIKE ?", "%"+query.Word+"%")
@@ -74,8 +68,7 @@ func (r *vsPronunciationDictRepository) FindWithPagination(ctx context.Context, 
 		db = db.Scopes(model.Paginate(query.Page, query.Size))
 	}
 
-	if err := db.Preload("Project").Preload("Workspace").
-		Order("dict_id DESC").Find(&dicts).Error; err != nil {
+	if err := db.Order("dict_id DESC").Find(&dicts).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -86,16 +79,6 @@ func (r *vsPronunciationDictRepository) FindByProjectID(ctx context.Context, pro
 	var dicts []*model.VsPronunciationDict
 	if err := r.db.WithContext(ctx).
 		Where("project_id = ?", projectID).
-		Order("word ASC").Find(&dicts).Error; err != nil {
-		return nil, err
-	}
-	return dicts, nil
-}
-
-func (r *vsPronunciationDictRepository) FindGlobalByWorkspaceID(ctx context.Context, workspaceID uint64) ([]*model.VsPronunciationDict, error) {
-	var dicts []*model.VsPronunciationDict
-	if err := r.db.WithContext(ctx).
-		Where("workspace_id = ? AND project_id IS NULL", workspaceID).
 		Order("word ASC").Find(&dicts).Error; err != nil {
 		return nil, err
 	}

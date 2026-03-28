@@ -4,16 +4,6 @@
             <template #tlBtns>
                 <arco-form v-model="filterData" :config="getFilterConfig" layout="row"></arco-form>
             </template>
-            <template #scopeSlot>
-                <a-table-column title="范围">
-                    <template #cell="{ record }">
-                        <a-tag v-if="record.project_id" color="blue" size="small">
-                            项目级 · {{ record.project_name }}
-                        </a-tag>
-                        <a-tag v-else color="orange" size="small">全局</a-tag>
-                    </template>
-                </a-table-column>
-            </template>
         </arco-table>
     </div>
 </template>
@@ -57,7 +47,6 @@ const tableConfig = computed(() => {
         columns: [
             tableHelper.default("原始词", "word"),
             tableHelper.default("发音标注", "phoneme"),
-            tableHelper.slot("scopeSlot"),
             tableHelper.default("备注", "remark"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
             tableHelper.btns("操作", [

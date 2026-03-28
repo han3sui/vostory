@@ -119,7 +119,6 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/script-segment/chapter/:chapter_id", vsScriptSegmentHandler.GetByChapter)
 			noStrictAuthRouter.GET("/common/character/project/:project_id", vsCharacterHandler.GetByProject)
 			noStrictAuthRouter.GET("/common/voice-profile/project/:project_id", vsVoiceProfileHandler.GetByProject)
-			noStrictAuthRouter.GET("/common/pronunciation-dict/:workspace_id/:project_id", vsPronunciationDictHandler.GetEffective)
 			noStrictAuthRouter.GET("/common/voice-emotion/profile/:voice_profile_id", vsVoiceEmotionHandler.GetByVoiceProfile)
 			noStrictAuthRouter.GET("/common/voice-asset/options", vsVoiceAssetHandler.GetAllEnabled)
 			noStrictAuthRouter.POST("/common/upload/reference-audio", vsCommonUploadHandler.UploadReferenceAudio)

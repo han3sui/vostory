@@ -15,7 +15,6 @@ type VsPronunciationDictService interface {
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*v1.VsPronunciationDictDetailResponse, error)
 	FindWithPagination(ctx context.Context, query *v1.VsPronunciationDictListQuery) ([]*v1.VsPronunciationDictDetailResponse, int64, error)
-	FindEffective(ctx context.Context, workspaceID, projectID uint64) ([]*v1.VsPronunciationDictDetailResponse, error)
 }
 
 func NewVsPronunciationDictService(
@@ -32,11 +31,10 @@ type vsPronunciationDictService struct {
 
 func (s *vsPronunciationDictService) Create(ctx context.Context, request *v1.VsPronunciationDictCreateRequest) error {
 	dict := &model.VsPronunciationDict{
-		WorkspaceID: request.WorkspaceID,
-		ProjectID:   request.ProjectID,
-		Word:        request.Word,
-		Phoneme:     request.Phoneme,
-		Remark:      request.Remark,
+		ProjectID: request.ProjectID,
+		Word:      request.Word,
+		Phoneme:   request.Phoneme,
+		Remark:    request.Remark,
 		BaseModel: model.BaseModel{
 			CreatedBy: ctx.Value("login_name").(string),
 			DeptID:    ctx.Value("dept_id").(uint),
@@ -85,51 +83,14 @@ func (s *vsPronunciationDictService) FindWithPagination(ctx context.Context, que
 	return responses, total, nil
 }
 
-// FindEffective 获取项目的有效词典（项目级 + 全局级合并，项目级优先）
-func (s *vsPronunciationDictService) FindEffective(ctx context.Context, workspaceID, projectID uint64) ([]*v1.VsPronunciationDictDetailResponse, error) {
-	projectDicts, err := s.repo.FindByProjectID(ctx, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	globalDicts, err := s.repo.FindGlobalByWorkspaceID(ctx, workspaceID)
-	if err != nil {
-		return nil, err
-	}
-
-	wordSet := make(map[string]bool)
-	var result []*v1.VsPronunciationDictDetailResponse
-
-	for _, d := range projectDicts {
-		wordSet[d.Word] = true
-		result = append(result, s.convertToDetailResponse(d))
-	}
-
-	for _, d := range globalDicts {
-		if !wordSet[d.Word] {
-			result = append(result, s.convertToDetailResponse(d))
-		}
-	}
-
-	return result, nil
-}
-
 func (s *vsPronunciationDictService) convertToDetailResponse(d *model.VsPronunciationDict) *v1.VsPronunciationDictDetailResponse {
-	resp := &v1.VsPronunciationDictDetailResponse{
-		ID:          d.DictID,
-		WorkspaceID: d.WorkspaceID,
-		ProjectID:   d.ProjectID,
-		Word:        d.Word,
-		Phoneme:     d.Phoneme,
-		Remark:      d.Remark,
-		CreatedAt:   d.CreatedAt,
-		UpdatedAt:   d.UpdatedAt,
+	return &v1.VsPronunciationDictDetailResponse{
+		ID:        d.DictID,
+		ProjectID: d.ProjectID,
+		Word:      d.Word,
+		Phoneme:   d.Phoneme,
+		Remark:    d.Remark,
+		CreatedAt: d.CreatedAt,
+		UpdatedAt: d.UpdatedAt,
 	}
-	if d.Project != nil {
-		resp.ProjectName = d.Project.Name
-	}
-	if d.Workspace != nil {
-		resp.WorkspaceName = d.Workspace.Name
-	}
-	return resp
 }

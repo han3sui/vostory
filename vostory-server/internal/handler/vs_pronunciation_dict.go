@@ -48,8 +48,7 @@ func (h *VsPronunciationDictHandler) Get(ctx *gin.Context) {
 // @Tags         发音词典
 // @Param        page         query     int     false  "当前页"
 // @Param        size         query     int     false  "每页数量"
-// @Param        workspace_id query     int     false  "工作空间ID"
-// @Param        project_id   query     int     false  "项目ID（0=全局，>0=项目级，-1=全部）"
+// @Param        project_id   query     int     true   "项目ID"
 // @Param        word         query     string  false  "原始词"
 // @Success      200          {object}  v1.Response
 // @Failure      500          {object}  v1.Response
@@ -60,8 +59,7 @@ func (h *VsPronunciationDictHandler) List(ctx *gin.Context) {
 	query.BasePageQuery = &v1.BasePageQuery{}
 	query.Page = cast.ToInt(ctx.Query("page"))
 	query.Size = cast.ToInt(ctx.Query("size"))
-	query.WorkspaceID = cast.ToUint64(ctx.Query("workspace_id"))
-	query.ProjectID = cast.ToInt64(ctx.DefaultQuery("project_id", "-1"))
+	query.ProjectID = cast.ToUint64(ctx.Query("project_id"))
 	query.Word = ctx.Query("word")
 
 	dicts, total, err := h.svc.FindWithPagination(ctx, query)
@@ -145,30 +143,4 @@ func (h *VsPronunciationDictHandler) Delete(ctx *gin.Context) {
 		return
 	}
 	v1.HandleSuccess(ctx, nil)
-}
-
-// GetEffective godoc
-// @Summary      获取项目有效发音词典
-// @Description  获取项目级+全局级合并后的有效发音词典（项目级优先覆盖全局级）
-// @Tags         发音词典
-// @Param        workspace_id  path      int  true  "工作空间ID"
-// @Param        project_id    path      int  true  "项目ID"
-// @Success      200           {object}  v1.Response
-// @Failure      400           {object}  v1.Response
-// @Failure      500           {object}  v1.Response
-// @Router       /api/v1/common/pronunciation-dict/{workspace_id}/{project_id} [get]
-// @Id        common:pronunciation-dict:effective
-func (h *VsPronunciationDictHandler) GetEffective(ctx *gin.Context) {
-	workspaceID := cast.ToUint64(ctx.Param("workspace_id"))
-	projectID := cast.ToUint64(ctx.Param("project_id"))
-	if workspaceID == 0 || projectID == 0 {
-		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "workspace_id and project_id are required"), nil)
-		return
-	}
-	dicts, err := h.svc.FindEffective(ctx, workspaceID, projectID)
-	if err != nil {
-		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
-		return
-	}
-	v1.HandleSuccess(ctx, dicts)
 }
