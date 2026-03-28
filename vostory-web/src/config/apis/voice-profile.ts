@@ -63,6 +63,10 @@ export function disableVoiceProfile(id: number) {
     return request({ url: `/api/v1/voice-profile/${id}/disable`, method: "put" });
 }
 
+export function importVoiceProfiles(data: { project_id: number; voice_asset_ids: number[] }): Promise<{ imported: number }> {
+    return request({ url: "/api/v1/voice-profile/import", method: "post", data });
+}
+
 export function getVoiceProfilesByProject(projectId: number): Promise<VoiceProfileOptionType[]> {
     return request({ url: `/api/v1/common/voice-profile/project/${projectId}` });
 }

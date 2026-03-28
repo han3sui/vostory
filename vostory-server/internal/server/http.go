@@ -303,6 +303,7 @@ func NewHTTPServer(
 				voiceProfileRouter.GET("/:id", vsVoiceProfileHandler.Get)
 				voiceProfileRouter.GET("/list", vsVoiceProfileHandler.List)
 				voiceProfileRouter.POST("", vsVoiceProfileHandler.Create)
+				voiceProfileRouter.POST("/import", vsVoiceProfileHandler.Import)
 				voiceProfileRouter.PUT("/:id", vsVoiceProfileHandler.Update)
 				voiceProfileRouter.DELETE("/:id", vsVoiceProfileHandler.Delete)
 				voiceProfileRouter.PUT("/:id/enable", vsVoiceProfileHandler.Enable)

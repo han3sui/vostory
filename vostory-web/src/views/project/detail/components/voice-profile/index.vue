@@ -63,6 +63,7 @@ import {
     deleteVoiceProfile,
     enableVoiceProfile,
     disableVoiceProfile,
+    importVoiceProfiles,
     VoiceProfileDetailType
 } from "@/config/apis/voice-profile";
 import { getVoiceAssetList, VoiceAssetDetailType } from "@/config/apis/voice-asset";
@@ -267,24 +268,15 @@ function handleOpenImport() {
             }
         },
         ok: async (selected: VoiceAssetDetailType[]) => {
-            let successCount = 0;
-            for (const asset of selected) {
-                try {
-                    await addVoiceProfile({
-                        project_id: props.projectId,
-                        name: asset.name,
-                        gender: asset.gender,
-                        description: asset.description,
-                        voice_asset_id: asset.id,
-                        reference_audio_url: asset.reference_audio_url,
-                        reference_text: asset.reference_text
-                    });
-                    successCount++;
-                } catch {
-                    // skip failed
-                }
+            if (selected.length === 0) {
+                Message.warning("请选择要导入的音色");
+                return;
             }
-            Message.success(`成功导入 ${successCount} 个音色配置`);
+            const res = await importVoiceProfiles({
+                project_id: props.projectId,
+                voice_asset_ids: selected.map((a) => a.id)
+            });
+            Message.success(`成功导入 ${res.imported} 个音色配置`);
             table.value.refresh();
         }
     });

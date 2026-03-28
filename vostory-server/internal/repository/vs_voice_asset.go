@@ -12,6 +12,7 @@ type VsVoiceAssetRepository interface {
 	Update(ctx context.Context, asset *model.VsVoiceAsset) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsVoiceAsset, error)
+	FindByIDs(ctx context.Context, ids []uint64) ([]*model.VsVoiceAsset, error)
 	FindWithPagination(ctx context.Context, query *v1.VsVoiceAssetListQuery) ([]*model.VsVoiceAsset, int64, error)
 	FindAllEnabled(ctx context.Context) ([]*model.VsVoiceAsset, error)
 }
@@ -46,6 +47,19 @@ func (r *vsVoiceAssetRepository) FindByID(ctx context.Context, id uint64) (*mode
 		return nil, err
 	}
 	return &asset, nil
+}
+
+func (r *vsVoiceAssetRepository) FindByIDs(ctx context.Context, ids []uint64) ([]*model.VsVoiceAsset, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var assets []*model.VsVoiceAsset
+	if err := r.db.WithContext(ctx).
+		Where("voice_asset_id IN ? AND status = '0'", ids).
+		Find(&assets).Error; err != nil {
+		return nil, err
+	}
+	return assets, nil
 }
 
 func (r *vsVoiceAssetRepository) FindWithPagination(ctx context.Context, query *v1.VsVoiceAssetListQuery) ([]*model.VsVoiceAsset, int64, error) {

@@ -48,6 +48,12 @@ type VsVoiceProfileDetailResponse struct {
 	UpdatedAt         time.Time              `json:"updated_at"`
 }
 
+// VsVoiceProfileImportRequest 从音色库批量导入请求
+type VsVoiceProfileImportRequest struct {
+	ProjectID     uint64   `json:"project_id" binding:"required"`      // 目标项目
+	VoiceAssetIDs []uint64 `json:"voice_asset_ids" binding:"required"` // 音色资产ID列表
+}
+
 // VsVoiceProfileOptionResponse 声音配置选项（下拉选择用）
 type VsVoiceProfileOptionResponse struct {
 	ID   uint64 `json:"id"`

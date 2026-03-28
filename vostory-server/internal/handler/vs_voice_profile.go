@@ -177,6 +177,32 @@ func (h *VsVoiceProfileHandler) Disable(ctx *gin.Context) {
 	v1.HandleSuccess(ctx, nil)
 }
 
+// Import godoc
+// @Summary      从音色库批量导入声音配置
+// @Description  根据音色资产ID列表批量创建声音配置
+// @Tags         声音配置
+// @Accept       json
+// @Produce      json
+// @Param        body  body      v1.VsVoiceProfileImportRequest  true  "导入请求"
+// @Success      200   {object}  v1.Response
+// @Failure      400   {object}  v1.Response
+// @Failure      500   {object}  v1.Response
+// @Router       /api/v1/voice-profile/import [post]
+// @Id        voice-profile:import
+func (h *VsVoiceProfileHandler) Import(ctx *gin.Context) {
+	var request v1.VsVoiceProfileImportRequest
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
+		return
+	}
+	count, err := h.svc.ImportFromAssets(ctx, &request)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, map[string]int{"imported": count})
+}
+
 // GetByProject godoc
 // @Summary      获取项目下的声音配置选项
 // @Description  获取指定项目下启用的声音配置列表（下拉选择用）

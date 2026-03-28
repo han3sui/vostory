@@ -18,18 +18,21 @@ type VsVoiceProfileService interface {
 	FindByProjectID(ctx context.Context, projectID uint64) ([]*v1.VsVoiceProfileOptionResponse, error)
 	Enable(ctx context.Context, id uint64) error
 	Disable(ctx context.Context, id uint64) error
+	ImportFromAssets(ctx context.Context, request *v1.VsVoiceProfileImportRequest) (int, error)
 }
 
 func NewVsVoiceProfileService(
 	service *Service,
 	repo repository.VsVoiceProfileRepository,
+	voiceAssetRepo repository.VsVoiceAssetRepository,
 ) VsVoiceProfileService {
-	return &vsVoiceProfileService{Service: service, repo: repo}
+	return &vsVoiceProfileService{Service: service, repo: repo, voiceAssetRepo: voiceAssetRepo}
 }
 
 type vsVoiceProfileService struct {
 	*Service
-	repo repository.VsVoiceProfileRepository
+	repo           repository.VsVoiceProfileRepository
+	voiceAssetRepo repository.VsVoiceAssetRepository
 }
 
 func (s *vsVoiceProfileService) Create(ctx context.Context, request *v1.VsVoiceProfileCreateRequest) error {
@@ -134,6 +137,42 @@ func (s *vsVoiceProfileService) Disable(ctx context.Context, id uint64) error {
 	profile.Status = "1"
 	profile.UpdatedBy = ctx.Value("login_name").(string)
 	return s.repo.Update(ctx, profile)
+}
+
+func (s *vsVoiceProfileService) ImportFromAssets(ctx context.Context, request *v1.VsVoiceProfileImportRequest) (int, error) {
+	assets, err := s.voiceAssetRepo.FindByIDs(ctx, request.VoiceAssetIDs)
+	if err != nil {
+		return 0, fmt.Errorf("查询音色资产失败: %w", err)
+	}
+	if len(assets) == 0 {
+		return 0, nil
+	}
+
+	loginName := ctx.Value("login_name").(string)
+	deptID := ctx.Value("dept_id").(uint)
+
+	profiles := make([]*model.VsVoiceProfile, 0, len(assets))
+	for _, asset := range assets {
+		profiles = append(profiles, &model.VsVoiceProfile{
+			ProjectID:         request.ProjectID,
+			Name:              asset.Name,
+			Gender:            asset.Gender,
+			Description:       asset.Description,
+			VoiceAssetID:      &asset.VoiceAssetID,
+			ReferenceAudioURL: asset.ReferenceAudioURL,
+			ReferenceText:     asset.ReferenceText,
+			Status:            "0",
+			BaseModel: model.BaseModel{
+				CreatedBy: loginName,
+				DeptID:    deptID,
+			},
+		})
+	}
+
+	if err := s.repo.BatchCreate(ctx, profiles); err != nil {
+		return 0, fmt.Errorf("批量创建声音配置失败: %w", err)
+	}
+	return len(profiles), nil
 }
 
 func (s *vsVoiceProfileService) convertToDetailResponse(p *model.VsVoiceProfile) *v1.VsVoiceProfileDetailResponse {

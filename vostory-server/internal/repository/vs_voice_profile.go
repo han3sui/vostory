@@ -9,6 +9,7 @@ import (
 
 type VsVoiceProfileRepository interface {
 	Create(ctx context.Context, profile *model.VsVoiceProfile) error
+	BatchCreate(ctx context.Context, profiles []*model.VsVoiceProfile) error
 	Update(ctx context.Context, profile *model.VsVoiceProfile) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsVoiceProfile, error)
@@ -27,6 +28,13 @@ type vsVoiceProfileRepository struct {
 
 func (r *vsVoiceProfileRepository) Create(ctx context.Context, profile *model.VsVoiceProfile) error {
 	return r.db.WithContext(ctx).Create(profile).Error
+}
+
+func (r *vsVoiceProfileRepository) BatchCreate(ctx context.Context, profiles []*model.VsVoiceProfile) error {
+	if len(profiles) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Create(&profiles).Error
 }
 
 func (r *vsVoiceProfileRepository) Update(ctx context.Context, profile *model.VsVoiceProfile) error {
