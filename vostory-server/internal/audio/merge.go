@@ -52,9 +52,10 @@ func MergeAudioFiles(inputPaths []string, outputPath string, format string) erro
 	args := []string{"-y", "-f", "concat", "-safe", "0", "-i", listPath}
 	switch format {
 	case "mp3":
-		args = append(args, "-codec:a", "libmp3lame", "-q:a", "2")
+		args = append(args, "-ac", "1", "-ar", "24000", "-codec:a", "libmp3lame", "-b:a", "128k")
 	default:
-		args = append(args, "-codec:a", "pcm_s16le")
+		// WAV: 源文件已经是 24kHz/mono/pcm_s16le，直接 stream copy 避免重编码
+		args = append(args, "-c", "copy")
 	}
 	args = append(args, outputPath)
 

@@ -141,3 +141,7 @@ export function getExportDownloadURL(exportJobId: number): string {
 export function regenerateByVoiceProfile(voiceProfileId: number): Promise<BatchGenerateResult> {
     return request({ url: `/api/v1/tts/voice-profile/${voiceProfileId}/regenerate`, method: "post" });
 }
+
+export function regenerateByCharacter(characterId: number): Promise<BatchGenerateResult> {
+    return request({ url: `/api/v1/tts/character/${characterId}/regenerate`, method: "post" });
+}

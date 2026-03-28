@@ -91,6 +91,7 @@ import {
 } from "@/config/apis/character";
 import { getVoiceProfilesByProject, VoiceProfileOptionType } from "@/config/apis/voice-profile";
 import { fetchReferenceAudioBlob } from "@/config/apis/upload";
+import { regenerateByCharacter } from "@/config/apis/tts";
 import { IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
@@ -135,8 +136,8 @@ watch(() => props.projectId, loadVoiceProfiles);
 const getFilterConfig = computed(() => {
     return [
         formHelper.input("角色名称", "name", { span: 5, debounce: 500 }),
-        formHelper.select("层级", "level", LEVELS, { span: 4 }),
-        formHelper.select("性别", "gender", GENDERS, { span: 4 })
+        formHelper.select("层级", "level", LEVELS, { span: 5 }),
+        formHelper.select("性别", "gender", GENDERS, { span: 5 })
     ];
 });
 
@@ -148,7 +149,7 @@ const tableConfig = computed(() => {
         maxHeight: "auto",
         columns: [
             tableHelper.default("角色名称", "name"),
-            tableHelper.slot("aliasSlot"),
+            // tableHelper.slot("aliasSlot"),
             tableHelper.status("性别", "gender", (item: any) => {
                 const found = GENDERS.find((g) => g.value === item.gender);
                 return { text: found?.label || item.gender, status: "normal" };
@@ -159,28 +160,39 @@ const tableConfig = computed(() => {
             tableHelper.slot("previewSlot"),
             tableHelper.slot("switchSlot"),
             tableHelper.date("更新时间", "updated_at", { format: "YYYY-MM-DD HH:mm:ss" }),
-            tableHelper.btns("操作", [
-                {
-                    label: "编辑",
-                    if: () => hasPermission("character:edit"),
-                    handler: onEdit
-                },
-                {
-                    label: "删除",
-                    status: "danger",
-                    if: () => hasPermission("character:remove"),
-                    handler(row: Record<string, any>) {
-                        Modal.confirm({
-                            title: "删除",
-                            content: `确认删除角色【${row.name}】？`,
-                            onBeforeOk: async () => {
-                                await deleteCharacter(row.id);
-                                table.value.refresh();
-                            }
-                        });
+            tableHelper.btns(
+                "操作",
+                [
+                    {
+                        label: "编辑",
+                        if: () => hasPermission("character:edit"),
+                        handler: onEdit
+                    },
+                    {
+                        label: "重新生成配音",
+                        if: (row: Record<string, any>) => hasPermission("character:edit") && !!row.voice_profile_id,
+                        handler: handleRegenerate
+                    },
+                    {
+                        label: "删除",
+                        status: "danger",
+                        if: () => hasPermission("character:remove"),
+                        handler(row: Record<string, any>) {
+                            Modal.confirm({
+                                title: "删除",
+                                content: `确认删除角色【${row.name}】？`,
+                                onBeforeOk: async () => {
+                                    await deleteCharacter(row.id);
+                                    table.value.refresh();
+                                }
+                            });
+                        }
                     }
+                ],
+                {
+                    width: 250
                 }
-            ])
+            )
         ],
         trBtns: [
             {
@@ -384,6 +396,26 @@ async function togglePreview(row: CharacterDetailType) {
 }
 
 onUnmounted(stopPreview);
+
+function handleRegenerate(row: Record<string, any>) {
+    Modal.confirm({
+        title: "重新生成配音",
+        content: `确认重新生成角色【${row.name}】的所有配音？已锁定的片段将被跳过。`,
+        okText: "确认生成",
+        cancelText: "取消",
+        onBeforeOk: async () => {
+            try {
+                const res = await regenerateByCharacter(row.id);
+                const parts = [`已提交 ${res.total_count} 个片段`];
+                if (res.skipped_count > 0) parts.push(`跳过 ${res.skipped_count} 个`);
+                Message.success(parts.join("，"));
+            } catch (e: any) {
+                Message.error(e?.message || "重新生成失败");
+                throw e;
+            }
+        }
+    });
+}
 
 async function handleToggle(row: CharacterDetailType) {
     try {

@@ -116,40 +116,46 @@ const tableConfig = computed(() => {
                 return { text: found?.label || item.gender || "-", status: "normal" };
             }),
             tableHelper.default("描述", "description"),
-            tableHelper.default("参考文本", "reference_text"),
+            // tableHelper.default("参考文本", "reference_text"),
             tableHelper.slot("previewSlot"),
             tableHelper.slot("statusSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
-            tableHelper.btns("操作", [
-                {
-                    label: "情绪音频",
-                    handler(row: Record<string, any>) {
-                        handleEmotionDrawer(row as VoiceProfileDetailType);
+            tableHelper.btns(
+                "操作",
+                [
+                    {
+                        label: "情绪音频",
+                        handler(row: Record<string, any>) {
+                            handleEmotionDrawer(row as VoiceProfileDetailType);
+                        }
+                    },
+                    {
+                        label: "重新生成",
+                        if: () => hasPermission("tts:synthesize"),
+                        handler(row: Record<string, any>) {
+                            handleRegenerate(row as VoiceProfileDetailType);
+                        }
+                    },
+                    {
+                        label: "编辑",
+                        if: () => hasPermission("voice-profile:edit"),
+                        handler(row: Record<string, any>) {
+                            handleEdit(row as VoiceProfileDetailType);
+                        }
+                    },
+                    {
+                        label: "删除",
+                        status: "danger",
+                        if: () => hasPermission("voice-profile:remove"),
+                        handler(row: Record<string, any>) {
+                            handleDelete(row as VoiceProfileDetailType);
+                        }
                     }
-                },
+                ],
                 {
-                    label: "重新生成",
-                    if: () => hasPermission("tts:synthesize"),
-                    handler(row: Record<string, any>) {
-                        handleRegenerate(row as VoiceProfileDetailType);
-                    }
-                },
-                {
-                    label: "编辑",
-                    if: () => hasPermission("voice-profile:edit"),
-                    handler(row: Record<string, any>) {
-                        handleEdit(row as VoiceProfileDetailType);
-                    }
-                },
-                {
-                    label: "删除",
-                    status: "danger",
-                    if: () => hasPermission("voice-profile:remove"),
-                    handler(row: Record<string, any>) {
-                        handleDelete(row as VoiceProfileDetailType);
-                    }
+                    width: 300
                 }
-            ])
+            )
         ]
     });
 });

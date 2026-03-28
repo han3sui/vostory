@@ -50,6 +50,7 @@ type VsTTSSynthesizeService interface {
 	CancelChapterQueue(ctx context.Context, chapterID uint64) (int64, error)
 	CancelProjectQueue(ctx context.Context, projectID uint64) (int64, error)
 	RegenerateByVoiceProfile(ctx context.Context, voiceProfileID uint64) (*v1.BatchGenerateResponse, error)
+	RegenerateByCharacter(ctx context.Context, characterID uint64) (*v1.BatchGenerateResponse, error)
 }
 
 func NewVsTTSSynthesizeService(
@@ -623,6 +624,18 @@ func (s *vsTTSSynthesizeService) RegenerateByVoiceProfile(ctx context.Context, v
 		characterIDs[i] = c.CharacterID
 	}
 
+	return s.regenerateByCharacterIDs(ctx, characterIDs)
+}
+
+func (s *vsTTSSynthesizeService) RegenerateByCharacter(ctx context.Context, characterID uint64) (*v1.BatchGenerateResponse, error) {
+	_, err := s.characterRepo.FindByID(ctx, characterID)
+	if err != nil {
+		return nil, fmt.Errorf("角色不存在: %w", err)
+	}
+	return s.regenerateByCharacterIDs(ctx, []uint64{characterID})
+}
+
+func (s *vsTTSSynthesizeService) regenerateByCharacterIDs(ctx context.Context, characterIDs []uint64) (*v1.BatchGenerateResponse, error) {
 	segments, err := s.segmentRepo.FindByCharacterIDs(ctx, characterIDs)
 	if err != nil {
 		return nil, fmt.Errorf("查询片段失败: %w", err)

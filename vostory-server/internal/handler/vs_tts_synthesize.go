@@ -417,3 +417,28 @@ func (h *VsTTSSynthesizeHandler) RegenerateByVoiceProfile(ctx *gin.Context) {
 	}
 	v1.HandleSuccess(ctx, result)
 }
+
+// RegenerateByCharacter godoc
+// @Summary      按角色重新生成所有配音
+// @Description  重新生成整个项目中指定角色的所有片段配音（已锁定的片段除外）
+// @Tags         TTS合成
+// @Param        character_id  path  int  true  "角色ID"
+// @Success      200  {object}  v1.Response
+// @Failure      400  {object}  v1.Response
+// @Failure      500  {object}  v1.Response
+// @Router       /api/v1/tts/character/{character_id}/regenerate [post]
+// @Id        tts:regenerateByCharacter
+func (h *VsTTSSynthesizeHandler) RegenerateByCharacter(ctx *gin.Context) {
+	characterID := cast.ToUint64(ctx.Param("character_id"))
+	if characterID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "character_id is required"), nil)
+		return
+	}
+
+	result, err := h.svc.RegenerateByCharacter(ctx, characterID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, result)
+}

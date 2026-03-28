@@ -34,6 +34,7 @@ func NormalizeLoudness(inputData []byte, targetLUFS float64) ([]byte, error) {
 		"-y",
 		"-i", inPath,
 		"-af", filter,
+		"-ar", "24000", "-ac", "1",
 		outPath,
 	)
 	output, err := cmd.CombinedOutput()

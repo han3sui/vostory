@@ -353,6 +353,7 @@ func NewHTTPServer(
 				ttsRouter.GET("/export/:export_job_id", vsExportJobHandler.GetExportJob)
 				ttsRouter.GET("/export/:export_job_id/download", vsExportJobHandler.DownloadExport)
 				ttsRouter.POST("/voice-profile/:voice_profile_id/regenerate", vsTTSSynthesizeHandler.RegenerateByVoiceProfile)
+				ttsRouter.POST("/character/:character_id/regenerate", vsTTSSynthesizeHandler.RegenerateByCharacter)
 			}
 
 			pronunciationDictRouter := strictAuthRouter.Group("/pronunciation-dict")
