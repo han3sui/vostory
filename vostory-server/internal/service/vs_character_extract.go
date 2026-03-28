@@ -228,26 +228,22 @@ func (s *vsCharacterExtractService) saveCharacters(ctx context.Context, projectI
 		}
 
 		if existChar, ok := existingMap[strings.ToLower(ch.Name)]; ok {
-			updated := false
+			fields := map[string]interface{}{}
 			if existChar.Gender == "unknown" && normalizeGender(ch.Gender) != "unknown" {
-				existChar.Gender = normalizeGender(ch.Gender)
-				updated = true
+				fields["gender"] = normalizeGender(ch.Gender)
 			}
 			if existChar.Description == "" && strings.TrimSpace(ch.Description) != "" {
-				existChar.Description = strings.TrimSpace(ch.Description)
-				updated = true
+				fields["description"] = strings.TrimSpace(ch.Description)
 			}
 			if len(existChar.Aliases) == 0 && len(ch.Aliases) > 0 {
-				existChar.Aliases = model.StringList(ch.Aliases)
-				updated = true
+				fields["aliases"] = model.StringList(ch.Aliases)
 			}
 			if existChar.Level == "minor" && normalizeLevel(ch.Level) != "minor" {
-				existChar.Level = normalizeLevel(ch.Level)
-				updated = true
+				fields["level"] = normalizeLevel(ch.Level)
 			}
-			if updated {
-				existChar.UpdatedBy = loginName
-				if err := s.characterRepo.Update(ctx, existChar); err != nil {
+			if len(fields) > 0 {
+				fields["updated_by"] = loginName
+				if err := s.characterRepo.UpdateFields(ctx, existChar.CharacterID, fields); err != nil {
 					s.logger.Warn(fmt.Sprintf("更新角色 %s 失败: %v", ch.Name, err))
 				} else {
 					updatedCount++

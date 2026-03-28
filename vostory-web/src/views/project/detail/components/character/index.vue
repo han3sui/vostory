@@ -235,6 +235,9 @@ async function onEdit(v: Record<string, any> | null) {
             formHelper.inputNumber("排序", "sort_order")
         ],
         ok: async (data: any) => {
+            if (data.voice_profile_id === "" || data.voice_profile_id === undefined) {
+                data.voice_profile_id = null;
+            }
             if (tempValue) {
                 await updateCharacter(data);
             } else {

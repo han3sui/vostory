@@ -117,11 +117,14 @@ type sysPostService struct {
 
 ### 更新操作规范
 
-**Service 层的 Update 方法禁止先查询旧记录再全量赋值更新。** 应直接使用 `repo.UpdateFields` 按 `map[string]interface{}` 指定字段更新，好处：
+**Service 层的 Update 方法应直接使用 `repo.UpdateFields` 按 `map[string]interface{}` 指定字段更新：**
 
 1. 减少一次 SELECT 查询，提升性能
 2. 只更新请求中的字段，不会意外覆盖其他字段
 3. `map` 方式可以正确更新零值字段（如空字符串、0、nil）
+4. 避免 GORM `Save`/`Updates(struct)` 在有关联对象（foreignKey）时的级联副作用
+
+**例外情况**：如果更新前需要基于旧值做业务判断（如状态机流转、乐观锁），则允许先查询再更新，但更新仍应使用 `UpdateFields` 而非 `Save`。
 
 ```go
 // ✅ 正确：直接按字段更新

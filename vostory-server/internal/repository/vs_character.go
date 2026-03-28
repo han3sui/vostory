@@ -9,7 +9,7 @@ import (
 
 type VsCharacterRepository interface {
 	Create(ctx context.Context, character *model.VsCharacter) error
-	Update(ctx context.Context, character *model.VsCharacter) error
+	UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsCharacter, error)
 	FindWithPagination(ctx context.Context, query *v1.VsCharacterListQuery) ([]*model.VsCharacter, int64, error)
@@ -30,11 +30,10 @@ func (r *vsCharacterRepository) Create(ctx context.Context, character *model.VsC
 	return r.db.WithContext(ctx).Create(character).Error
 }
 
-func (r *vsCharacterRepository) Update(ctx context.Context, character *model.VsCharacter) error {
-	return r.db.WithContext(ctx).Model(character).
-		Where("character_id = ?", character.CharacterID).
-		Omit("created_by", "created_at", "character_id", "project_id").
-		Updates(character).Error
+func (r *vsCharacterRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error {
+	return r.db.WithContext(ctx).Model(&model.VsCharacter{}).
+		Where("character_id = ?", id).
+		Updates(fields).Error
 }
 
 func (r *vsCharacterRepository) Delete(ctx context.Context, id uint64) error {

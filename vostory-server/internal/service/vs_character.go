@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
@@ -55,22 +54,17 @@ func (s *vsCharacterService) Create(ctx context.Context, request *v1.VsCharacter
 }
 
 func (s *vsCharacterService) Update(ctx context.Context, request *v1.VsCharacterUpdateRequest) error {
-	existing, err := s.repo.FindByID(ctx, request.ID)
-	if err != nil {
-		return fmt.Errorf("角色不存在")
-	}
-
-	existing.Name = request.Name
-	existing.Aliases = model.StringList(request.Aliases)
-	existing.Gender = request.Gender
-	existing.Description = request.Description
-	existing.Level = request.Level
-	existing.VoiceProfileID = request.VoiceProfileID
-	existing.SortOrder = request.SortOrder
-	existing.Status = request.Status
-	existing.UpdatedBy = ctx.Value("login_name").(string)
-
-	return s.repo.Update(ctx, existing)
+	return s.repo.UpdateFields(ctx, request.ID, map[string]interface{}{
+		"name":             request.Name,
+		"aliases":          model.StringList(request.Aliases),
+		"gender":           request.Gender,
+		"description":      request.Description,
+		"level":            request.Level,
+		"voice_profile_id": request.VoiceProfileID,
+		"sort_order":       request.SortOrder,
+		"status":           request.Status,
+		"updated_by":       ctx.Value("login_name").(string),
+	})
 }
 
 func (s *vsCharacterService) Delete(ctx context.Context, id uint64) error {

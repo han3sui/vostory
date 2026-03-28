@@ -219,9 +219,10 @@ func (s *vsVoiceMatchService) MatchVoices(ctx context.Context, projectID uint64)
 			continue
 		}
 
-		char.VoiceProfileID = m.VoiceProfileID
-		char.UpdatedBy = s.getLoginName(ctx)
-		if err := s.characterRepo.Update(ctx, char); err != nil {
+		if err := s.characterRepo.UpdateFields(ctx, char.CharacterID, map[string]interface{}{
+			"voice_profile_id": m.VoiceProfileID,
+			"updated_by":       s.getLoginName(ctx),
+		}); err != nil {
 			s.logger.Warn(fmt.Sprintf("更新角色 %s 声音配置失败: %v", char.Name, err))
 			failedCount++
 			continue
