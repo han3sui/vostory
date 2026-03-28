@@ -44,7 +44,7 @@ func (r *vsScriptSegmentRepository) BatchCreate(ctx context.Context, segments []
 func (r *vsScriptSegmentRepository) Update(ctx context.Context, segment *model.VsScriptSegment) error {
 	return r.db.WithContext(ctx).Model(segment).
 		Where("segment_id = ?", segment.SegmentID).
-		Omit("created_by", "created_at", "segment_id", "scene_id", "chapter_id").
+		Omit("created_by", "created_at", "segment_id", "project_id", "scene_id", "chapter_id").
 		Updates(segment).Error
 }
 
@@ -65,6 +65,9 @@ func (r *vsScriptSegmentRepository) FindWithPagination(ctx context.Context, quer
 	var segments []*model.VsScriptSegment
 	db := r.db.WithContext(ctx).Model(&model.VsScriptSegment{})
 
+	if query.ProjectID > 0 {
+		db = db.Where("project_id = ?", query.ProjectID)
+	}
 	if query.ChapterID > 0 {
 		db = db.Where("chapter_id = ?", query.ChapterID)
 	}

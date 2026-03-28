@@ -5,6 +5,7 @@ import "time"
 // VsScriptSegmentListQuery 脚本片段列表查询参数
 type VsScriptSegmentListQuery struct {
 	*BasePageQuery
+	ProjectID   uint64 `json:"project_id"`   // 所属项目
 	ChapterID   uint64 `json:"chapter_id"`   // 所属章节
 	SceneID     uint64 `json:"scene_id"`     // 所属场景
 	SegmentType string `json:"segment_type"` // 片段类型
@@ -14,6 +15,7 @@ type VsScriptSegmentListQuery struct {
 
 // VsScriptSegmentCreateRequest 创建脚本片段请求
 type VsScriptSegmentCreateRequest struct {
+	ProjectID       uint64  `json:"project_id" binding:"required"`     // 所属项目
 	SceneID         uint64  `json:"scene_id" binding:"required"`       // 所属场景
 	ChapterID       uint64  `json:"chapter_id" binding:"required"`     // 所属章节
 	SegmentNum      int     `json:"segment_num" binding:"required"`    // 片段序号
@@ -40,6 +42,7 @@ type VsScriptSegmentUpdateRequest struct {
 // VsScriptSegmentDetailResponse 脚本片段详情响应
 type VsScriptSegmentDetailResponse struct {
 	ID              uint64    `json:"id"`
+	ProjectID       uint64    `json:"project_id"`
 	SceneID         uint64    `json:"scene_id"`
 	ChapterID       uint64    `json:"chapter_id"`
 	SegmentNum      int       `json:"segment_num"`

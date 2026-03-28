@@ -4,6 +4,7 @@ package model
 type VsScriptSegment struct {
 	BaseModel
 	SegmentID       uint64  `json:"segment_id" gorm:"primaryKey;autoIncrement;comment:片段ID"`
+	ProjectID       uint64  `json:"project_id" gorm:"not null;index;comment:所属项目（冗余，便于按项目查询和权限校验）"`
 	SceneID         uint64  `json:"scene_id" gorm:"not null;index;comment:所属场景"`
 	ChapterID       uint64  `json:"chapter_id" gorm:"not null;index;index:idx_chapter_segment_num;comment:所属章节（冗余，便于按章节查询）"`
 	SegmentNum      int     `json:"segment_num" gorm:"not null;index:idx_chapter_segment_num;comment:片段序号"`
@@ -17,6 +18,7 @@ type VsScriptSegment struct {
 	ErrorMessage    string  `json:"error_message" gorm:"size:2000;comment:失败原因"`
 	Version         int     `json:"version" gorm:"default:1;comment:版本号"`
 
+	Project   *VsProject   `json:"project" gorm:"foreignKey:ProjectID;references:ProjectID"`
 	Scene     *VsScene     `json:"scene" gorm:"foreignKey:SceneID;references:SceneID"`
 	Chapter   *VsChapter   `json:"chapter" gorm:"foreignKey:ChapterID;references:ChapterID"`
 	Character *VsCharacter `json:"character" gorm:"foreignKey:CharacterID;references:CharacterID"`

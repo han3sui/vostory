@@ -34,6 +34,7 @@ type vsScriptSegmentService struct {
 
 func (s *vsScriptSegmentService) Create(ctx context.Context, request *v1.VsScriptSegmentCreateRequest) error {
 	segment := &model.VsScriptSegment{
+		ProjectID:       request.ProjectID,
 		SceneID:         request.SceneID,
 		ChapterID:       request.ChapterID,
 		SegmentNum:      request.SegmentNum,
@@ -139,6 +140,7 @@ func (s *vsScriptSegmentService) FindByChapterID(ctx context.Context, chapterID 
 func (s *vsScriptSegmentService) convertToDetailResponse(seg *model.VsScriptSegment) *v1.VsScriptSegmentDetailResponse {
 	resp := &v1.VsScriptSegmentDetailResponse{
 		ID:              seg.SegmentID,
+		ProjectID:       seg.ProjectID,
 		SceneID:         seg.SceneID,
 		ChapterID:       seg.ChapterID,
 		SegmentNum:      seg.SegmentNum,

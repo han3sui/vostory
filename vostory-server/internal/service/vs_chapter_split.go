@@ -221,6 +221,7 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 				}
 
 				segment := &model.VsScriptSegment{
+					ProjectID:       project.ProjectID,
 					SceneID:         scene.SceneID,
 					ChapterID:       chapterID,
 					SegmentNum:      segmentNum,

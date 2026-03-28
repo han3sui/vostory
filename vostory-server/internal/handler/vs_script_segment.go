@@ -153,6 +153,7 @@ func (h *VsScriptSegmentHandler) List(ctx *gin.Context) {
 	query.SegmentType = ctx.Query("segment_type")
 	query.CharacterID = cast.ToUint64(ctx.Query("character_id"))
 	query.Status = ctx.Query("status")
+	query.ProjectID = cast.ToUint64(ctx.Query("project_id"))
 
 	segments, total, err := h.svc.FindWithPagination(ctx, query)
 	if err != nil {
