@@ -41,6 +41,10 @@
             ok-text="开始识别"
             :ok-button-props="{ disabled: !smartImportText.trim() }"
             width="680px"
+            :align-center="false"
+            top="10vh"
+            title-align="start"
+            :mask-closable="false"
             @before-ok="handleSmartImport"
         >
             <a-typography-paragraph>

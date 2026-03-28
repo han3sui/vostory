@@ -42,10 +42,85 @@
                 </a-table-column>
             </template>
         </arco-table>
+
+        <a-modal
+            v-model:visible="batchVisible"
+            title="批量添加音色"
+            width="800px"
+            :mask-closable="false"
+            :footer="false"
+            :align-center="false"
+            top="10vh"
+            title-align="start"
+            @close="onBatchClose"
+        >
+            <div style="margin-bottom: 12px">
+                <a-space>
+                    <a-typography-text type="secondary">
+                        共 {{ batchFiles.length }} 个文件，成功 {{ batchSuccessCount }} 个，失败 {{ batchFailCount }} 个
+                    </a-typography-text>
+                    <a-tag v-if="batchProcessing" color="blue">处理中...</a-tag>
+                    <a-tag v-else-if="batchFiles.length > 0 && batchPendingCount === 0" color="green">已完成</a-tag>
+                </a-space>
+            </div>
+            <a-space>
+                <a-upload
+                    ref="batchUploadRef"
+                    :auto-upload="false"
+                    multiple
+                    accept=".mp3,.wav,.flac,.ogg"
+                    :file-list="batchFiles"
+                    :disabled="batchProcessing"
+                    list-type="text"
+                    :show-file-list="false"
+                    @change="onBatchFilesChange"
+                >
+                    <template #upload-button>
+                        <a-button type="outline" :disabled="batchProcessing">
+                            <template #icon><icon-upload /></template>
+                            选择音频文件
+                        </a-button>
+                    </template>
+                </a-upload>
+                <a-button
+                    v-if="batchFiles.length > 0"
+                    type="text"
+                    status="danger"
+                    :disabled="batchProcessing"
+                    @click="batchFiles = []"
+                >
+                    <template #icon><icon-delete /></template>
+                    清空
+                </a-button>
+            </a-space>
+            <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden; margin-top: 12px">
+                <a-upload
+                    :auto-upload="false"
+                    :file-list="batchFiles"
+                    :disabled="batchProcessing"
+                    list-type="text"
+                    :show-upload-button="false"
+                    @change="onBatchFilesChange"
+                />
+            </div>
+            <div style="margin-top: 16px; text-align: right">
+                <a-space>
+                    <a-button @click="batchVisible = false" :disabled="batchProcessing">取消</a-button>
+                    <a-button
+                        type="primary"
+                        :loading="batchProcessing"
+                        :disabled="batchPendingCount === 0"
+                        @click="startBatchUpload"
+                    >
+                        开始上传 ({{ batchPendingCount }})
+                    </a-button>
+                </a-space>
+            </div>
+        </a-modal>
     </frame-view>
 </template>
 <script lang="ts" setup>
-import { Modal, Message } from "@arco-design/web-vue";
+import { Modal, Message, FileItem } from "@arco-design/web-vue";
 import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
 import {
     getVoiceAssetList,
@@ -57,6 +132,7 @@ import {
     VoiceAssetDetailType
 } from "@/config/apis/voice-asset";
 import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceAudioBlob } from "@/config/apis/upload";
+import request from "@/packages/request";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 
@@ -171,6 +247,15 @@ const tableConfig = computed(() => {
                 type: "primary",
                 if: () => hasPermission("voice-asset:add"),
                 handler: () => onEdit(null)
+            },
+            {
+                label: "批量添加",
+                type: "outline",
+                if: () => hasPermission("voice-asset:add"),
+                handler: () => {
+                    batchFiles.value = [];
+                    batchVisible.value = true;
+                }
             }
         ]
     });
@@ -234,6 +319,93 @@ async function handleToggle(row: VoiceAssetDetailType) {
         return true;
     } catch {
         return false;
+    }
+}
+
+// ========== 批量上传 ==========
+
+const batchVisible = ref(false);
+const batchFiles = ref<FileItem[]>([]);
+const batchProcessing = ref(false);
+
+const batchSuccessCount = computed(() => batchFiles.value.filter((f) => f.status === "done").length);
+const batchFailCount = computed(() => batchFiles.value.filter((f) => f.status === "error").length);
+const batchPendingCount = computed(() => batchFiles.value.filter((f) => !f.status || f.status === "init").length);
+
+function onBatchFilesChange(fileList: FileItem[]) {
+    batchFiles.value = fileList;
+}
+
+function detectGender(filename: string): string {
+    const lower = filename.toLowerCase();
+    if (/(男|male|boy|少年|书生|君子|大叔|老翁|公子|兄弟|父亲|爷爷|哥哥|叔叔|伯伯)/.test(lower)) return "male";
+    if (/(女|female|girl|少女|姐姐|姑娘|夫人|萝莉|御姐|母亲|奶奶|妹妹|阿姨|婆婆)/.test(lower)) return "female";
+    return "unknown";
+}
+
+function extractVoiceName(filename: string): string {
+    return filename.replace(/\.[^.]+$/, "");
+}
+
+const CONCURRENCY = 4;
+
+async function startBatchUpload() {
+    const pending = batchFiles.value.filter((f) => !f.status || f.status === "init");
+    if (pending.length === 0) return;
+
+    batchProcessing.value = true;
+
+    let idx = 0;
+    async function next(): Promise<void> {
+        if (idx >= pending.length) return;
+        const file = pending[idx++];
+        file.status = "uploading";
+        file.percent = 0;
+        try {
+            const formData = new FormData();
+            formData.append("file", file.file as File);
+            const uploadRes: any = await request({
+                url: "/api/v1/common/upload/reference-audio",
+                method: "POST",
+                headers: { "Content-Type": "multipart/form-data" },
+                enableCancel: false,
+                timeout: 0,
+                data: formData,
+                onUploadProgress: (e: ProgressEvent) => {
+                    file.percent = Math.round((e.loaded / e.total) * 100) / 100;
+                }
+            });
+
+            const voiceName = extractVoiceName(file.name || "");
+            const gender = detectGender(file.name || "");
+            await addVoiceAsset({
+                name: voiceName,
+                gender,
+                reference_audio_url: uploadRes.path
+            });
+
+            file.status = "done";
+            file.percent = 1;
+        } catch {
+            file.status = "error";
+        }
+        await next();
+    }
+
+    const workers = Array.from({ length: Math.min(CONCURRENCY, pending.length) }, () => next());
+    await Promise.all(workers);
+
+    batchProcessing.value = false;
+    const successCount = pending.filter((f) => f.status === "done").length;
+    if (successCount > 0) {
+        Message.success(`成功添加 ${successCount} 个音色`);
+        table.value.refresh();
+    }
+}
+
+function onBatchClose() {
+    if (!batchProcessing.value) {
+        batchFiles.value = [];
     }
 }
 </script>
