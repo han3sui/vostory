@@ -117,6 +117,15 @@
                 </a-space>
             </div>
         </a-modal>
+
+        <a-drawer
+            v-model:visible="emotionDrawerVisible"
+            :title="`情绪音频 - ${emotionDrawerAssetName}`"
+            :width="600"
+            :footer="false"
+        >
+            <VoiceEmotionManager v-if="emotionDrawerAssetId" :voice-asset-id="emotionDrawerAssetId" />
+        </a-drawer>
     </frame-view>
 </template>
 <script lang="ts" setup>
@@ -135,6 +144,7 @@ import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceA
 import request from "@/packages/request";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
+import VoiceEmotionManager from "@/views/voice-emotion/index.vue";
 
 const GENDERS = [
     { label: "男", value: "male" },
@@ -145,6 +155,9 @@ const GENDERS = [
 const table = ref();
 const filterData = ref({});
 const playingId = ref<number>(0);
+const emotionDrawerVisible = ref(false);
+const emotionDrawerAssetId = ref<number>(0);
+const emotionDrawerAssetName = ref("");
 let currentAudio: HTMLAudioElement | null = null;
 
 let currentBlobURL = "";
@@ -219,6 +232,14 @@ const tableConfig = computed(() => {
             tableHelper.slot("switchSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
             tableHelper.btns("操作", [
+                {
+                    label: "情绪音频",
+                    handler(row: Record<string, any>) {
+                        emotionDrawerAssetId.value = row.id;
+                        emotionDrawerAssetName.value = row.name;
+                        emotionDrawerVisible.value = true;
+                    }
+                },
                 {
                     label: "编辑",
                     if: () => hasPermission("voice-asset:edit"),

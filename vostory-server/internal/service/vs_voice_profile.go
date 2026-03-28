@@ -25,14 +25,16 @@ func NewVsVoiceProfileService(
 	service *Service,
 	repo repository.VsVoiceProfileRepository,
 	voiceAssetRepo repository.VsVoiceAssetRepository,
+	voiceEmotionRepo repository.VsVoiceEmotionRepository,
 ) VsVoiceProfileService {
-	return &vsVoiceProfileService{Service: service, repo: repo, voiceAssetRepo: voiceAssetRepo}
+	return &vsVoiceProfileService{Service: service, repo: repo, voiceAssetRepo: voiceAssetRepo, voiceEmotionRepo: voiceEmotionRepo}
 }
 
 type vsVoiceProfileService struct {
 	*Service
-	repo           repository.VsVoiceProfileRepository
-	voiceAssetRepo repository.VsVoiceAssetRepository
+	repo             repository.VsVoiceProfileRepository
+	voiceAssetRepo   repository.VsVoiceAssetRepository
+	voiceEmotionRepo repository.VsVoiceEmotionRepository
 }
 
 func (s *vsVoiceProfileService) Create(ctx context.Context, request *v1.VsVoiceProfileCreateRequest) error {
@@ -79,6 +81,7 @@ func (s *vsVoiceProfileService) Update(ctx context.Context, request *v1.VsVoiceP
 }
 
 func (s *vsVoiceProfileService) Delete(ctx context.Context, id uint64) error {
+	_ = s.voiceEmotionRepo.DeleteByVoiceProfileID(ctx, id)
 	return s.repo.Delete(ctx, id)
 }
 
@@ -172,6 +175,43 @@ func (s *vsVoiceProfileService) ImportFromAssets(ctx context.Context, request *v
 	if err := s.repo.BatchCreate(ctx, profiles); err != nil {
 		return 0, fmt.Errorf("批量创建声音配置失败: %w", err)
 	}
+
+	// 复制音色资产的情绪音频到新建的声音配置
+	assetEmotions, _ := s.voiceEmotionRepo.FindByVoiceAssetIDs(ctx, request.VoiceAssetIDs)
+	if len(assetEmotions) > 0 {
+		assetToProfile := make(map[uint64]uint64)
+		for _, p := range profiles {
+			if p.VoiceAssetID != nil {
+				assetToProfile[*p.VoiceAssetID] = p.VoiceProfileID
+			}
+		}
+
+		var emotionCopies []*model.VsVoiceEmotion
+		for _, e := range assetEmotions {
+			if e.VoiceAssetID == nil {
+				continue
+			}
+			profileID, ok := assetToProfile[*e.VoiceAssetID]
+			if !ok {
+				continue
+			}
+			emotionCopies = append(emotionCopies, &model.VsVoiceEmotion{
+				VoiceProfileID:    &profileID,
+				EmotionType:       e.EmotionType,
+				EmotionStrength:   e.EmotionStrength,
+				ReferenceAudioURL: e.ReferenceAudioURL,
+				ReferenceText:     e.ReferenceText,
+				BaseModel: model.BaseModel{
+					CreatedBy: loginName,
+					DeptID:    deptID,
+				},
+			})
+		}
+		if len(emotionCopies) > 0 {
+			_ = s.voiceEmotionRepo.BatchCreate(ctx, emotionCopies)
+		}
+	}
+
 	return len(profiles), nil
 }
 

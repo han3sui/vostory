@@ -2,7 +2,8 @@ import request from "@/packages/request";
 
 export type VoiceEmotionDetailType = {
     id: number;
-    voice_profile_id: number;
+    voice_profile_id?: number;
+    voice_asset_id?: number;
     emotion_type: string;
     emotion_strength: string;
     reference_audio_url: string;
@@ -46,4 +47,8 @@ export function deleteVoiceEmotion(id: number) {
 
 export function getVoiceEmotionsByProfile(voiceProfileId: number): Promise<VoiceEmotionDetailType[]> {
     return request({ url: `/api/v1/common/voice-emotion/profile/${voiceProfileId}` });
+}
+
+export function getVoiceEmotionsByAsset(voiceAssetId: number): Promise<VoiceEmotionDetailType[]> {
+    return request({ url: `/api/v1/common/voice-emotion/asset/${voiceAssetId}` });
 }

@@ -33,7 +33,15 @@
             </div>
         </a-spin>
 
-        <a-modal v-model:visible="formVisible" :title="formTitle" @ok="handleFormOk" @cancel="formVisible = false">
+        <a-modal
+            v-model:visible="formVisible"
+            :title="formTitle"
+            @ok="handleFormOk"
+            @cancel="formVisible = false"
+            :align-center="false"
+            top="10vh"
+            title-align="start"
+        >
             <a-form :model="formData" layout="vertical">
                 <a-form-item label="情绪类型" required>
                     <a-select v-model="formData.emotion_type" placeholder="选择情绪类型">
@@ -67,10 +75,9 @@
                         </a-upload>
                         <div v-if="formData.reference_audio_url" class="uploaded-file-info">
                             <icon-check-circle style="color: rgb(var(--green-6)); margin-right: 4px" />
-                            <span
-                                class="file-name"
-                                >{{ extractFilenameFromPath(formData.reference_audio_url as string) }}</span
-                            >
+                            <span class="file-name">{{
+                                extractFilenameFromPath(formData.reference_audio_url as string)
+                            }}</span>
                         </div>
                     </div>
                 </a-form-item>
@@ -90,6 +97,7 @@ import { Message, RequestOption } from "@arco-design/web-vue";
 import { IconCheckCircle } from "@arco-design/web-vue/es/icon";
 import {
     getVoiceEmotionsByProfile,
+    getVoiceEmotionsByAsset,
     addVoiceEmotion,
     updateVoiceEmotion,
     deleteVoiceEmotion,
@@ -97,7 +105,9 @@ import {
 } from "@/config/apis/voice-emotion";
 import { uploadReferenceAudio, extractFilenameFromPath } from "@/config/apis/upload";
 
-const props = defineProps<{ voiceProfileId: number }>();
+const props = defineProps<{ voiceProfileId?: number; voiceAssetId?: number }>();
+
+const ownerId = computed(() => props.voiceProfileId || props.voiceAssetId || 0);
 
 const loading = ref(false);
 const emotions = ref<VoiceEmotionDetailType[]>([]);
@@ -107,23 +117,28 @@ const formData = ref<Partial<VoiceEmotionDetailType>>({});
 const editingId = ref<number | null>(null);
 
 async function loadEmotions() {
-    if (!props.voiceProfileId) return;
+    if (!ownerId.value) return;
     loading.value = true;
     try {
-        emotions.value = (await getVoiceEmotionsByProfile(props.voiceProfileId)) || [];
+        if (props.voiceProfileId) {
+            emotions.value = (await getVoiceEmotionsByProfile(props.voiceProfileId)) || [];
+        } else if (props.voiceAssetId) {
+            emotions.value = (await getVoiceEmotionsByAsset(props.voiceAssetId)) || [];
+        }
     } finally {
         loading.value = false;
     }
 }
 
 onMounted(loadEmotions);
-watch(() => props.voiceProfileId, loadEmotions);
+watch(ownerId, loadEmotions);
 
 function handleAdd() {
     editingId.value = null;
     formTitle.value = "新增情绪音频";
     formData.value = {
         voice_profile_id: props.voiceProfileId,
+        voice_asset_id: props.voiceAssetId,
         emotion_type: "neutral",
         emotion_strength: "medium",
         reference_audio_url: "",
@@ -161,7 +176,7 @@ async function handleFormOk() {
 
 function handleAudioUpload(option: RequestOption): any {
     return uploadReferenceAudio(option).then((res: any) => {
-        formData.value.reference_audio_url = res.url;
+        formData.value.reference_audio_url = res.path;
         Message.success("音频上传成功");
     });
 }

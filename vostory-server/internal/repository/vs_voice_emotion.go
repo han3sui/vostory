@@ -9,11 +9,16 @@ import (
 
 type VsVoiceEmotionRepository interface {
 	Create(ctx context.Context, emotion *model.VsVoiceEmotion) error
+	BatchCreate(ctx context.Context, emotions []*model.VsVoiceEmotion) error
 	Update(ctx context.Context, emotion *model.VsVoiceEmotion) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsVoiceEmotion, error)
 	FindWithPagination(ctx context.Context, query *v1.VsVoiceEmotionListQuery) ([]*model.VsVoiceEmotion, int64, error)
 	FindByVoiceProfileID(ctx context.Context, voiceProfileID uint64) ([]*model.VsVoiceEmotion, error)
+	FindByVoiceAssetID(ctx context.Context, voiceAssetID uint64) ([]*model.VsVoiceEmotion, error)
+	FindByVoiceAssetIDs(ctx context.Context, ids []uint64) ([]*model.VsVoiceEmotion, error)
+	DeleteByVoiceProfileID(ctx context.Context, voiceProfileID uint64) error
+	DeleteByVoiceAssetID(ctx context.Context, voiceAssetID uint64) error
 	FindByMatch(ctx context.Context, voiceProfileID uint64, emotionType, emotionStrength string) (*model.VsVoiceEmotion, error)
 }
 
@@ -29,10 +34,17 @@ func (r *vsVoiceEmotionRepository) Create(ctx context.Context, emotion *model.Vs
 	return r.db.WithContext(ctx).Create(emotion).Error
 }
 
+func (r *vsVoiceEmotionRepository) BatchCreate(ctx context.Context, emotions []*model.VsVoiceEmotion) error {
+	if len(emotions) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Create(&emotions).Error
+}
+
 func (r *vsVoiceEmotionRepository) Update(ctx context.Context, emotion *model.VsVoiceEmotion) error {
 	return r.db.WithContext(ctx).Model(emotion).
 		Where("voice_emotion_id = ?", emotion.VoiceEmotionID).
-		Omit("created_by", "created_at", "voice_emotion_id", "voice_profile_id").
+		Omit("created_by", "created_at", "voice_emotion_id", "voice_profile_id", "voice_asset_id").
 		Updates(emotion).Error
 }
 
@@ -55,6 +67,9 @@ func (r *vsVoiceEmotionRepository) FindWithPagination(ctx context.Context, query
 
 	if query.VoiceProfileID > 0 {
 		db = db.Where("voice_profile_id = ?", query.VoiceProfileID)
+	}
+	if query.VoiceAssetID > 0 {
+		db = db.Where("voice_asset_id = ?", query.VoiceAssetID)
 	}
 	if query.EmotionType != "" {
 		db = db.Where("emotion_type = ?", query.EmotionType)
@@ -87,6 +102,37 @@ func (r *vsVoiceEmotionRepository) FindByVoiceProfileID(ctx context.Context, voi
 		return nil, err
 	}
 	return emotions, nil
+}
+
+func (r *vsVoiceEmotionRepository) FindByVoiceAssetID(ctx context.Context, voiceAssetID uint64) ([]*model.VsVoiceEmotion, error) {
+	var emotions []*model.VsVoiceEmotion
+	if err := r.db.WithContext(ctx).
+		Where("voice_asset_id = ?", voiceAssetID).
+		Order("emotion_type ASC, emotion_strength ASC").Find(&emotions).Error; err != nil {
+		return nil, err
+	}
+	return emotions, nil
+}
+
+func (r *vsVoiceEmotionRepository) FindByVoiceAssetIDs(ctx context.Context, ids []uint64) ([]*model.VsVoiceEmotion, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var emotions []*model.VsVoiceEmotion
+	if err := r.db.WithContext(ctx).
+		Where("voice_asset_id IN ?", ids).
+		Find(&emotions).Error; err != nil {
+		return nil, err
+	}
+	return emotions, nil
+}
+
+func (r *vsVoiceEmotionRepository) DeleteByVoiceProfileID(ctx context.Context, voiceProfileID uint64) error {
+	return r.db.WithContext(ctx).Where("voice_profile_id = ?", voiceProfileID).Delete(&model.VsVoiceEmotion{}).Error
+}
+
+func (r *vsVoiceEmotionRepository) DeleteByVoiceAssetID(ctx context.Context, voiceAssetID uint64) error {
+	return r.db.WithContext(ctx).Where("voice_asset_id = ?", voiceAssetID).Delete(&model.VsVoiceEmotion{}).Error
 }
 
 // FindByMatch finds a specific emotion reference audio by profile + type + strength.

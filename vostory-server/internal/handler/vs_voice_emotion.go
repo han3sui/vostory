@@ -56,6 +56,7 @@ func (h *VsVoiceEmotionHandler) List(ctx *gin.Context) {
 	query.Page = cast.ToInt(ctx.Query("page"))
 	query.Size = cast.ToInt(ctx.Query("size"))
 	query.VoiceProfileID = cast.ToUint64(ctx.Query("voice_profile_id"))
+	query.VoiceAssetID = cast.ToUint64(ctx.Query("voice_asset_id"))
 	query.EmotionType = ctx.Query("emotion_type")
 	query.EmotionStrength = ctx.Query("emotion_strength")
 
@@ -145,6 +146,27 @@ func (h *VsVoiceEmotionHandler) GetByVoiceProfile(ctx *gin.Context) {
 		return
 	}
 	emotions, err := h.svc.FindByVoiceProfileID(ctx, voiceProfileID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, emotions)
+}
+
+// GetByVoiceAsset godoc
+// @Summary      获取音色资产下的情绪音频列表
+// @Tags         情绪音频
+// @Param        voice_asset_id  path  int  true  "音色资产ID"
+// @Success      200  {object}  v1.Response
+// @Router       /api/v1/common/voice-emotion/asset/{voice_asset_id} [get]
+// @Id        common:voice-emotion:asset
+func (h *VsVoiceEmotionHandler) GetByVoiceAsset(ctx *gin.Context) {
+	voiceAssetID := cast.ToUint64(ctx.Param("voice_asset_id"))
+	if voiceAssetID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "voice_asset_id is required"), nil)
+		return
+	}
+	emotions, err := h.svc.FindByVoiceAssetID(ctx, voiceAssetID)
 	if err != nil {
 		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
 		return
