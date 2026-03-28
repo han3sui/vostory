@@ -295,17 +295,13 @@
                                         </a-trigger>
                                         <span class="segment-spacer" />
                                         <a-tooltip content="在下方插入片段">
-                                            <a-button
-                                                type="text"
-                                                size="mini"
-                                                @click="handleInsertAfter(seg)"
-                                            >
+                                            <a-button type="text" size="mini" @click="handleInsertAfter(seg)">
                                                 <template #icon><icon-plus /></template>
                                             </a-button>
                                         </a-tooltip>
                                         <a-popconfirm
                                             content="确认删除该片段？"
-                                            @ok="handleDeleteSegment(seg)"
+                                            :on-before-ok="() => handleDeleteSegment(seg)"
                                         >
                                             <a-button type="text" size="mini" status="danger">
                                                 <template #icon><icon-delete /></template>
@@ -313,12 +309,9 @@
                                         </a-popconfirm>
                                     </div>
 
-                                    <a-textarea
-                                        v-model="seg.content"
-                                        :auto-size="{ minRows: 1, maxRows: 6 }"
-                                        class="segment-textarea"
-                                        @blur="() => saveSegment(seg)"
-                                    />
+                                    <div class="segment-content-display" @click="handleEditContent(seg)">
+                                        {{ seg.content || "（点击编辑内容）" }}
+                                    </div>
 
                                     <div
                                         v-if="seg.original_content && seg.original_content !== seg.content"
@@ -338,7 +331,7 @@
 </template>
 <script lang="ts" setup>
 import { Message, Modal } from "@arco-design/web-vue";
-import { ArcoModalTableShow, formHelper, tableHelper } from "@easyfe/admin-component";
+import { ArcoModalTableShow, ArcoModalFormShow, formHelper, tableHelper, ruleHelper } from "@easyfe/admin-component";
 import {
     IconSound,
     IconPlayArrow,
@@ -531,6 +524,35 @@ async function selectChapter(ch: any) {
     currentChapter.value = ch;
     setSegments(await getSegmentsByChapter(ch.id));
     segmentScrollRef.value?.scrollTo({ top: 0 });
+}
+
+function handleEditContent(seg: ScriptSegmentDetailType) {
+    ArcoModalFormShow({
+        modalConfig: {
+            title: `编辑片段内容 #${seg.segment_num}`,
+            width: "600px"
+        },
+        value: { content: seg.content },
+        formConfig: [
+            formHelper.textarea("内容", "content", {
+                rules: [ruleHelper.require("请输入内容")],
+                autoSize: { minRows: 4, maxRows: 12 }
+            })
+        ],
+        ok: async (data: any) => {
+            seg.content = data.content;
+            await updateScriptSegment({
+                id: seg.id,
+                segment_type: seg.segment_type,
+                content: data.content,
+                character_id: seg.character_id,
+                emotion_type: seg.emotion_type,
+                emotion_strength: seg.emotion_strength,
+                status: "edited"
+            });
+            Message.success("保存成功");
+        }
+    });
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1404,6 +1426,28 @@ function statusLabel(status: string) {
         border: none;
         background-color: var(--color-fill-1);
         border-radius: 4px;
+    }
+}
+
+.segment-content-display {
+    padding: 6px 8px;
+    background-color: var(--color-fill-1);
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.6;
+    font-size: 13px;
+    color: var(--color-text-1);
+    transition: background-color 0.2s;
+
+    &:hover {
+        background-color: var(--color-fill-2);
+    }
+
+    &:empty::before {
+        content: "（点击编辑内容）";
+        color: var(--color-text-4);
     }
 }
 
