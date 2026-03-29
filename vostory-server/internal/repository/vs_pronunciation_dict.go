@@ -36,7 +36,7 @@ func (r *vsPronunciationDictRepository) Update(ctx context.Context, dict *model.
 }
 
 func (r *vsPronunciationDictRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Where("dict_id = ?", id).Delete(&model.VsPronunciationDict{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("dict_id = ?", id).Delete(&model.VsPronunciationDict{}).Error
 }
 
 func (r *vsPronunciationDictRepository) FindByID(ctx context.Context, id uint64) (*model.VsPronunciationDict, error) {

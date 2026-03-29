@@ -8,7 +8,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { Message } from "@arco-design/web-vue";
+import { Message, Modal } from "@arco-design/web-vue";
 import { formHelper, ArcoTable, tableHelper, ArcoForm, ArcoModalFormShow, ruleHelper } from "@easyfe/admin-component";
 import {
     getPronunciationDictList,
@@ -62,7 +62,17 @@ const tableConfig = computed(() => {
                     status: "danger",
                     if: () => hasPermission("pronunciation-dict:remove"),
                     handler(row: Record<string, any>) {
-                        handleDelete(row.id);
+                        Modal.confirm({
+                            title: "删除词条",
+                            content: `确认删除词条【${row.word}】？`,
+                            okText: "确认",
+                            cancelText: "取消",
+                            onBeforeOk: async () => {
+                                await deletePronunciationDict(row.id);
+                                Message.success("删除成功");
+                                table.value.refresh();
+                            }
+                        });
                     }
                 }
             ])
@@ -108,13 +118,6 @@ function handleEdit(row: PronunciationDictDetailType) {
             Message.success("更新成功");
             table.value.refresh();
         }
-    });
-}
-
-function handleDelete(id: number) {
-    deletePronunciationDict(id).then(() => {
-        Message.success("删除成功");
-        table.value.refresh();
     });
 }
 </script>
