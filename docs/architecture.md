@@ -4,7 +4,7 @@
 
 - 前端：`Vue 3 + TypeScript + Vite + Arco Design Vue`
 - 服务端：`Golang (Gin + GORM + Wire)`
-- AI 服务：`Python` 独立推理服务
+- TTS 服务：`IndexTTS2`（Docker 自部署）
 - 数据库：`PostgreSQL`
 - 缓存 / 队列：`Redis`
 - 对象存储：`MinIO` 或兼容 S3 的对象存储
@@ -27,7 +27,7 @@
 │  认证权限 │ 项目章节 │ 脚本片段 │ 角色资产            │
 │  任务调度 │ 文件管理 │ AI配置  │ 审计日志            │
 ├──────────────────────┬──────────────────────────────┤
-│   AI 服务层 (Python)  │       存储层                 │
+│   AI 服务层           │       存储层                 │
 │                      │                              │
 │  LLM 适配层          │   PostgreSQL (业务数据)       │
 │    ├ OpenAI          │   Redis (缓存/任务队列)       │
@@ -39,14 +39,9 @@
 │    ├ 阿里云百炼       │                              │
 │    └ 自定义兼容接口   │                              │
 │                      │                              │
-│  TTS 适配层          │                              │
-│    ├ 本地 TTS        │                              │
-│    ├ 在线商业 TTS    │                              │
-│    └ 自定义兼容接口   │                              │
-│                      │                              │
-│  音频处理            │                              │
-│    ├ pydub/ffmpeg    │                              │
-│    └ 后处理/合并     │                              │
+│  TTS 引擎            │                              │
+│    └ IndexTTS2       │                              │
+│      (Docker 自部署)  │                              │
 └──────────────────────┴──────────────────────────────┘
 ```
 
@@ -80,15 +75,14 @@
 
 ### 3. AI 服务层
 
-由 Python 独立服务实现，负责：
+负责：
 
-- **LLM 适配层**：统一接口，策略模式映射多厂商 Provider
+- **LLM 适配层**：统一接口，策略模式映射多厂商 Provider（Go 实现）
 - **文本分析**：章节切分、段落识别
 - **人物抽取**：角色识别、别名归并
 - **台词归属**：说话人判定
 - **情绪标签**：情绪类型 + 情绪强度双维度标注
-- **TTS 适配层**：统一接口，支持多引擎切换
-- **音频后处理**：停顿插入、音量标准化、多轨合并
+- **TTS 引擎**：基于 IndexTTS2（Docker 自部署），Go 后端通过 HTTP 协议调用
 - **精准填充**：LLM 输出对齐回原文
 
 ### 4. 存储层
@@ -161,23 +155,22 @@ LLMProvider interface {
 
 配置存储在数据库（`LLMProvider` 表），支持运行时切换，无需重启服务。
 
-### TTS 引擎适配与情绪系统
+### TTS 引擎（IndexTTS2）
 
-TTS 适配层统一接口：
+语音合成基于 IndexTTS2，需自行部署（提供 Docker 镜像）。Go 后端通过 HTTP 协议调用：
 
 ```text
-TTSEngine interface {
-    Synthesize(text, reference_audio, emotion_params) -> audio_bytes
-    CheckAudioExists(audio_path) -> bool
-    UploadAudio(audio_path) -> remote_path
-    TestConnection() -> bool
-}
+IndexTTS2 HTTP 端点：
+    POST /v2/synthesize    → 合成语音（传入文本、参考音频、情绪向量）
+    GET  /v1/check/audio   → 检查参考音频是否存在
+    POST /v1/upload_audio  → 上传参考音频
+    GET  /v1/models        → 获取模型信息
 ```
 
 情绪系统设计：
 - `ScriptSegment` 携带 `emotion_type`（情绪类型）和 `emotion_strength`（情绪强度）
 - `VoiceProfile` 支持 `multi_emotion` 配置：同一角色不同情绪绑定不同参考音频
-- TTS 适配层负责将情绪参数转换为具体引擎所需格式（文本标签 / 8 维向量 / 参考音频路径等）
+- 情绪类型映射为 IndexTTS2 的 8 维向量，情绪强度映射为 emo_alpha（0.0-1.0）
 
 ### 长文分批处理
 
@@ -292,33 +285,22 @@ PromptTemplate
 
 ## 模型策略
 
-推荐采用"本地模型 + 在线模型"的混合方案。
+### LLM 策略
 
-### 本地模型适合
+推荐采用"本地模型 + 在线模型"的混合方案：
 
-- 人物抽取
-- 对白 / 旁白分类
-- 别名归并
-- 情绪初标
-- 高频局部修正
+- **本地模型**（Ollama 等）适合：人物抽取、对白分类、别名归并、情绪初标、高频局部修正。成本可控、响应快、数据不出境。
+- **在线模型**（OpenAI / DeepSeek 等）适合：复杂语义判断、最终成品精修。效果更强、可快速接入。
+- 通过 LLMProvider 配置灵活切换，无需改代码。
 
-优点：成本可控、响应较快、数据可少上传或不上传。
+### TTS 策略
 
-### 在线模型适合
+语音合成统一使用 IndexTTS2，需自行部署（提供 Docker 镜像）。IndexTTS2 的核心优势：
 
-- 复杂语义判断
-- 高质量商业 TTS
-- 高质量情绪表达
-- 最终成品精修
-
-优点：效果通常更强、可快速接入成熟能力。
-
-### 推荐落地方式
-
-- 文本解析默认优先本地
-- 草稿音频优先低成本方案
-- 关键片段和最终成品可选在线精修
-- 通过 LLMProvider / TTSProvider 配置灵活切换，无需改代码
+- 零样本声音克隆，一段参考音频即可定义角色音色
+- 情绪与音色解耦，独立控制
+- 8 维情绪向量 + 连续强度控制
+- 原生中文拼音标注支持
 
 ## 开发注意点
 

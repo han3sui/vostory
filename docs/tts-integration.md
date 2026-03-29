@@ -198,11 +198,13 @@ IndexTTS2 的情绪向量维度顺序为：`[happy, angry, sad, afraid, disguste
 
 ### IndexTTS2 服务部署
 
-VoStory 不内置 IndexTTS2 模型，需要独立部署 IndexTTS2 服务并暴露 HTTP 端点。推荐方式：
+VoStory 不内置 IndexTTS2 模型，需要自行部署 IndexTTS2 服务。VoStory 提供 Docker 镜像，一键部署：
 
-1. **直接部署** — 克隆 [index-tts](https://github.com/index-tts/index-tts)，使用 `uv sync --all-extras` 安装依赖，运行 `uv run webui.py` 启动 WebUI + API 服务
-2. **Xinference 部署** — 使用 Xinference 平台管理模型，自动提供 HTTP API
-3. **Docker 部署** — 社区提供的 Docker 镜像
+```bash
+docker run -d --gpus all -p 8080:8080 vostory/index-tts2
+```
+
+**硬件要求**：需要 NVIDIA GPU，推荐 8GB+ 显存（FP16 模式）。
 
 ### 配置 TTS 提供商
 
