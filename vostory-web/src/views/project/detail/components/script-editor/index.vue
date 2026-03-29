@@ -124,7 +124,7 @@
                         >
                             智能切割
                         </a-button>
-                        <a-button
+                        <!-- <a-button
                             v-if="hasPermission('chapter:align')"
                             type="outline"
                             size="small"
@@ -132,7 +132,7 @@
                             @click="handleAlign"
                         >
                             精准填充
-                        </a-button>
+                        </a-button> -->
                         <a-dropdown v-if="segmentStats.hasAudio > 0" @select="handleExport">
                             <a-button type="outline" size="small" :loading="exporting">
                                 <template #icon><icon-download /></template>
