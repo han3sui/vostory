@@ -1,0 +1,45 @@
+<svg width="1200" height="320" viewBox="0 0 1200 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">vostory logo</title>
+  <desc id="desc">Logo for Vostory, an audio storytelling creation platform.</desc>
+  <defs>
+    <linearGradient id="orb" x1="36" y1="28" x2="228" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8A3D"/>
+      <stop offset="0.55" stop-color="#FF5B4D"/>
+      <stop offset="1" stop-color="#C73AF5"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="86" y1="82" x2="198" y2="194" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF5E8"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <filter id="glow" x="0" y="0" width="280" height="280" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="16"/>
+      <feGaussianBlur stdDeviation="18"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.780392 0 0 0 0 0.227451 0 0 0 0 0.960784 0 0 0 0.18 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="320" rx="42" fill="#FFF9F4"/>
+
+  <g filter="url(#glow)">
+    <rect x="36" y="28" width="192" height="192" rx="52" fill="url(#orb)"/>
+    <path d="M84 146C96.6667 122.667 111.667 111 129 111C149.667 111 158.333 139 177 139C190.333 139 201 129.333 209 110" stroke="url(#wave)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M85 104L119 172C123.333 180.667 129.667 185 138 185C146.333 185 152.333 180.667 156 172L190 104" stroke="white" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M132 77C139.333 69 149 65 161 65C181 65 196.333 78.333 207 105" stroke="#FFDCC9" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+  </g>
+
+  <g opacity="0.95">
+    <path d="M274 89H305L343 183L381 89H412L359 227H327L274 89Z" fill="#18181B"/>
+    <path d="M483 89C525.8 89 556 118.8 556 158C556 197.2 525.8 227 483 227C440.2 227 410 197.2 410 158C410 118.8 440.2 89 483 89ZM483 116C456.9 116 438 134.6 438 158C438 181.4 456.9 200 483 200C509.1 200 528 181.4 528 158C528 134.6 509.1 116 483 116Z" fill="#18181B"/>
+    <path d="M583 89H611V104C622.467 93.6667 636.467 88.5 653 88.5C686.733 88.5 709 110 709 143V227H681V149.5C681 127.833 668.833 117 644.5 117C629.5 117 618.333 121.833 611 131.5V227H583V89Z" fill="#18181B"/>
+    <path d="M792 89C819.333 89 842.6 98.7333 861.8 118.2L843.8 136.2C829.267 122.733 812.933 116 794.8 116C765.2 116 744 133.733 744 158C744 182.267 765.2 200 794.8 200C813.2 200 829.6 193.133 844 179.4L862.3 197.4C842.567 217.267 819 227.2 791.6 227.2C746.267 227.2 716 198.067 716 158C716 117.933 746.267 89 792 89Z" fill="#18181B"/>
+    <path d="M878 89H993V115H950V227H922V115H878V89Z" fill="#18181B"/>
+    <path d="M1012 89H1043L1086 153.5L1128 89H1159L1100 181V227H1072V181L1012 89Z" fill="#18181B"/>
+  </g>
+
+  <rect x="273" y="248" width="158" height="12" rx="6" fill="#FF7B42"/>
+  <text x="458" y="257" fill="#6B6476" font-family="Georgia, 'Times New Roman', serif" font-size="26" letter-spacing="2.8">VOICE YOUR STORIES</text>
+</svg>
