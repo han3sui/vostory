@@ -105,7 +105,7 @@ onMounted(() => {
     position: fixed;
     inset: 0;
     display: flex;
-    background: #faf8f6;
+    background: #f5faff;
 }
 
 .login-left {
@@ -115,7 +115,7 @@ onMounted(() => {
     justify-content: center;
     align-items: center;
     position: relative;
-    background: linear-gradient(145deg, #fff5ed 0%, #fff0f0 40%, #f5edff 100%);
+    background: linear-gradient(145deg, #e8f2ff 0%, #f0f7ff 40%, #e4ecff 100%);
     overflow: hidden;
 
     &::before {
@@ -124,7 +124,7 @@ onMounted(() => {
         width: 600px;
         height: 600px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(255, 138, 61, 0.08) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(15, 111, 255, 0.07) 0%, transparent 70%);
         top: -100px;
         left: -100px;
     }
@@ -135,7 +135,7 @@ onMounted(() => {
         width: 500px;
         height: 500px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(199, 58, 245, 0.06) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(55, 183, 255, 0.06) 0%, transparent 70%);
         bottom: -80px;
         right: -80px;
     }
@@ -148,13 +148,13 @@ onMounted(() => {
 
     .brand-logo {
         width: 320px;
-        filter: drop-shadow(0 8px 32px rgba(255, 91, 77, 0.12));
+        filter: drop-shadow(0 8px 32px rgba(15, 111, 255, 0.12));
     }
 
     .brand-slogan {
         margin-top: 24px;
         font-size: 18px;
-        color: #6b6476;
+        color: #527098;
         letter-spacing: 4px;
         font-weight: 300;
     }
@@ -191,21 +191,21 @@ onMounted(() => {
     &.card-1 {
         top: 18%;
         left: 8%;
-        color: #ff8a3d;
+        color: #0F6FFF;
         animation-delay: 0s;
     }
 
     &.card-2 {
         bottom: 28%;
         left: 12%;
-        color: #ff5b4d;
+        color: #0A56D6;
         animation-delay: -2s;
     }
 
     &.card-3 {
         top: 30%;
         right: 8%;
-        color: #c73af5;
+        color: #37B7FF;
         animation-delay: -4s;
     }
 }
@@ -243,14 +243,14 @@ onMounted(() => {
         width: 56px;
         height: 56px;
         margin-bottom: 20px;
-        filter: drop-shadow(0 4px 12px rgba(255, 91, 77, 0.2));
+        filter: drop-shadow(0 4px 12px rgba(15, 111, 255, 0.2));
     }
 
     h2 {
         margin: 0 0 8px;
         font-size: 26px;
         font-weight: 700;
-        color: #18181b;
+        color: #0B1733;
     }
 
     .login-subtitle {
@@ -273,13 +273,13 @@ onMounted(() => {
             transition: all 0.2s;
 
             &:hover {
-                border-color: #ff8a3d;
+                border-color: #37B7FF;
             }
 
             &.arco-input-focus {
-                border-color: #ff5b4d;
+                border-color: #0F6FFF;
                 background: #fff;
-                box-shadow: 0 0 0 3px rgba(255, 91, 77, 0.08);
+                box-shadow: 0 0 0 3px rgba(15, 111, 255, 0.08);
             }
         }
     }
@@ -290,13 +290,13 @@ onMounted(() => {
         border-radius: 10px;
         font-size: 15px;
         font-weight: 600;
-        background: linear-gradient(135deg, #ff8a3d 0%, #ff5b4d 100%);
+        background: linear-gradient(135deg, #0F6FFF 0%, #0A56D6 100%);
         border: none;
         transition: all 0.3s;
 
         &:hover {
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(255, 91, 77, 0.3);
+            box-shadow: 0 6px 20px rgba(15, 111, 255, 0.3);
         }
 
         &:active {

@@ -45,7 +45,7 @@ function toDefaultPage() {
         font-size: 17px;
         font-weight: 700;
         letter-spacing: 0.5px;
-        background: linear-gradient(135deg, #ff8a3d 0%, #ff5b4d 100%);
+        background: linear-gradient(135deg, #0F6FFF 0%, #0A56D6 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;

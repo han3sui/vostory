@@ -1,20 +1,21 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">vostory icon</title>
-  <desc id="desc">Icon mark for Vostory.</desc>
+  <title id="title">vostory blue tech mark</title>
+  <desc id="desc">Blue and white technology-themed icon for Vostory.</desc>
   <defs>
-    <linearGradient id="bg" x1="74" y1="64" x2="428" y2="438" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FF8A3D"/>
-      <stop offset="0.58" stop-color="#FF5B4D"/>
-      <stop offset="1" stop-color="#C73AF5"/>
+    <linearGradient id="bg" x1="82" y1="74" x2="430" y2="434" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F6FFF"/>
+      <stop offset="0.6" stop-color="#0A56D6"/>
+      <stop offset="1" stop-color="#083B9A"/>
     </linearGradient>
-    <linearGradient id="line" x1="164" y1="164" x2="350" y2="352" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFF0DD"/>
+    <linearGradient id="wave" x1="160" y1="162" x2="355" y2="350" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BFE2FF"/>
       <stop offset="1" stop-color="#FFFFFF"/>
     </linearGradient>
   </defs>
 
   <rect x="64" y="64" width="384" height="384" rx="110" fill="url(#bg)"/>
-  <path d="M161 267C182.333 227.667 207.667 208 237 208C272 208 286.667 255.167 318.333 255.167C340.944 255.167 359 238.889 372 207" stroke="url(#line)" stroke-width="26" stroke-linecap="round"/>
+  <path d="M161 267C182.333 227.667 207.667 208 237 208C272 208 286.667 255.167 318.333 255.167C340.944 255.167 359 238.889 372 207" stroke="url(#wave)" stroke-width="26" stroke-linecap="round"/>
   <path d="M162 195L219 309C226.333 323.667 236.944 331 250.833 331C264.722 331 274.722 323.667 280.833 309L338 195" stroke="white" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M241 150C253.278 136.611 269.5 129.917 289.667 129.917C323.278 129.917 349.056 152.333 367 197.167" stroke="#FFDCC9" stroke-width="16" stroke-linecap="round" opacity="0.98"/>
+  <path d="M183 165H287C321.242 165 349 192.758 349 227V227" stroke="#D8EEFF" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="326" cy="165" r="14" fill="#D8EEFF"/>
 </svg>
