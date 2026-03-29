@@ -228,7 +228,7 @@ const tableConfig = computed(() => {
             tableHelper.default("描述", "description"),
             tableHelper.slot("audioSlot"),
             tableHelper.default("参考文本", "reference_text"),
-            tableHelper.slot("tagsSlot"),
+            // tableHelper.slot("tagsSlot"),
             tableHelper.slot("switchSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
             tableHelper.btns("操作", [
