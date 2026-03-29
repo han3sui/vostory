@@ -20,16 +20,22 @@ type VsProjectService interface {
 func NewVsProjectService(
 	service *Service,
 	repo repository.VsProjectRepository,
+	characterRepo repository.VsCharacterRepository,
+	chapterRepo repository.VsChapterRepository,
 ) VsProjectService {
 	return &vsProjectService{
-		Service: service,
-		repo:    repo,
+		Service:       service,
+		repo:          repo,
+		characterRepo: characterRepo,
+		chapterRepo:   chapterRepo,
 	}
 }
 
 type vsProjectService struct {
 	*Service
-	repo repository.VsProjectRepository
+	repo          repository.VsProjectRepository
+	characterRepo repository.VsCharacterRepository
+	chapterRepo   repository.VsChapterRepository
 }
 
 func (s *vsProjectService) Create(ctx context.Context, request *v1.VsProjectCreateRequest) error {
@@ -74,7 +80,7 @@ func (s *vsProjectService) FindByID(ctx context.Context, id uint64) (*v1.VsProje
 	if err != nil {
 		return nil, err
 	}
-	return s.convertToDetailResponse(project), nil
+	return s.convertToDetailResponse(ctx, project), nil
 }
 
 func (s *vsProjectService) FindWithPagination(ctx context.Context, query *v1.VsProjectListQuery) ([]*v1.VsProjectDetailResponse, int64, error) {
@@ -85,7 +91,7 @@ func (s *vsProjectService) FindWithPagination(ctx context.Context, query *v1.VsP
 
 	var responses []*v1.VsProjectDetailResponse
 	for _, p := range projects {
-		responses = append(responses, s.convertToDetailResponse(p))
+		responses = append(responses, s.convertToDetailResponse(ctx, p))
 	}
 	return responses, total, nil
 }
@@ -106,7 +112,17 @@ func (s *vsProjectService) FindByWorkspaceID(ctx context.Context, workspaceID ui
 	return responses, nil
 }
 
-func (s *vsProjectService) convertToDetailResponse(p *model.VsProject) *v1.VsProjectDetailResponse {
+func (s *vsProjectService) convertToDetailResponse(ctx context.Context, p *model.VsProject) *v1.VsProjectDetailResponse {
+	totalChapters := p.TotalChapters
+	totalCharacters := p.TotalCharacters
+
+	if count, err := s.chapterRepo.CountByProjectID(ctx, p.ProjectID); err == nil {
+		totalChapters = int(count)
+	}
+	if count, err := s.characterRepo.CountByProjectID(ctx, p.ProjectID); err == nil {
+		totalCharacters = int(count)
+	}
+
 	resp := &v1.VsProjectDetailResponse{
 		ID:                p.ProjectID,
 		WorkspaceID:       p.WorkspaceID,
@@ -119,8 +135,8 @@ func (s *vsProjectService) convertToDetailResponse(p *model.VsProject) *v1.VsPro
 		LLMProviderID:     p.LLMProviderID,
 		TTSProviderID:     p.TTSProviderID,
 		PromptTemplateIDs: map[string]uint64(p.PromptTemplateIDs),
-		TotalChapters:     p.TotalChapters,
-		TotalCharacters:   p.TotalCharacters,
+		TotalChapters:     totalChapters,
+		TotalCharacters:   totalCharacters,
 		Remark:            p.Remark,
 		CreatedBy:         p.CreatedBy,
 		CreatedAt:         p.CreatedAt,

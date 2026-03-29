@@ -14,6 +14,7 @@ type VsCharacterRepository interface {
 	FindByID(ctx context.Context, id uint64) (*model.VsCharacter, error)
 	FindWithPagination(ctx context.Context, query *v1.VsCharacterListQuery) ([]*model.VsCharacter, int64, error)
 	FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsCharacter, error)
+	CountByProjectID(ctx context.Context, projectID uint64) (int64, error)
 	Enable(ctx context.Context, id uint64) error
 	Disable(ctx context.Context, id uint64) error
 	FindByVoiceProfileID(ctx context.Context, voiceProfileID uint64) ([]*model.VsCharacter, error)
@@ -92,6 +93,15 @@ func (r *vsCharacterRepository) FindByProjectID(ctx context.Context, projectID u
 		return nil, err
 	}
 	return characters, nil
+}
+
+func (r *vsCharacterRepository) CountByProjectID(ctx context.Context, projectID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.VsCharacter{}).
+		Where("project_id = ? AND status = '0'", projectID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (r *vsCharacterRepository) Enable(ctx context.Context, id uint64) error {
