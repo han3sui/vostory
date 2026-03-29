@@ -38,9 +38,17 @@ func (c *Client) setAuth(req *http.Request) {
 	}
 }
 
+// SynthesizeOptions holds optional emotion parameters for TTS synthesis.
+type SynthesizeOptions struct {
+	EmoVector   []float64
+	EmoAlpha    float64
+	EmoText     string
+	UseEmoText  bool
+}
+
 // Synthesize sends the reference audio file along with the text in a single
 // multipart request. The TTS server does not persist any files.
-func (c *Client) Synthesize(audioFilePath, text string, emoVector []float64, emoText string) ([]byte, error) {
+func (c *Client) Synthesize(audioFilePath, text string, opts SynthesizeOptions) ([]byte, error) {
 	f, err := os.Open(audioFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("open audio file %s: %w", audioFilePath, err)
@@ -62,14 +70,29 @@ func (c *Client) Synthesize(audioFilePath, text string, emoVector []float64, emo
 		return nil, fmt.Errorf("write text field: %w", err)
 	}
 
-	if len(emoVector) > 0 {
-		vecJSON, _ := json.Marshal(emoVector)
+	if len(opts.EmoVector) > 0 {
+		vecJSON, _ := json.Marshal(opts.EmoVector)
 		if err := writer.WriteField("emo_vector", string(vecJSON)); err != nil {
 			return nil, fmt.Errorf("write emo_vector field: %w", err)
 		}
-	} else if emoText != "" {
-		if err := writer.WriteField("emo_text", emoText); err != nil {
-			return nil, fmt.Errorf("write emo_text field: %w", err)
+		if opts.EmoAlpha > 0 {
+			if err := writer.WriteField("emo_alpha", fmt.Sprintf("%.2f", opts.EmoAlpha)); err != nil {
+				return nil, fmt.Errorf("write emo_alpha field: %w", err)
+			}
+		}
+	} else if opts.UseEmoText {
+		if err := writer.WriteField("use_emo_text", "true"); err != nil {
+			return nil, fmt.Errorf("write use_emo_text field: %w", err)
+		}
+		if opts.EmoText != "" {
+			if err := writer.WriteField("emo_text", opts.EmoText); err != nil {
+				return nil, fmt.Errorf("write emo_text field: %w", err)
+			}
+		}
+		if opts.EmoAlpha > 0 {
+			if err := writer.WriteField("emo_alpha", fmt.Sprintf("%.2f", opts.EmoAlpha)); err != nil {
+				return nil, fmt.Errorf("write emo_alpha field: %w", err)
+			}
 		}
 	}
 

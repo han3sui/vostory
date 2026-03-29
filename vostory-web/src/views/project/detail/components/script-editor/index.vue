@@ -188,11 +188,12 @@
                                         <a-select
                                             v-model="seg.emotion_type"
                                             size="mini"
-                                            style="width: 100px"
+                                            style="width: 120px"
                                             placeholder="情绪"
                                             allow-clear
                                             @change="() => saveSegment(seg)"
                                         >
+                                            <a-option value="auto">自动(文本推断)</a-option>
                                             <a-option value="neutral">平静</a-option>
                                             <a-option value="happy">开心</a-option>
                                             <a-option value="sad">悲伤</a-option>
@@ -203,6 +204,7 @@
                                         </a-select>
 
                                         <a-select
+                                            v-if="seg.emotion_type !== 'auto'"
                                             v-model="seg.emotion_strength"
                                             size="mini"
                                             style="width: 80px"

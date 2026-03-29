@@ -144,11 +144,11 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 
 	text := s.applyPronunciationDict(ctx, segment)
 
-	emoVector, _ := buildEmotionVector(segment.EmotionType, segment.EmotionStrength)
+	opts := buildSynthesizeOptions(segment.EmotionType, segment.EmotionStrength, segment.Content)
 
 	client := tts.NewClient(provider.APIBaseURL, provider.APIKey)
 
-	audioData, err := client.Synthesize(referenceAudioURL, text, emoVector, "")
+	audioData, err := client.Synthesize(referenceAudioURL, text, opts)
 	if err != nil {
 		return failAndReturn(fmt.Sprintf("TTS 合成失败: %v", err))
 	}
@@ -229,10 +229,17 @@ func (s *vsTTSSynthesizeService) applyPronunciationDict(ctx context.Context, seg
 	return text
 }
 
-func buildEmotionVector(emotionType, emotionStrength string) ([]float64, float64) {
+func buildSynthesizeOptions(emotionType, emotionStrength, content string) tts.SynthesizeOptions {
+	if emotionType == "auto" {
+		return tts.SynthesizeOptions{
+			UseEmoText: true,
+			EmoAlpha:   0.6,
+		}
+	}
+
 	baseVector, ok := emotionVectorMap[emotionType]
 	if !ok {
-		baseVector = emotionVectorMap["neutral"]
+		return tts.SynthesizeOptions{}
 	}
 
 	alpha, ok := strengthAlphaMap[emotionStrength]
@@ -244,7 +251,10 @@ func buildEmotionVector(emotionType, emotionStrength string) ([]float64, float64
 	for i, v := range baseVector {
 		result[i] = v * alpha
 	}
-	return result, alpha
+	return tts.SynthesizeOptions{
+		EmoVector: result,
+		EmoAlpha:  alpha,
+	}
 }
 
 func (s *vsTTSSynthesizeService) saveAudioFile(segment *model.VsScriptSegment, audioData []byte) (string, int64, error) {

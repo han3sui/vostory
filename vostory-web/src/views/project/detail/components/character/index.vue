@@ -248,9 +248,14 @@ async function onEdit(v: Record<string, any> | null) {
                 "声音配置",
                 "voice_profile_id",
                 voiceProfileOptions.value.map((v) => ({ label: v.name, value: v.id })),
-                { allowClear: true, placeholder: "选择声音配置（用于 TTS 合成）" }
+                {
+                    allowClear: true,
+                    allowSearch: true,
+                    placeholder: "选择声音配置（用于 TTS 合成）",
+                    virtualListProps: { height: 200 }
+                }
             ),
-            formHelper.textarea("角色描述", "description"),
+            formHelper.textarea("角色描述", "description", { autoSize: true }),
             formHelper.radio(
                 "状态",
                 "status",
