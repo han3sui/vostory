@@ -15,17 +15,6 @@
                     </template>
                 </a-table-column>
             </template>
-            <template #featuresSlot>
-                <a-table-column title="支持能力">
-                    <template #cell="{ record }">
-                        <a-space wrap>
-                            <a-tag v-for="f in record.supported_features || []" :key="f" size="small" color="arcoblue">
-                                {{ featureLabel(f) }}
-                            </a-tag>
-                        </a-space>
-                    </template>
-                </a-table-column>
-            </template>
         </arco-table>
     </frame-view>
 </template>
@@ -45,31 +34,12 @@ import {
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 
-const TTS_TYPES = [
-    { label: "本地部署", value: "local" },
-    { label: "在线商业", value: "online" },
-    { label: "自定义", value: "custom" }
-];
-
-const FEATURES = [
-    { label: "情绪控制", value: "emotion" },
-    { label: "声音克隆", value: "clone" },
-    { label: "多角色", value: "multi_speaker" },
-    { label: "流式输出", value: "streaming" },
-    { label: "SSML", value: "ssml" }
-];
-
-function featureLabel(value: string) {
-    return FEATURES.find((f) => f.value === value)?.label || value;
-}
-
 const table = ref();
 const filterData = ref({});
 
 const getFilterConfig = computed(() => {
     return [
         formHelper.input("名称", "name", { span: 6, debounce: 500 }),
-        formHelper.select("提供商类型", "provider_type", TTS_TYPES, { span: 6 }),
         formHelper.select(
             "状态",
             "status",
@@ -90,12 +60,7 @@ const tableConfig = computed(() => {
         maxHeight: "auto",
         columns: [
             tableHelper.default("名称", "name"),
-            tableHelper.status("类型", "provider_type", (item: any) => {
-                const found = TTS_TYPES.find((t) => t.value === item.provider_type);
-                return { text: found?.label || item.provider_type, status: "normal" };
-            }),
             tableHelper.default("API 地址", "api_base_url"),
-            tableHelper.slot("featuresSlot"),
             tableHelper.default("排序", "sort_order"),
             tableHelper.slot("switchSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm:ss" }),
@@ -153,18 +118,19 @@ function onEdit(v: Record<string, any> | null) {
             title: tempValue ? "编辑 TTS 提供商" : "添加 TTS 提供商",
             width: "650px"
         },
-        value: tempValue || { status: "0", supported_features: [], custom_params: {} },
+        value: tempValue || {
+            status: "0",
+            provider_type: "local",
+            supported_features: ["clone", "multi_speaker"],
+            custom_params: {}
+        },
         formConfig: [
             formHelper.input("名称", "name", { rules: [ruleHelper.require("请输入名称")] }),
-            formHelper.select("提供商类型", "provider_type", TTS_TYPES, {
-                rules: [ruleHelper.require("请选择类型")]
-            }),
             formHelper.input("API 地址", "api_base_url", {
                 rules: [ruleHelper.require("请输入API地址")],
                 inputTips: "例如：http://localhost:8080"
             }),
             formHelper.input("API 密钥", "api_key", { formType: "password" }),
-            formHelper.checkbox("支持能力", "supported_features", FEATURES),
             formHelper.radio(
                 "状态",
                 "status",
