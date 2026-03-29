@@ -10,17 +10,17 @@ const routers: RouteConfig[] = [
         },
         component: Layout,
         children: [
-            {
-                path: "/index",
-                name: "index",
-                meta: {
-                    title: "首页",
-                    icon: "menu-home",
-                    sort: 19,
-                    keepAliveName: "AppIndex"
-                },
-                component: () => import("@/views/index/index.vue")
-            },
+            // {
+            //     path: "/index",
+            //     name: "index",
+            //     meta: {
+            //         title: "首页",
+            //         icon: "menu-home",
+            //         sort: 19,
+            //         keepAliveName: "AppIndex"
+            //     },
+            //     component: () => import("@/views/index/index.vue")
+            // },
             {
                 path: "/redirect",
                 name: "redirect",
