@@ -65,7 +65,8 @@ type BaseModel struct {
 
 - 接口导出，实现体非导出（小写开头）
 - 实现体嵌入公共 `*Repository`，通过 `r.db` 访问数据库
-- 方法名直接使用 `Create`/`UpdateFields`/`Delete`/`FindByID`/`FindWithPagination`，不带模块前缀
+- 方法名直接使用 `Create`/`UpdateFields`/`Delete`/`DeleteByIDs`/`FindByID`/`FindWithPagination`，不带模块前缀
+- **删除操作必须同时提供单条删除 `Delete(id)` 和批量删除 `DeleteByIDs(ids []uint)`**
 - 查询时使用 `model.WithDataScope(ctx)` 应用数据权限
 - 分页使用 `model.Paginate(page, size)` 作为 Scope
 
@@ -74,6 +75,7 @@ type SysPostRepository interface {
     Create(ctx context.Context, post *model.SysPost) error
     UpdateFields(ctx context.Context, id uint, fields map[string]interface{}) error
     Delete(ctx context.Context, id uint) error
+    DeleteByIDs(ctx context.Context, ids []uint) error
     FindByID(ctx context.Context, id uint) (*model.SysPost, error)
     FindWithPagination(ctx context.Context, query *v1.SysPostListQuery) ([]*model.SysPost, int64, error)
     Enable(ctx context.Context, id uint) error
@@ -97,12 +99,14 @@ type sysPostRepository struct {
 - Service 层接收 API DTO（`v1.XxxCreateRequest`），返回 API DTO（`v1.XxxDetailResponse`）
 - 内部通过 `convertToDetailResponse` 私有方法完成 model → response 转换
 - **Update 方法不查询旧记录**，直接通过 `repo.UpdateFields(ctx, id, map[string]interface{}{...})` 按字段更新，只传递请求中携带的字段，避免多余的 SELECT 查询和全字段覆盖
+- **删除操作必须同时提供单条删除 `Delete(id)` 和批量删除 `DeleteByIDs(ids []uint)`**
 
 ```go
 type SysPostService interface {
     Create(ctx context.Context, request *v1.SysPostCreateRequest) error
     Update(ctx context.Context, request *v1.SysPostUpdateRequest) error
     Delete(ctx context.Context, id uint) error
+    DeleteByIDs(ctx context.Context, ids []uint) error
     FindByID(ctx context.Context, id uint) (*v1.SysPostDetailResponse, error)
     FindWithPagination(ctx context.Context, query *v1.SysPostListQuery) ([]*v1.SysPostDetailResponse, int64, error)
     Enable(ctx context.Context, id uint) error
@@ -155,6 +159,72 @@ func (r *xxxRepository) UpdateFields(ctx context.Context, id uint64, fields map[
     return r.db.WithContext(ctx).Model(&model.Xxx{}).
         Where("id = ?", id).
         Updates(fields).Error
+}
+```
+
+### 删除操作规范
+
+**所有涉及删除的模块，必须同时提供单条删除和批量删除能力。**
+
+#### Repository 层
+
+```go
+// 单条删除
+func (r *xxxRepository) Delete(ctx context.Context, id uint) error {
+    return r.db.WithContext(ctx).Delete(&model.Xxx{}, id).Error
+}
+
+// 批量删除
+func (r *xxxRepository) DeleteByIDs(ctx context.Context, ids []uint) error {
+    return r.db.WithContext(ctx).Delete(&model.Xxx{}, ids).Error
+}
+```
+
+#### Service 层
+
+```go
+func (s *xxxService) Delete(ctx context.Context, id uint) error {
+    return s.xxxRepository.Delete(ctx, id)
+}
+
+func (s *xxxService) DeleteByIDs(ctx context.Context, ids []uint) error {
+    return s.xxxRepository.DeleteByIDs(ctx, ids)
+}
+```
+
+#### Handler 层
+
+- 单条删除：`DELETE /xxx/:id`，路径参数取 ID
+- 批量删除：`DELETE /xxx`，请求体接收 ID 数组
+
+```go
+// 批量删除请求体
+type XxxDeleteRequest struct {
+    IDs []uint `json:"ids" binding:"required,min=1"`
+}
+
+// 批量删除 Handler
+func (h *XxxHandler) DeleteByIDs(ctx *gin.Context) {
+    req := new(v1.XxxDeleteRequest)
+    if err := ctx.ShouldBindJSON(req); err != nil {
+        v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
+        return
+    }
+    if err := h.xxxService.DeleteByIDs(ctx, req.IDs); err != nil {
+        v1.HandleError(ctx, http.StatusInternalServerError, err, nil)
+        return
+    }
+    v1.HandleSuccess(ctx, nil)
+}
+```
+
+#### 路由注册
+
+```go
+xxxGroup := strictAuthRouter.Group("/xxx")
+{
+    xxxGroup.DELETE("/:id", xxxHandler.Delete)
+    xxxGroup.DELETE("", xxxHandler.DeleteByIDs)
 }
 ```
 
