@@ -7,10 +7,9 @@ type LicenseActivateOnlineRequest struct {
 	LicenseCode string `json:"license_code" binding:"required"`
 }
 
-// LicenseActivateOfflineRequest 离线激活请求（前端上传 License 文件内容）
+// LicenseActivateOfflineRequest 离线激活请求（前端上传 License 文件内容，公钥已内嵌在文件中）
 type LicenseActivateOfflineRequest struct {
 	LicenseFileContent string `json:"license_file_content" binding:"required"`
-	PublicKey          string `json:"public_key" binding:"required"`
 }
 
 // LicenseStatusResponse 授权状态响应

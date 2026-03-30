@@ -44,7 +44,7 @@ func (h *LicenseHandler) ActivateOffline(ctx *gin.Context) {
 		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
 		return
 	}
-	if err := h.licenseService.ActivateOffline(req.LicenseFileContent, req.PublicKey); err != nil {
+	if err := h.licenseService.ActivateOffline(req.LicenseFileContent); err != nil {
 		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
 		return
 	}

@@ -9,13 +9,10 @@ import typeHelper from "@/utils/helper/type";
 import global from "@/config/pinia/global";
 import { initGlobal, versionCheck } from "@/views/utils";
 import { getVersion } from "@/config/apis/common";
-import { getLicenseStatus } from "@/config/apis/license";
 import { Message } from "@arco-design/web-vue";
 import { baseRouter } from "./base";
 import { cloneDeep } from "lodash-es";
 
-let licenseChecked = false;
-let licenseActivated = false;
 
 NProgress.configure({ showSpinner: false }); // NProgress Configuration
 
@@ -156,29 +153,6 @@ router.beforeEach(async (to: RouteConfig, from, next) => {
     NProgress.start();
     document.title = <string>to.meta?.title || "";
 
-    // 授权激活页面直接放行
-    if (to.name === "activation") {
-        next();
-        return;
-    }
-
-    // 检查授权状态（仅首次）
-    if (!licenseChecked) {
-        try {
-            const status = await getLicenseStatus();
-            licenseActivated = status.activated;
-        } catch {
-            licenseActivated = false;
-        }
-        licenseChecked = true;
-    }
-
-    // 未激活时跳转到激活页
-    if (!licenseActivated) {
-        next({ name: "activation" });
-        return;
-    }
-
     if (to.name === "login") {
         next();
         return;
@@ -240,15 +214,6 @@ router.afterEach((to) => {
     NProgress.done();
 });
 
-export function resetLicenseCheck() {
-    licenseChecked = false;
-    licenseActivated = false;
-}
-
-export function setLicenseActivated(activated: boolean) {
-    licenseChecked = true;
-    licenseActivated = activated;
-}
 
 export default router;
 export { getDefaultRoute, getRouteParent, initRoute };

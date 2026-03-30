@@ -18,13 +18,4 @@ export const baseRouter = [
         },
         component: (): any => import("@/views/login/index.vue")
     },
-    {
-        path: "/activation",
-        name: "activation",
-        meta: {
-            title: "授权激活",
-            hidden: true
-        },
-        component: (): any => import("@/views/activation/index.vue")
-    }
 ];

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	v1 "iot-alert-center/api/v1"
@@ -16,7 +17,7 @@ import (
 type LicenseService interface {
 	GetStatus() *v1.LicenseStatusResponse
 	ActivateOnline(licenseCode string) error
-	ActivateOffline(fileContent, publicKey string) error
+	ActivateOffline(fileContent string) error
 	Deactivate() error
 	IsActivated() bool
 }
@@ -195,7 +196,7 @@ func (s *licenseService) ActivateOnline(licenseCode string) error {
 	return nil
 }
 
-func (s *licenseService) ActivateOffline(fileContent, publicKey string) error {
+func (s *licenseService) ActivateOffline(fileContent string) error {
 	licenseFile := s.conf.GetString("license.license_file")
 	if licenseFile == "" {
 		licenseFile = "./storage/license.json"
@@ -205,41 +206,55 @@ func (s *licenseService) ActivateOffline(fileContent, publicKey string) error {
 		return fmt.Errorf("创建存储目录失败: %w", err)
 	}
 
-	// 将 license 文件内容和公钥一起保存
-	var persistData struct {
+	decoded, err := base64.StdEncoding.DecodeString(fileContent)
+	if err != nil {
+		return fmt.Errorf("License 文件解码失败，请确认粘贴的是完整的 License 文件内容: %w", err)
+	}
+
+	var fullFile struct {
+		License   json.RawMessage `json:"license"`
+		Signature string          `json:"signature"`
+		PublicKey string          `json:"public_key"`
+	}
+	if err := json.Unmarshal(decoded, &fullFile); err != nil {
+		return fmt.Errorf("License 文件格式错误: %w", err)
+	}
+	if fullFile.PublicKey == "" {
+		return fmt.Errorf("License 文件中缺少公钥信息")
+	}
+
+	persistData := struct {
 		License   json.RawMessage `json:"license"`
 		Signature string          `json:"signature"`
 		PublicKey string          `json:"public_key"`
 		Mode      string          `json:"mode"`
+	}{
+		License:   fullFile.License,
+		Signature: fullFile.Signature,
+		PublicKey: fullFile.PublicKey,
+		Mode:      "offline",
 	}
-
-	var rawLicFile struct {
-		License   json.RawMessage `json:"license"`
-		Signature string          `json:"signature"`
-	}
-	if err := json.Unmarshal([]byte(fileContent), &rawLicFile); err != nil {
-		return fmt.Errorf("License 文件格式错误: %w", err)
-	}
-
-	persistData.License = rawLicFile.License
-	persistData.Signature = rawLicFile.Signature
-	persistData.PublicKey = publicKey
-	persistData.Mode = "offline"
 
 	persistBytes, _ := json.MarshalIndent(persistData, "", "  ")
 	if err := os.WriteFile(licenseFile, persistBytes, 0644); err != nil {
 		return fmt.Errorf("保存 License 文件失败: %w", err)
 	}
 
-	// 同时写一份纯 license 文件供 SDK 读取
+	pureLicBytes, _ := json.Marshal(struct {
+		License   json.RawMessage `json:"license"`
+		Signature string          `json:"signature"`
+	}{
+		License:   fullFile.License,
+		Signature: fullFile.Signature,
+	})
 	pureLicFile := licenseFile + ".lic"
-	if err := os.WriteFile(pureLicFile, []byte(fileContent), 0644); err != nil {
+	if err := os.WriteFile(pureLicFile, pureLicBytes, 0644); err != nil {
 		return fmt.Errorf("保存 License 文件失败: %w", err)
 	}
 
 	client := license.NewClient(license.Config{
 		LicenseFile: pureLicFile,
-		PublicKey:   publicKey,
+		PublicKey:   fullFile.PublicKey,
 		ServerURL:   s.conf.GetString("license.server_url"),
 	})
 

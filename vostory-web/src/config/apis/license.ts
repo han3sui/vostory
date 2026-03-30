@@ -28,11 +28,11 @@ export function activateOnline(licenseCode: string): Promise<LicenseStatusRespon
     });
 }
 
-export function activateOffline(licenseFileContent: string, publicKey: string): Promise<LicenseStatusResponse> {
+export function activateOffline(licenseFileContent: string): Promise<LicenseStatusResponse> {
     return request({
         url: "/api/v1/license/activate/offline",
         method: "POST",
-        data: { license_file_content: licenseFileContent, public_key: publicKey }
+        data: { license_file_content: licenseFileContent }
     });
 }
 
