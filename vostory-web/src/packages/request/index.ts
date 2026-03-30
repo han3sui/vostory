@@ -40,6 +40,11 @@ const service = new WebRequest({
                 errorResponse.config.notify = false;
                 errorLogout();
             }
+            if (errorResponse.status === 403 && errorResponse.data?.code === 4031) {
+                errorResponse.config.notify = false;
+                window.location.href = "/activation";
+                return Promise.reject(errorResponse);
+            }
             return Promise.reject(errorResponse);
         }
     }
