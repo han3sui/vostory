@@ -29,8 +29,6 @@ data:
 
 license:
   server_url: "http://127.0.0.1:5001"
-  public_key: ""
-  license_file: "./storage/license.json"
 
 log:
   log_level: info

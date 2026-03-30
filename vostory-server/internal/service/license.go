@@ -7,6 +7,7 @@ import (
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/pkg/log"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -21,6 +22,8 @@ type LicenseService interface {
 	Deactivate() error
 	IsActivated() bool
 }
+
+var defaultLicenseFile = filepath.Join("storage", "license.json")
 
 type licenseService struct {
 	logger      *log.Logger
@@ -45,12 +48,7 @@ func NewLicenseService(logger *log.Logger, conf *viper.Viper) LicenseService {
 
 // tryAutoRestore 尝试从本地存储的 License 文件自动恢复激活状态
 func (s *licenseService) tryAutoRestore() {
-	licenseFile := s.conf.GetString("license.license_file")
-	if licenseFile == "" {
-		return
-	}
-
-	data, err := os.ReadFile(licenseFile)
+	data, err := os.ReadFile(defaultLicenseFile)
 	if err != nil {
 		return
 	}
@@ -62,8 +60,7 @@ func (s *licenseService) tryAutoRestore() {
 		Mode        string `json:"mode"`
 	}
 	if err := json.Unmarshal(data, &stored); err != nil {
-		// 可能是直接的 license file 格式，尝试离线验证
-		s.tryRestoreOffline(licenseFile, data)
+		s.tryRestoreOffline(defaultLicenseFile, data)
 		return
 	}
 
@@ -91,28 +88,22 @@ func (s *licenseService) tryAutoRestore() {
 	}
 
 	if stored.PublicKey != "" {
-		s.tryRestoreOffline(licenseFile, data)
+		s.tryRestoreOffline(defaultLicenseFile, data)
 	}
 }
 
 func (s *licenseService) tryRestoreOffline(filePath string, data []byte) {
-	publicKey := s.conf.GetString("license.public_key")
-
 	var stored struct {
 		PublicKey string `json:"public_key"`
 	}
 	_ = json.Unmarshal(data, &stored)
-	if stored.PublicKey != "" {
-		publicKey = stored.PublicKey
-	}
-
-	if publicKey == "" {
+	if stored.PublicKey == "" {
 		return
 	}
 
 	client := license.NewClient(license.Config{
 		LicenseFile: filePath,
-		PublicKey:   publicKey,
+		PublicKey:   stored.PublicKey,
 		ServerURL:   s.conf.GetString("license.server_url"),
 	})
 	result, err := client.VerifyOffline()
@@ -197,11 +188,6 @@ func (s *licenseService) ActivateOnline(licenseCode string) error {
 }
 
 func (s *licenseService) ActivateOffline(fileContent string) error {
-	licenseFile := s.conf.GetString("license.license_file")
-	if licenseFile == "" {
-		licenseFile = "./storage/license.json"
-	}
-
 	if err := os.MkdirAll("./storage", 0755); err != nil {
 		return fmt.Errorf("创建存储目录失败: %w", err)
 	}
@@ -236,7 +222,7 @@ func (s *licenseService) ActivateOffline(fileContent string) error {
 	}
 
 	persistBytes, _ := json.MarshalIndent(persistData, "", "  ")
-	if err := os.WriteFile(licenseFile, persistBytes, 0644); err != nil {
+	if err := os.WriteFile(defaultLicenseFile, persistBytes, 0644); err != nil {
 		return fmt.Errorf("保存 License 文件失败: %w", err)
 	}
 
@@ -247,7 +233,7 @@ func (s *licenseService) ActivateOffline(fileContent string) error {
 		License:   fullFile.License,
 		Signature: fullFile.Signature,
 	})
-	pureLicFile := licenseFile + ".lic"
+	pureLicFile := defaultLicenseFile + ".lic"
 	if err := os.WriteFile(pureLicFile, pureLicBytes, 0644); err != nil {
 		return fmt.Errorf("保存 License 文件失败: %w", err)
 	}
@@ -293,11 +279,8 @@ func (s *licenseService) Deactivate() error {
 	s.client = nil
 	s.licenseCode = ""
 
-	licenseFile := s.conf.GetString("license.license_file")
-	if licenseFile != "" {
-		_ = os.Remove(licenseFile)
-		_ = os.Remove(licenseFile + ".lic")
-	}
+	_ = os.Remove(defaultLicenseFile)
+	_ = os.Remove(defaultLicenseFile + ".lic")
 
 	return nil
 }
@@ -309,10 +292,6 @@ func (s *licenseService) IsActivated() bool {
 }
 
 func (s *licenseService) persistState(mode, licenseCode, publicKey, fileContent string) {
-	licenseFile := s.conf.GetString("license.license_file")
-	if licenseFile == "" {
-		licenseFile = "./storage/license.json"
-	}
 	_ = os.MkdirAll("./storage", 0755)
 
 	data := map[string]string{
@@ -322,5 +301,5 @@ func (s *licenseService) persistState(mode, licenseCode, publicKey, fileContent 
 		"mode":         mode,
 	}
 	bytes, _ := json.MarshalIndent(data, "", "  ")
-	_ = os.WriteFile(licenseFile, bytes, 0644)
+	_ = os.WriteFile(defaultLicenseFile, bytes, 0644)
 }
