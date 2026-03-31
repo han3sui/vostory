@@ -27,17 +27,10 @@ RUN go env -w GOPROXY=https://goproxy.cn,direct && go mod download
 COPY vostory-server/ ./
 
 ARG VERSION=dev
-RUN echo "Building server..." && \
-    CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/server ./cmd/server && \
-    echo "Building migration..." && \
-    CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/migration ./cmd/migration && \
-    echo "Building syncmenu..." && \
-    CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/syncmenu ./cmd/syncmenu && \
-    echo "Building createadmin..." && \
-    CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/createadmin ./cmd/createadmin && \
-    echo "Building task..." && \
-    CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/task ./cmd/task && \
-    echo "Build completed!"
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/server ./cmd/server
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/migration ./cmd/migration
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/syncmenu ./cmd/syncmenu
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/createadmin ./cmd/createadmin
 
 RUN cp -r config /build/server/bin/ && \
     (cp -r docs /build/server/bin/ || echo "docs directory not found, skipping...")
