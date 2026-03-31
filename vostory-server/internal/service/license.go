@@ -33,6 +33,7 @@ type licenseService struct {
 	activated   bool
 	lastResult  *license.VerifyResult
 	licenseCode string
+	stopCh      chan struct{}
 }
 
 func NewLicenseService(logger *log.Logger, conf *viper.Viper) LicenseService {
@@ -56,11 +57,10 @@ func (s *licenseService) tryAutoRestore() {
 	var stored struct {
 		LicenseCode string `json:"license_code"`
 		ServerURL   string `json:"server_url"`
-		PublicKey   string `json:"public_key"`
 		Mode        string `json:"mode"`
 	}
 	if err := json.Unmarshal(data, &stored); err != nil {
-		s.tryRestoreOffline(defaultLicenseFile, data)
+		s.tryRestoreOffline()
 		return
 	}
 
@@ -73,6 +73,7 @@ func (s *licenseService) tryAutoRestore() {
 		client := license.NewClient(license.Config{
 			LicenseCode: stored.LicenseCode,
 			ServerURL:   serverURL,
+			PublicKey:   trustedPublicKey,
 		})
 		result, err := client.VerifyOnline()
 		if err == nil && result.Valid {
@@ -87,23 +88,20 @@ func (s *licenseService) tryAutoRestore() {
 		}
 	}
 
-	if stored.PublicKey != "" {
-		s.tryRestoreOffline(defaultLicenseFile, data)
+	if stored.Mode == "offline" {
+		s.tryRestoreOffline()
 	}
 }
 
-func (s *licenseService) tryRestoreOffline(filePath string, data []byte) {
-	var stored struct {
-		PublicKey string `json:"public_key"`
-	}
-	_ = json.Unmarshal(data, &stored)
-	if stored.PublicKey == "" {
+func (s *licenseService) tryRestoreOffline() {
+	licFile := defaultLicenseFile + ".lic"
+	if _, err := os.Stat(licFile); err != nil {
 		return
 	}
 
 	client := license.NewClient(license.Config{
-		LicenseFile: filePath,
-		PublicKey:   stored.PublicKey,
+		LicenseFile: licFile,
+		PublicKey:   trustedPublicKey,
 		ServerURL:   s.conf.GetString("license.server_url"),
 	})
 	result, err := client.VerifyOffline()
@@ -114,6 +112,7 @@ func (s *licenseService) tryRestoreOffline(filePath string, data []byte) {
 		s.lastResult = result
 		s.licenseCode = result.LicenseCode
 		s.mu.Unlock()
+		s.startOfflineWatchdog(client)
 		s.logger.Info("License auto-restored (offline)")
 	}
 }
@@ -156,6 +155,7 @@ func (s *licenseService) ActivateOnline(licenseCode string) error {
 	client := license.NewClient(license.Config{
 		LicenseCode: licenseCode,
 		ServerURL:   serverURL,
+		PublicKey:   trustedPublicKey,
 	})
 
 	if err := client.Activate(); err != nil {
@@ -182,7 +182,7 @@ func (s *licenseService) ActivateOnline(licenseCode string) error {
 
 	client.StartHeartbeat(5 * time.Minute)
 
-	s.persistState("online", licenseCode, "", "")
+	s.persistState("online", licenseCode)
 
 	return nil
 }
@@ -197,50 +197,24 @@ func (s *licenseService) ActivateOffline(fileContent string) error {
 		return fmt.Errorf("License 文件解码失败，请确认粘贴的是完整的 License 文件内容: %w", err)
 	}
 
-	var fullFile struct {
-		License   json.RawMessage `json:"license"`
-		Signature string          `json:"signature"`
-		PublicKey string          `json:"public_key"`
-	}
-	if err := json.Unmarshal(decoded, &fullFile); err != nil {
+	// 验证 JSON 格式合法性
+	var check json.RawMessage
+	if err := json.Unmarshal(decoded, &check); err != nil {
 		return fmt.Errorf("License 文件格式错误: %w", err)
 	}
-	if fullFile.PublicKey == "" {
-		return fmt.Errorf("License 文件中缺少公钥信息")
-	}
 
-	persistData := struct {
-		License   json.RawMessage `json:"license"`
-		Signature string          `json:"signature"`
-		PublicKey string          `json:"public_key"`
-		Mode      string          `json:"mode"`
-	}{
-		License:   fullFile.License,
-		Signature: fullFile.Signature,
-		PublicKey: fullFile.PublicKey,
-		Mode:      "offline",
-	}
-
-	persistBytes, _ := json.MarshalIndent(persistData, "", "  ")
-	if err := os.WriteFile(defaultLicenseFile, persistBytes, 0644); err != nil {
-		return fmt.Errorf("保存 License 文件失败: %w", err)
-	}
-
-	pureLicBytes, _ := json.Marshal(struct {
-		License   json.RawMessage `json:"license"`
-		Signature string          `json:"signature"`
-	}{
-		License:   fullFile.License,
-		Signature: fullFile.Signature,
-	})
+	// 保存原始 License 文件供 SDK 读取
 	pureLicFile := defaultLicenseFile + ".lic"
-	if err := os.WriteFile(pureLicFile, pureLicBytes, 0644); err != nil {
+	if err := os.WriteFile(pureLicFile, decoded, 0644); err != nil {
 		return fmt.Errorf("保存 License 文件失败: %w", err)
 	}
+
+	// 保存状态标记文件
+	s.persistState("offline", "")
 
 	client := license.NewClient(license.Config{
 		LicenseFile: pureLicFile,
-		PublicKey:   fullFile.PublicKey,
+		PublicKey:   trustedPublicKey,
 		ServerURL:   s.conf.GetString("license.server_url"),
 	})
 
@@ -255,12 +229,15 @@ func (s *licenseService) ActivateOffline(fileContent string) error {
 	s.mu.Lock()
 	if s.client != nil {
 		s.client.StopHeartbeat()
+		s.client.StopOfflineWatchdog()
 	}
 	s.client = client
 	s.activated = true
 	s.lastResult = result
 	s.licenseCode = result.LicenseCode
 	s.mu.Unlock()
+
+	s.startOfflineWatchdog(client)
 
 	return nil
 }
@@ -271,6 +248,8 @@ func (s *licenseService) Deactivate() error {
 
 	if s.client != nil {
 		s.client.StopHeartbeat()
+		s.client.StopOfflineWatchdog()
+		s.client.ResetTimeGuard()
 		_ = s.client.Deactivate()
 	}
 
@@ -291,13 +270,22 @@ func (s *licenseService) IsActivated() bool {
 	return s.activated
 }
 
-func (s *licenseService) persistState(mode, licenseCode, publicKey, fileContent string) {
+func (s *licenseService) startOfflineWatchdog(client *license.Client) {
+	client.StartOfflineWatchdog(1*time.Hour, func() {
+		s.mu.Lock()
+		s.activated = false
+		s.lastResult = nil
+		s.mu.Unlock()
+		s.logger.Warn("License offline watchdog: authorization expired or time anomaly detected")
+	})
+}
+
+func (s *licenseService) persistState(mode, licenseCode string) {
 	_ = os.MkdirAll("./storage", 0755)
 
 	data := map[string]string{
 		"license_code": licenseCode,
 		"server_url":   s.conf.GetString("license.server_url"),
-		"public_key":   publicKey,
 		"mode":         mode,
 	}
 	bytes, _ := json.MarshalIndent(data, "", "  ")
