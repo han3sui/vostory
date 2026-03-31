@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	license "github.com/license-core/license-sdk"
+	license "github.com/han3sui/license-sdk"
 	"github.com/spf13/viper"
 )
 

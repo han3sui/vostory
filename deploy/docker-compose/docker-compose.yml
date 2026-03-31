@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:13
+    container_name: vostory-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=vostory
+      - POSTGRES_PASSWORD=vostory123456
+      - POSTGRES_DB=vostory
+      - TZ=Asia/Shanghai
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - vostory-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vostory -d vostory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    container_name: vostory-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - vostory-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  vostory:
+    image: ${IMAGE_REGISTRY:-local}/vostory:${VERSION:-latest}
+    container_name: vostory
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    volumes:
+      - ./config/docker.yml:/app/config/docker.yml:ro
+      - app-storage:/app/storage
+    environment:
+      - TZ=Asia/Shanghai
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vostory-net
+
+volumes:
+  postgres-data:
+  redis-data:
+  app-storage:
+
+networks:
+  vostory-net:
+    driver: bridge
