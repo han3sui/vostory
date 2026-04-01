@@ -82,7 +82,7 @@ func (s *licenseService) tryAutoRestore() {
 			s.activated = true
 			s.lastResult = result
 			s.mu.Unlock()
-			client.StartHeartbeat(5 * time.Minute)
+			client.StartHeartbeat(5*time.Minute, 7*24*time.Hour, s.handleRemoteDeactivation)
 			s.logger.Info("License auto-restored (online)")
 			return
 		}
@@ -180,7 +180,7 @@ func (s *licenseService) ActivateOnline(licenseCode string) error {
 	s.licenseCode = licenseCode
 	s.mu.Unlock()
 
-	client.StartHeartbeat(5 * time.Minute)
+	client.StartHeartbeat(5*time.Minute, 7*24*time.Hour, s.handleRemoteDeactivation)
 
 	s.persistState("online", licenseCode)
 
@@ -268,6 +268,14 @@ func (s *licenseService) IsActivated() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.activated
+}
+
+func (s *licenseService) handleRemoteDeactivation(reason string) {
+	s.mu.Lock()
+	s.activated = false
+	s.lastResult = nil
+	s.mu.Unlock()
+	s.logger.Warn("License remote deactivation: " + reason)
 }
 
 func (s *licenseService) startOfflineWatchdog(client *license.Client) {
