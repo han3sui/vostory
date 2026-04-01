@@ -14,7 +14,7 @@ require (
 	github.com/go-playground/validator/v10 v10.14.0
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/google/wire v0.5.0
-	github.com/han3sui/license-sdk v0.0.1
+	github.com/han3sui/license-sdk v0.0.2
 	github.com/lib/pq v1.10.9
 	github.com/mssola/useragent v1.0.0
 	github.com/pkg/errors v0.9.1
