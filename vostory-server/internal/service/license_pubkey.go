@@ -4,11 +4,11 @@ package service
 // 此公钥必须与 License Server 中对应产品的公钥一致
 // 更换产品密钥对后需同步更新此处并重新编译
 const trustedPublicKey = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwpgyey4fDK0ZcfiH1nCv
-t9Jhcj7RdVS00esSrgaFMUV/fqUCo1zAWBQbSSXiYv92bgTxFiaZ8rB2fSnAU02c
-3+ekSqQv/rdsHecDQVVkMdEFg/phDq8oN95VYO737ll4tRTEBaSzYQyNMXKlbsGT
-KpjoN+2vWh7MW+9KenPqQ32krQKz1N3cH7GU47LFXDs0kmEgVRo9f2hmfQLd3qY7
-WDdoUru4qDyHEQpUYL6tN7VXkVz7OhXLujQ5R0vsyy1LmulXlO6msynmqtlk5Fmo
-i3EnLvgCyvBptRIbtRuUlP165F3qm25qCAqoe9XTvCzLmCYQA7WquejtFGG6aStL
-ZwIDAQAB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzt3WJhLqYKKSyHj62rhn
+bvzUvMLsPMP6lCXUiugkFskeAjrKhjqgzeNuiZKr4Wa+x+sizdi+E0EnH+pUplHj
+XPj42fQR20pUiRdTZD2YzEnaINI/fhg4lhNrheH4QUpjRHUm5b9b/avLV4gNQaLp
+niSIpLpjkG1/nvu3IR7hZJz9U7a3F1x3Y6KfFyUuZcatNmhlWEG/Mcnyh6VWxaoy
+Obywlh323fAH3J80xApXkAM9xisfuiB2yp59vYrHjLgmjnEE30yN1+9nRQRusx78
+PJ0kl13x6an6WpNS1jA7plDG27FraNJ/Nr9CmPH5NYTdPcOwEqv32MSGZV3BO420
+UQIDAQAB
 -----END PUBLIC KEY-----`
