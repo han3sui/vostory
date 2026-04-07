@@ -47,6 +47,16 @@ func NewLicenseService(logger *log.Logger, conf *viper.Viper) LicenseService {
 	return svc
 }
 
+// getServerURL 返回配置的授权服务地址，为空则由 SDK 使用内置默认值
+func (s *licenseService) getServerURL() string {
+	const defaultServerURL = "https://license.vostory.com"
+	serverURL := s.conf.GetString("license.server_url")
+	if serverURL == "" {
+		return defaultServerURL
+	}
+	return serverURL
+}
+
 // tryAutoRestore 尝试从本地存储的 License 文件自动恢复激活状态
 func (s *licenseService) tryAutoRestore() {
 	data, err := os.ReadFile(defaultLicenseFile)
@@ -68,7 +78,7 @@ func (s *licenseService) tryAutoRestore() {
 		s.licenseCode = stored.LicenseCode
 		serverURL := stored.ServerURL
 		if serverURL == "" {
-			serverURL = s.conf.GetString("license.server_url")
+			serverURL = s.getServerURL()
 		}
 		client := license.NewClient(license.Config{
 			LicenseCode: stored.LicenseCode,
@@ -102,7 +112,7 @@ func (s *licenseService) tryRestoreOffline() {
 	client := license.NewClient(license.Config{
 		LicenseFile: licFile,
 		PublicKey:   trustedPublicKey,
-		ServerURL:   s.conf.GetString("license.server_url"),
+		ServerURL:   s.getServerURL(),
 	})
 	result, err := client.VerifyOffline()
 	if err == nil && result.Valid {
@@ -147,14 +157,9 @@ func (s *licenseService) GetStatus() *v1.LicenseStatusResponse {
 }
 
 func (s *licenseService) ActivateOnline(licenseCode string) error {
-	serverURL := s.conf.GetString("license.server_url")
-	if serverURL == "" {
-		return fmt.Errorf("未配置授权服务地址")
-	}
-
 	client := license.NewClient(license.Config{
 		LicenseCode: licenseCode,
-		ServerURL:   serverURL,
+		ServerURL:   s.getServerURL(),
 		PublicKey:   trustedPublicKey,
 	})
 
@@ -215,7 +220,7 @@ func (s *licenseService) ActivateOffline(fileContent string) error {
 	client := license.NewClient(license.Config{
 		LicenseFile: pureLicFile,
 		PublicKey:   trustedPublicKey,
-		ServerURL:   s.conf.GetString("license.server_url"),
+		ServerURL:   s.getServerURL(),
 	})
 
 	result, err := client.VerifyOffline()
@@ -293,7 +298,7 @@ func (s *licenseService) persistState(mode, licenseCode string) {
 
 	data := map[string]string{
 		"license_code": licenseCode,
-		"server_url":   s.conf.GetString("license.server_url"),
+		"server_url":   s.getServerURL(),
 		"mode":         mode,
 	}
 	bytes, _ := json.MarshalIndent(data, "", "  ")
