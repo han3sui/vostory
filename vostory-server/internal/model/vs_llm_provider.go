@@ -36,9 +36,10 @@ type VsLLMProvider struct {
 	APIKey       string         `json:"api_key" gorm:"size:500;comment:API密钥"`
 	ModelList    ModelList      `json:"model_list" gorm:"type:text;comment:可用模型列表"`
 	DefaultModel string        `json:"default_model" gorm:"size:100;comment:默认模型"`
-	CustomParams ProviderParams `json:"custom_params" gorm:"type:text;comment:自定义参数"`
-	SortOrder    int            `json:"sort_order" gorm:"default:0;comment:排序"`
-	Status       string         `json:"status" gorm:"size:1;default:'0';comment:状态（0正常 1停用）"`
+	CustomParams   ProviderParams `json:"custom_params" gorm:"type:text;comment:自定义参数"`
+	MaxConcurrency int            `json:"max_concurrency" gorm:"default:1;comment:最大并发数"`
+	SortOrder      int            `json:"sort_order" gorm:"default:0;comment:排序"`
+	Status         string         `json:"status" gorm:"size:1;default:'0';comment:状态（0正常 1停用）"`
 }
 
 func (VsLLMProvider) TableName() string {

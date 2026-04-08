@@ -11,6 +11,7 @@ export type LLMProviderDetailType = {
     model_list: string[];
     default_model: string;
     custom_params: Record<string, any>;
+    max_concurrency: number;
     sort_order: number;
     status: string;
     created_at: string;
@@ -85,6 +86,7 @@ export type TTSProviderDetailType = {
     api_key: string;
     supported_features: string[];
     custom_params: Record<string, any>;
+    max_concurrency: number;
     sort_order: number;
     status: string;
     created_at: string;
@@ -144,6 +146,33 @@ export function testTTSProvider(data: {
     custom_params?: Record<string, any>;
 }): Promise<TTSProviderTestResult> {
     return request({ url: "/api/v1/ai/tts-provider/test", method: "post", data, timeout: 0 });
+}
+
+export type TTSProviderStatusGPU = {
+    name: string;
+    gpu_utilization: number | null;
+    memory_total_mb: number;
+    memory_allocated_mb: number;
+    memory_reserved_mb: number;
+};
+
+export type TTSProviderStatusResult = {
+    cpu: {
+        name: string;
+        percent: number;
+        count_physical: number | null;
+        count_logical: number;
+    };
+    memory: {
+        total_mb: number;
+        used_mb: number;
+        percent: number;
+    };
+    gpu: TTSProviderStatusGPU | null;
+};
+
+export function getTTSProviderStatus(id: number): Promise<TTSProviderStatusResult> {
+    return request({ url: `/api/v1/ai/tts-provider/${id}/status`, timeout: 15000 });
 }
 
 // ============= Prompt 模板相关接口 =============

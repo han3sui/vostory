@@ -44,15 +44,16 @@ type vsLLMProviderService struct {
 
 func (s *vsLLMProviderService) Create(ctx context.Context, request *v1.VsLLMProviderCreateRequest) error {
 	provider := &model.VsLLMProvider{
-		Name:         request.Name,
-		ProviderType: request.ProviderType,
-		APIBaseURL:   request.APIBaseURL,
-		APIKey:       request.APIKey,
-		ModelList:    request.ModelList,
-		DefaultModel: request.DefaultModel,
-		CustomParams: request.CustomParams,
-		SortOrder:    request.SortOrder,
-		Status:       request.Status,
+		Name:           request.Name,
+		ProviderType:   request.ProviderType,
+		APIBaseURL:     request.APIBaseURL,
+		APIKey:         request.APIKey,
+		ModelList:      request.ModelList,
+		DefaultModel:   request.DefaultModel,
+		CustomParams:   request.CustomParams,
+		MaxConcurrency: request.MaxConcurrency,
+		SortOrder:      request.SortOrder,
+		Status:         request.Status,
 		BaseModel: model.BaseModel{
 			CreatedBy: ctx.Value("login_name").(string),
 		},
@@ -74,6 +75,7 @@ func (s *vsLLMProviderService) Update(ctx context.Context, request *v1.VsLLMProv
 	existing.ModelList = request.ModelList
 	existing.DefaultModel = request.DefaultModel
 	existing.CustomParams = request.CustomParams
+	existing.MaxConcurrency = request.MaxConcurrency
 	existing.SortOrder = request.SortOrder
 	existing.Status = request.Status
 	existing.UpdatedBy = ctx.Value("login_name").(string)
@@ -228,17 +230,18 @@ func (s *vsLLMProviderService) TestConnection(_ context.Context, request *v1.VsL
 
 func (s *vsLLMProviderService) convertToDetailResponse(p *model.VsLLMProvider) *v1.VsLLMProviderDetailResponse {
 	return &v1.VsLLMProviderDetailResponse{
-		ID:           p.ProviderID,
-		Name:         p.Name,
-		ProviderType: p.ProviderType,
-		APIBaseURL:   p.APIBaseURL,
-		APIKey:       p.APIKey,
-		ModelList:    p.ModelList,
-		DefaultModel: p.DefaultModel,
-		CustomParams: p.CustomParams,
-		SortOrder:    p.SortOrder,
-		Status:       p.Status,
-		CreatedAt:    p.CreatedAt,
-		UpdatedAt:    p.UpdatedAt,
+		ID:             p.ProviderID,
+		Name:           p.Name,
+		ProviderType:   p.ProviderType,
+		APIBaseURL:     p.APIBaseURL,
+		APIKey:         p.APIKey,
+		ModelList:      p.ModelList,
+		DefaultModel:   p.DefaultModel,
+		CustomParams:   p.CustomParams,
+		MaxConcurrency: p.MaxConcurrency,
+		SortOrder:      p.SortOrder,
+		Status:         p.Status,
+		CreatedAt:      p.CreatedAt,
+		UpdatedAt:      p.UpdatedAt,
 	}
 }

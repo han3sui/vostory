@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"iot-alert-center/internal/repository"
@@ -17,12 +18,19 @@ import (
 const llmQueueKey = "vs:llm:queue"
 
 type LLMWorker struct {
-	rdb         *redis.Client
-	logger      *log.Logger
-	taskRepo    repository.VsGenerationTaskRepository
-	chapterRepo repository.VsChapterRepository
-	splitSvc    service.VsChapterSplitService
-	cancel      context.CancelFunc
+	rdb          *redis.Client
+	logger       *log.Logger
+	taskRepo     repository.VsGenerationTaskRepository
+	chapterRepo  repository.VsChapterRepository
+	splitSvc     service.VsChapterSplitService
+	providerRepo repository.VsLLMProviderRepository
+	projectRepo  repository.VsProjectRepository
+	cancel       context.CancelFunc
+	wg           sync.WaitGroup
+
+	mu           sync.RWMutex
+	providerSems map[uint64]chan struct{}
+	defaultSem   chan struct{}
 }
 
 func NewLLMWorker(
@@ -31,13 +39,19 @@ func NewLLMWorker(
 	taskRepo repository.VsGenerationTaskRepository,
 	chapterRepo repository.VsChapterRepository,
 	splitSvc service.VsChapterSplitService,
+	providerRepo repository.VsLLMProviderRepository,
+	projectRepo repository.VsProjectRepository,
 ) *LLMWorker {
 	return &LLMWorker{
-		rdb:         rdb,
-		logger:      logger,
-		taskRepo:    taskRepo,
-		chapterRepo: chapterRepo,
-		splitSvc:    splitSvc,
+		rdb:          rdb,
+		logger:       logger,
+		taskRepo:     taskRepo,
+		chapterRepo:  chapterRepo,
+		splitSvc:     splitSvc,
+		providerRepo: providerRepo,
+		projectRepo:  projectRepo,
+		providerSems: make(map[uint64]chan struct{}),
+		defaultSem:   make(chan struct{}, 1),
 	}
 }
 
@@ -45,9 +59,11 @@ func (w *LLMWorker) Start(ctx context.Context) {
 	workerCtx, cancel := context.WithCancel(ctx)
 	w.cancel = cancel
 
+	w.refreshProviderSems(workerCtx)
 	w.recoverTasks(workerCtx)
 
 	go w.consumeLoop(workerCtx)
+	go w.concurrencyRefreshLoop(workerCtx)
 	w.logger.Info("LLMWorker started")
 }
 
@@ -55,7 +71,65 @@ func (w *LLMWorker) Stop() {
 	if w.cancel != nil {
 		w.cancel()
 	}
+	w.wg.Wait()
 	w.logger.Info("LLMWorker stopped")
+}
+
+func (w *LLMWorker) refreshProviderSems(ctx context.Context) {
+	providers, err := w.providerRepo.FindAllEnabled(ctx)
+	if err != nil {
+		w.logger.Warn("llm: failed to load providers for concurrency", zap.Error(err))
+		return
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	active := make(map[uint64]bool, len(providers))
+	for _, p := range providers {
+		active[p.ProviderID] = true
+		maxC := p.MaxConcurrency
+		if maxC < 1 {
+			maxC = 1
+		}
+		existing, ok := w.providerSems[p.ProviderID]
+		if ok && cap(existing) == maxC {
+			continue
+		}
+		w.logger.Info("llm: updating provider concurrency",
+			zap.Uint64("provider_id", p.ProviderID),
+			zap.String("provider_name", p.Name),
+			zap.Int("concurrency", maxC))
+		w.providerSems[p.ProviderID] = make(chan struct{}, maxC)
+	}
+
+	for pid := range w.providerSems {
+		if !active[pid] {
+			delete(w.providerSems, pid)
+		}
+	}
+}
+
+func (w *LLMWorker) getProviderSem(providerID uint64) chan struct{} {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if sem, ok := w.providerSems[providerID]; ok {
+		return sem
+	}
+	return w.defaultSem
+}
+
+func (w *LLMWorker) concurrencyRefreshLoop(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			w.refreshProviderSems(ctx)
+		}
+	}
 }
 
 func (w *LLMWorker) recoverTasks(ctx context.Context) {
@@ -99,6 +173,21 @@ func (w *LLMWorker) recoverTasks(ctx context.Context) {
 	}
 }
 
+func (w *LLMWorker) resolveProviderID(ctx context.Context, taskID uint64) uint64 {
+	task, err := w.taskRepo.FindByID(ctx, taskID)
+	if err != nil {
+		return 0
+	}
+	project, err := w.projectRepo.FindByID(ctx, task.ProjectID)
+	if err != nil {
+		return 0
+	}
+	if project.LLMProviderID != nil {
+		return *project.LLMProviderID
+	}
+	return 0
+}
+
 func (w *LLMWorker) consumeLoop(ctx context.Context) {
 	for {
 		select {
@@ -126,7 +215,15 @@ func (w *LLMWorker) consumeLoop(ctx context.Context) {
 			continue
 		}
 
-		w.processChapter(ctx, taskID, chapterID)
+		providerID := w.resolveProviderID(ctx, taskID)
+		sem := w.getProviderSem(providerID)
+		sem <- struct{}{}
+		w.wg.Add(1)
+		go func(tID, cID uint64) {
+			defer w.wg.Done()
+			defer func() { <-sem }()
+			w.processChapter(ctx, tID, cID)
+		}(taskID, chapterID)
 	}
 }
 

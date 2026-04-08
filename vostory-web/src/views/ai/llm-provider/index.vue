@@ -78,7 +78,7 @@ const tableConfig = computed(() => {
             }),
             tableHelper.default("API 地址", "api_base_url"),
             tableHelper.default("默认模型", "default_model"),
-            tableHelper.default("排序", "sort_order"),
+            tableHelper.default("最大并发", "max_concurrency"),
             tableHelper.slot("switchSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm:ss" }),
             tableHelper.btns("操作", [
@@ -135,7 +135,7 @@ function onEdit(v: Record<string, any> | null) {
             title: tempValue ? "编辑 LLM 提供商" : "添加 LLM 提供商",
             width: "650px"
         },
-        value: tempValue || { status: "0", model_list: [], custom_params: {} },
+        value: tempValue || { status: "0", model_list: [], custom_params: {}, max_concurrency: 1 },
         formConfig: [
             formHelper.input("名称", "name", { rules: [ruleHelper.require("请输入名称")] }),
             formHelper.select("提供商类型", "provider_type", LLM_TYPES, {
@@ -148,6 +148,11 @@ function onEdit(v: Record<string, any> | null) {
             formHelper.input("API 密钥", "api_key", { formType: "password" }),
             formHelper.input("默认模型", "default_model", {
                 inputTips: "例如：gpt-4o、deepseek-chat"
+            }),
+            formHelper.inputNumber("最大并发数", "max_concurrency", {
+                inputTips: "同时处理的最大任务数，默认为 1",
+                min: 1,
+                max: 100
             }),
             formHelper.radio(
                 "状态",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"iot-alert-center/internal/repository"
@@ -17,12 +18,19 @@ import (
 const redisQueueKey = "vs:tts:queue"
 
 type TTSWorker struct {
-	rdb         *redis.Client
-	logger      *log.Logger
-	taskRepo    repository.VsGenerationTaskRepository
-	segmentRepo repository.VsScriptSegmentRepository
-	ttsSvc      service.VsTTSSynthesizeService
-	cancel      context.CancelFunc
+	rdb          *redis.Client
+	logger       *log.Logger
+	taskRepo     repository.VsGenerationTaskRepository
+	segmentRepo  repository.VsScriptSegmentRepository
+	ttsSvc       service.VsTTSSynthesizeService
+	providerRepo repository.VsTTSProviderRepository
+	projectRepo  repository.VsProjectRepository
+	cancel       context.CancelFunc
+	wg           sync.WaitGroup
+
+	mu           sync.RWMutex
+	providerSems map[uint64]chan struct{}
+	defaultSem   chan struct{}
 }
 
 func NewTTSWorker(
@@ -31,13 +39,19 @@ func NewTTSWorker(
 	taskRepo repository.VsGenerationTaskRepository,
 	segmentRepo repository.VsScriptSegmentRepository,
 	ttsSvc service.VsTTSSynthesizeService,
+	providerRepo repository.VsTTSProviderRepository,
+	projectRepo repository.VsProjectRepository,
 ) *TTSWorker {
 	return &TTSWorker{
-		rdb:         rdb,
-		logger:      logger,
-		taskRepo:    taskRepo,
-		segmentRepo: segmentRepo,
-		ttsSvc:      ttsSvc,
+		rdb:          rdb,
+		logger:       logger,
+		taskRepo:     taskRepo,
+		segmentRepo:  segmentRepo,
+		ttsSvc:       ttsSvc,
+		providerRepo: providerRepo,
+		projectRepo:  projectRepo,
+		providerSems: make(map[uint64]chan struct{}),
+		defaultSem:   make(chan struct{}, 1),
 	}
 }
 
@@ -45,9 +59,11 @@ func (w *TTSWorker) Start(ctx context.Context) {
 	workerCtx, cancel := context.WithCancel(ctx)
 	w.cancel = cancel
 
+	w.refreshProviderSems(workerCtx)
 	w.recoverTasks(workerCtx)
 
 	go w.consumeLoop(workerCtx)
+	go w.concurrencyRefreshLoop(workerCtx)
 	w.logger.Info("TTSWorker started")
 }
 
@@ -55,7 +71,65 @@ func (w *TTSWorker) Stop() {
 	if w.cancel != nil {
 		w.cancel()
 	}
+	w.wg.Wait()
 	w.logger.Info("TTSWorker stopped")
+}
+
+func (w *TTSWorker) refreshProviderSems(ctx context.Context) {
+	providers, err := w.providerRepo.FindAllEnabled(ctx)
+	if err != nil {
+		w.logger.Warn("tts: failed to load providers for concurrency", zap.Error(err))
+		return
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	active := make(map[uint64]bool, len(providers))
+	for _, p := range providers {
+		active[p.ProviderID] = true
+		maxC := p.MaxConcurrency
+		if maxC < 1 {
+			maxC = 1
+		}
+		existing, ok := w.providerSems[p.ProviderID]
+		if ok && cap(existing) == maxC {
+			continue
+		}
+		w.logger.Info("tts: updating provider concurrency",
+			zap.Uint64("provider_id", p.ProviderID),
+			zap.String("provider_name", p.Name),
+			zap.Int("concurrency", maxC))
+		w.providerSems[p.ProviderID] = make(chan struct{}, maxC)
+	}
+
+	for pid := range w.providerSems {
+		if !active[pid] {
+			delete(w.providerSems, pid)
+		}
+	}
+}
+
+func (w *TTSWorker) getProviderSem(providerID uint64) chan struct{} {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if sem, ok := w.providerSems[providerID]; ok {
+		return sem
+	}
+	return w.defaultSem
+}
+
+func (w *TTSWorker) concurrencyRefreshLoop(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			w.refreshProviderSems(ctx)
+		}
+	}
 }
 
 // EnqueueSegment pushes a "taskID:segmentID" message into the queue.
@@ -122,6 +196,21 @@ func (w *TTSWorker) recoverTasks(ctx context.Context) {
 	}
 }
 
+func (w *TTSWorker) resolveProviderID(ctx context.Context, taskID uint64) uint64 {
+	task, err := w.taskRepo.FindByID(ctx, taskID)
+	if err != nil {
+		return 0
+	}
+	project, err := w.projectRepo.FindByID(ctx, task.ProjectID)
+	if err != nil {
+		return 0
+	}
+	if project.TTSProviderID != nil {
+		return *project.TTSProviderID
+	}
+	return 0
+}
+
 func (w *TTSWorker) consumeLoop(ctx context.Context) {
 	for {
 		select {
@@ -149,7 +238,15 @@ func (w *TTSWorker) consumeLoop(ctx context.Context) {
 			continue
 		}
 
-		w.processSegment(ctx, taskID, segmentID)
+		providerID := w.resolveProviderID(ctx, taskID)
+		sem := w.getProviderSem(providerID)
+		sem <- struct{}{}
+		w.wg.Add(1)
+		go func(tID, sID uint64) {
+			defer w.wg.Done()
+			defer func() { <-sem }()
+			w.processSegment(ctx, tID, sID)
+		}(taskID, segmentID)
 	}
 }
 

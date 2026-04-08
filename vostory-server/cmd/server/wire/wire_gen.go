@@ -136,8 +136,8 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	httpServer := server.NewHTTPServer(logger, viperViper, jwtJWT, db, sysPostHandler, sysDeptHandler, sysMenuHandler, sysRoleHandler, sysUserHandler, eventBus, sysLogininforHandler, userCache, sysApiHandler, sysDictTypeHandler, sysDictDataHandler, sysOperLogHandler, sysOperLogService, vsLLMProviderHandler, vsTTSProviderHandler, vsPromptTemplateHandler, vsWorkspaceHandler, vsProjectHandler, vsChapterHandler, vsScriptSegmentHandler, vsCharacterHandler, vsFileImportHandler, vsLLMLogHandler, vsVoiceProfileHandler, vsPronunciationDictHandler, vsPreciseFillHandler, vsChapterSplitHandler, vsCharacterExtractHandler, vsVoiceEmotionHandler, vsTTSSynthesizeHandler, vsVoiceAssetHandler, vsCommonUploadHandler, vsVoiceMatchHandler, vsExportJobHandler, licenseHandler, licenseService)
 	jobJob := job.NewJob(transaction, logger, sidSid, viperViper)
 	userJob := job.NewUserJob(jobJob)
-	ttsWorker := worker.NewTTSWorker(client, logger, vsGenerationTaskRepository, vsScriptSegmentRepository, vsTTSSynthesizeService)
-	llmWorker := worker.NewLLMWorker(client, logger, vsGenerationTaskRepository, vsChapterRepository, vsChapterSplitService)
+	ttsWorker := worker.NewTTSWorker(client, logger, vsGenerationTaskRepository, vsScriptSegmentRepository, vsTTSSynthesizeService, vsTTSProviderRepository, vsProjectRepository)
+	llmWorker := worker.NewLLMWorker(client, logger, vsGenerationTaskRepository, vsChapterRepository, vsChapterSplitService, vsLLMProviderRepository, vsProjectRepository)
 	jobServer := server.NewJobServer(logger, viperViper, userJob, ttsWorker, llmWorker)
 	appApp := newApp(httpServer, jobServer)
 	return appApp, func() {

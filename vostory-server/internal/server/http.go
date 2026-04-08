@@ -399,6 +399,7 @@ func NewHTTPServer(
 					ttsProviderRouter.PUT("/:id/enable", vsTTSProviderHandler.Enable)
 					ttsProviderRouter.PUT("/:id/disable", vsTTSProviderHandler.Disable)
 					ttsProviderRouter.POST("/test", vsTTSProviderHandler.TestConnection)
+					ttsProviderRouter.GET("/:id/status", vsTTSProviderHandler.GetStatus)
 				}
 
 				promptTemplateRouter := aiRouter.Group("/prompt-template")
