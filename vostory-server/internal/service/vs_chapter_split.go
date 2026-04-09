@@ -115,7 +115,7 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 	prompt := strings.ReplaceAll(promptContent, "{{content}}", chapter.Content)
 
 	start := time.Now()
-	chatResp, err := s.llmClient.ChatCompletion(ctx, &llm.ChatRequest{
+	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
 		BaseURL: provider.APIBaseURL,
 		APIKey:  provider.APIKey,
 		Model:   provider.DefaultModel,
@@ -558,9 +558,10 @@ func (s *vsChapterSplitService) ensureCharacters(
 	return len(toCreate), nil
 }
 
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
+func truncate(s string, maxRunes int) string {
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
 		return s
 	}
-	return s[:maxLen] + "..."
+	return string(runes[:maxRunes]) + "..."
 }

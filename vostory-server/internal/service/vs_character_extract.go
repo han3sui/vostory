@@ -89,7 +89,7 @@ func (s *vsCharacterExtractService) ExtractCharacters(ctx context.Context, proje
 	prompt := strings.ReplaceAll(promptContent, "{{content}}", sampleText)
 
 	start := time.Now()
-	chatResp, err := s.llmClient.ChatCompletion(ctx, &llm.ChatRequest{
+	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
 		BaseURL: provider.APIBaseURL,
 		APIKey:  provider.APIKey,
 		Model:   provider.DefaultModel,
@@ -160,7 +160,7 @@ func (s *vsCharacterExtractService) ExtractFromText(ctx context.Context, req *v1
 	prompt := strings.ReplaceAll(promptContent, "{{content}}", req.Text)
 
 	start := time.Now()
-	chatResp, err := s.llmClient.ChatCompletion(ctx, &llm.ChatRequest{
+	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
 		BaseURL: provider.APIBaseURL,
 		APIKey:  provider.APIKey,
 		Model:   provider.DefaultModel,

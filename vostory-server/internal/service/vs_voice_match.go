@@ -155,7 +155,7 @@ func (s *vsVoiceMatchService) MatchVoices(ctx context.Context, projectID uint64)
 	prompt = strings.ReplaceAll(prompt, "{{voices}}", string(voicesJSON))
 
 	start := time.Now()
-	chatResp, err := s.llmClient.ChatCompletion(ctx, &llm.ChatRequest{
+	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
 		BaseURL: provider.APIBaseURL,
 		APIKey:  provider.APIKey,
 		Model:   provider.DefaultModel,
