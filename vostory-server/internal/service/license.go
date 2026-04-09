@@ -49,7 +49,7 @@ func NewLicenseService(logger *log.Logger, conf *viper.Viper) LicenseService {
 
 // getServerURL 返回配置的授权服务地址，为空则由 SDK 使用内置默认值
 func (s *licenseService) getServerURL() string {
-	const defaultServerURL = "https://license.vostory.com"
+	const defaultServerURL = "https://license.xiaoyin.men"
 	serverURL := s.conf.GetString("license.server_url")
 	if serverURL == "" {
 		return defaultServerURL
