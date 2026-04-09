@@ -221,7 +221,6 @@ const tableConfig = computed(() => {
         columns: [
             tableHelper.default("名称", "name"),
             tableHelper.default("API 地址", "api_base_url"),
-            tableHelper.default("最大并发", "max_concurrency"),
             tableHelper.slot("switchSlot"),
             tableHelper.slot("statusSlot"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm:ss" }),
@@ -293,11 +292,6 @@ function onEdit(v: Record<string, any> | null) {
                 inputTips: "例如：http://localhost:8080"
             }),
             formHelper.input("API 密钥", "api_key", { formType: "password" }),
-            formHelper.inputNumber("最大并发数", "max_concurrency", {
-                inputTips: "同时处理的最大任务数，默认为 1",
-                min: 1,
-                max: 100
-            }),
             formHelper.radio(
                 "状态",
                 "status",

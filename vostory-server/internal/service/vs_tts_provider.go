@@ -50,7 +50,7 @@ func (s *vsTTSProviderService) Create(ctx context.Context, request *v1.VsTTSProv
 		APIKey:            request.APIKey,
 		SupportedFeatures: request.SupportedFeatures,
 		CustomParams:      request.CustomParams,
-		MaxConcurrency:    request.MaxConcurrency,
+		MaxConcurrency:    1,
 		SortOrder:         request.SortOrder,
 		Status:            request.Status,
 		BaseModel: model.BaseModel{
@@ -73,7 +73,7 @@ func (s *vsTTSProviderService) Update(ctx context.Context, request *v1.VsTTSProv
 	existing.APIKey = request.APIKey
 	existing.SupportedFeatures = request.SupportedFeatures
 	existing.CustomParams = request.CustomParams
-	existing.MaxConcurrency = request.MaxConcurrency
+	existing.MaxConcurrency = 1
 	existing.SortOrder = request.SortOrder
 	existing.Status = request.Status
 	existing.UpdatedBy = ctx.Value("login_name").(string)
