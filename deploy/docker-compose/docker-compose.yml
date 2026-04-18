@@ -40,11 +40,11 @@ services:
       retries: 5
 
   vostory:
-    image: ${IMAGE_REGISTRY:-local}/vostory:${VERSION:-latest}
+    image: han3sui/vostory:latest
     container_name: vostory
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-80}:80"
+      - "8080:80"
     volumes:
       - ./config/docker.yml:/app/config/docker.yml:ro
       - app-storage:/app/storage
