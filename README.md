@@ -252,7 +252,45 @@ docker-compose up -d
 
 ### TTS 引擎
 
-语音合成基于 **IndexTTS2**，需自行部署（提供 Docker 镜像）：
+语音合成基于 **IndexTTS2**，需自行部署。镜像地址：`han3sui/index-tts`
+
+**Docker 运行：**
+
+```bash
+docker run -d --name index-tts-api \
+  --gpus '"device=0"' \
+  -p 8300:8300 \
+  -e API_KEY=your-secret-key-here \
+  -e USE_FP16=true \
+  -e PORT=8300 \
+  --restart unless-stopped \
+  han3sui/index-tts:latest
+```
+
+**Docker Compose：**
+
+```yaml
+services:
+  index-tts:
+    image: han3sui/index-tts:latest
+    container_name: index-tts-api
+    restart: unless-stopped
+    ports:
+      - "8300:8300"
+    environment:
+      - API_KEY=${API_KEY:-your-secret-key-here}
+      - USE_FP16=${USE_FP16:-true}
+      - USE_DEEPSPEED=${USE_DEEPSPEED:-false}
+      - USE_CUDA_KERNEL=${USE_CUDA_KERNEL:-false}
+```
+
+```bash
+docker compose up -d
+```
+
+运行后在 VoStory 系统中配置 TTS Provider 地址指向 `http://<服务器IP>:8300` 即可。
+
+**IndexTTS2 特性：**
 
 - 零样本声音克隆：一段参考音频即可克隆音色
 - 情绪与音色解耦：独立控制音色和情绪表达
