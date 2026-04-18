@@ -36,7 +36,17 @@ RUN cp -r config /build/server/bin/ && \
     (cp -r docs /build/server/bin/ || echo "docs directory not found, skipping...")
 
 # ============================================================
-# Stage 3: Final image (nginx + go server)
+# Stage 3: Download ffmpeg static build
+# ============================================================
+FROM alpine:3.20 AS ffmpeg-downloader
+
+RUN apk add --no-cache curl xz
+ARG FFMPEG_URL=https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+RUN curl -fsSL "$FFMPEG_URL" | tar -xJ --strip-components=2 -C /usr/local/bin/ \
+    --wildcards '*/bin/ffmpeg'
+
+# ============================================================
+# Stage 4: Final image (nginx + go server)
 # ============================================================
 FROM alpine:3.20
 
@@ -45,6 +55,8 @@ RUN apk add --no-cache nginx supervisor tzdata && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata && \
     mkdir -p /run/nginx /var/log/supervisor /app/storage/logs
+
+COPY --from=ffmpeg-downloader /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
 
 ARG VERSION=dev
 ENV APP_VERSION=${VERSION}
