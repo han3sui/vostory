@@ -42,8 +42,12 @@ FROM alpine:3.20 AS ffmpeg-downloader
 
 RUN apk add --no-cache curl xz
 ARG FFMPEG_URL=https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
-RUN curl -fsSL "$FFMPEG_URL" | tar -xJ --strip-components=2 -C /usr/local/bin/ \
-    --wildcards '*/bin/ffmpeg'
+RUN curl -fsSL -o /tmp/ffmpeg.tar.xz "$FFMPEG_URL" && \
+    mkdir -p /tmp/ffmpeg && \
+    tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg --strip-components=2 && \
+    cp /tmp/ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
+    chmod +x /usr/local/bin/ffmpeg && \
+    rm -rf /tmp/ffmpeg /tmp/ffmpeg.tar.xz
 
 # ============================================================
 # Stage 4: Final image (nginx + go server)
