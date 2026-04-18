@@ -4,6 +4,60 @@
 
 VoStory 不是简单的文本转语音工具，而是将长篇小说内容转化为可编辑、可复用、可协作生产的广播剧项目的完整制作平台。
 
+## 功能预览
+
+### 登录
+
+![登录](images/登录.png)
+
+### 工作空间管理
+
+![空间管理](images/空间管理.png)
+
+### 项目管理
+
+![项目管理](images/项目管理.png)
+
+### 脚本编辑
+
+![脚本编辑](images/项目详情-脚本编辑.png)
+
+### 角色管理
+
+![角色管理](images/项目详情-角色.png)
+
+### 声音配置
+
+![声音配置](images/项目详情-声音配置.png)
+
+### 发音词典
+
+![发音词典](images/项目详情-发音词典.png)
+
+### AI 配置 — 音色管理
+
+![音色管理](images/AI-音色管理.png)
+
+### AI 配置 — LLM 提供商
+
+![LLM 提供商](images/AI-LLM提供商.png)
+
+### AI 配置 — TTS 供应商
+
+![TTS 供应商](images/AI-TTS供应商.png)
+
+### AI 配置 — Prompt 模板
+
+![Prompt 模板](images/AI-Prompt模板.png)
+
+### AI 配置 — LLM 调用日志
+
+![LLM 调用日志](images/AI-LLM调用日志.png)
+
+### Docker 一键部署启动
+
+![Docker 部署启动](images/账户密码日志.png)
+
 ## 核心功能
 
 ### 小说导入与结构化
