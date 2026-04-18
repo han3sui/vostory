@@ -58,8 +58,6 @@ func NewHTTPServer(
 	vsCommonUploadHandler *handler.VsCommonUploadHandler,
 	vsVoiceMatchHandler *handler.VsVoiceMatchHandler,
 	vsExportJobHandler *handler.VsExportJobHandler,
-	licenseHandler *handler.LicenseHandler,
-	licenseService service.LicenseService,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -104,17 +102,8 @@ func NewHTTPServer(
 			noAuthRouter.POST("/user/logout", sysUserHandler.Logout)
 		}
 
-		// 授权管理路由（无需登录，激活前就需要访问）
-		licenseRouter := v1.Group("/license")
-		{
-			licenseRouter.GET("/status", licenseHandler.GetStatus)
-			licenseRouter.POST("/activate/online", licenseHandler.ActivateOnline)
-			licenseRouter.POST("/activate/offline", licenseHandler.ActivateOffline)
-			licenseRouter.POST("/deactivate", licenseHandler.Deactivate)
-		}
-
 		// 2. 认证路由：只需登录，不需要特定权限（白名单接口）
-		noStrictAuthRouter := v1.Group("/").Use(middleware.LicenseCheckMiddleware(licenseService), middleware.TokenCacheAuthMiddleware(conf, logger, userCache))
+		noStrictAuthRouter := v1.Group("/").Use(middleware.TokenCacheAuthMiddleware(conf, logger, userCache))
 		{
 			noStrictAuthRouter.GET("/user/info", sysUserHandler.GetUserInfo)
 			noStrictAuthRouter.PUT("/user/update-password", sysUserHandler.UpdateCurrentPassword)
@@ -139,7 +128,7 @@ func NewHTTPServer(
 
 		// 3. 授权路由：需要登录 + 权限验证（白名单模式）
 		strictAuthRouter := v1.Group("/")
-		strictAuthRouter.Use(middleware.LicenseCheckMiddleware(licenseService), middleware.TokenCacheAuthMiddleware(conf, logger, userCache), middleware.APIPermissionMiddleware(logger, userCache), middleware.OperLogMiddleware(sysOperLogService))
+		strictAuthRouter.Use(middleware.TokenCacheAuthMiddleware(conf, logger, userCache), middleware.APIPermissionMiddleware(logger, userCache), middleware.OperLogMiddleware(sysOperLogService))
 		{
 
 			systemRouter := strictAuthRouter.Group("/system")

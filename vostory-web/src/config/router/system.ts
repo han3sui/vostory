@@ -117,15 +117,6 @@ const routers: RouteConfig[] = [
                     permission: () => hasPermission("system:api:list")
                 },
                 component: () => import("@/views/system/api/index.vue")
-            },
-            {
-                path: "/system/license",
-                name: "system-license",
-                meta: {
-                    title: "授权管理",
-                    sort: 10
-                },
-                component: () => import("@/views/system/license/index.vue")
             }
         ]
     }

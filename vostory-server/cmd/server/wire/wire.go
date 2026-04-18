@@ -95,7 +95,6 @@ var serviceSet = wire.NewSet(
 	service.NewVsVoiceAssetService,
 	service.NewVsVoiceMatchService,
 	service.NewVsExportJobService,
-	service.NewLicenseService,
 	cache.NewUserCache,
 	mqtt.NewMqttClient,
 	kafka.NewKafkaProducer,
@@ -135,7 +134,6 @@ var handlerSet = wire.NewSet(
 	handler.NewVsCommonUploadHandler,
 	handler.NewVsVoiceMatchHandler,
 	handler.NewVsExportJobHandler,
-	handler.NewLicenseHandler,
 )
 
 var workerSet = wire.NewSet(
