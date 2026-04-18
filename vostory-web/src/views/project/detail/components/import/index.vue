@@ -9,6 +9,24 @@
                         </template>
                     </a-upload>
                 </a-form-item>
+                <div class="import-tips">
+                    <a-alert type="normal" :show-icon="false">
+                        <ul class="tips-list">
+                            <li>建议优先使用 <a-typography-text bold>epub</a-typography-text> 格式，章节识别更准确</li>
+                            <li>
+                                TXT 通过行首匹配
+                                <a-typography-text code>第X章</a-typography-text>
+                                <a-typography-text code>第X节</a-typography-text>
+                                <a-typography-text code>第X回</a-typography-text>
+                                <a-typography-text code>第X卷</a-typography-text>
+                                <a-typography-text code>第X集</a-typography-text>
+                                <a-typography-text code>第X篇</a-typography-text>
+                                自动拆分章节（支持中文数字和阿拉伯数字）
+                            </li>
+                            <li>TXT 章节标题前的内容将归为「序章」</li>
+                        </ul>
+                    </a-alert>
+                </div>
             </a-form>
 
             <a-divider v-if="uploadResult" />
@@ -46,4 +64,14 @@ function handleUpload(option: RequestOption): any {
         });
 }
 </script>
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.import-tips {
+    margin-top: 16px;
+
+    .tips-list {
+        margin: 0;
+        padding-left: 18px;
+        line-height: 2;
+    }
+}
+</style>
