@@ -48,19 +48,7 @@
                 </a-table-column>
             </template>
         </arco-table>
-        <a-modal
-            v-model:visible="showSmartImportModal"
-            title="智能录入角色"
-            :ok-loading="smartImporting"
-            ok-text="开始识别"
-            :ok-button-props="{ disabled: !smartImportText.trim() }"
-            width="680px"
-            :align-center="false"
-            top="10vh"
-            title-align="start"
-            :mask-closable="false"
-            @before-ok="handleSmartImport"
-        >
+        <arco-modal v-model:visible="showSmartImportModal" :config="smartImportModalConfig" :ok="handleSmartImport">
             <a-typography-paragraph>
                 粘贴角色介绍文字，LLM
                 将自动识别角色名称、性别、层级、性格描述等信息并录入角色库。已存在的角色会自动跳过。
@@ -71,7 +59,7 @@
                 :auto-size="{ minRows: 8, maxRows: 16 }"
                 allow-clear
             />
-        </a-modal>
+        </arco-modal>
         <merge-modal
             v-model:visible="showMergeModal"
             :project-id="projectId"
@@ -100,7 +88,15 @@
 </template>
 <script lang="ts" setup>
 import { Message, Modal } from "@arco-design/web-vue";
-import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
+import {
+    formHelper,
+    ArcoTable,
+    tableHelper,
+    ArcoModalFormShow,
+    ruleHelper,
+    ArcoForm,
+    ArcoModal
+} from "@easyfe/admin-component";
 import {
     getCharacterList,
     addCharacter,
@@ -157,6 +153,13 @@ const extracting = ref(false);
 const showSmartImportModal = ref(false);
 const smartImportText = ref("");
 const smartImporting = ref(false);
+
+const smartImportModalConfig = computed(() => ({
+    title: "智能录入角色",
+    okText: "开始识别",
+    okButtonProps: { disabled: !smartImportText.value.trim() },
+    width: "680px"
+}));
 const voiceProfileOptions = ref<VoiceProfileOptionType[]>([]);
 
 async function loadVoiceProfiles() {
@@ -458,11 +461,10 @@ async function handleExtract() {
     });
 }
 
-async function handleSmartImport(done: (closed: boolean) => void) {
+async function handleSmartImport() {
     if (!smartImportText.value.trim()) {
         Message.warning("请输入角色描述文字");
-        done(false);
-        return;
+        throw new Error("empty");
     }
     smartImporting.value = true;
     try {
@@ -471,9 +473,6 @@ async function handleSmartImport(done: (closed: boolean) => void) {
             `识别完成：发现 ${res.extracted_count} 个角色，新增 ${res.new_count} 个，跳过 ${res.skipped_count} 个`
         );
         table.value.refresh();
-        done(true);
-    } catch {
-        done(false);
     } finally {
         smartImporting.value = false;
     }

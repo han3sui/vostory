@@ -1,17 +1,5 @@
 <template>
-    <a-modal
-        :visible="visible"
-        title="配置角色声音"
-        width="720px"
-        title-align="start"
-        :align-center="false"
-        top="8vh"
-        :mask-closable="false"
-        :closable="!running"
-        :footer="false"
-        @update:visible="(v: boolean) => emit('update:visible', v)"
-        @open="onOpen"
-    >
+    <arco-modal v-model:visible="localVisible" :config="modalConfig">
         <a-tabs v-model:active-key="mode" :disabled="running">
             <a-tab-pane key="generate" title="自动生成音色">
                 <a-typography-paragraph type="secondary">
@@ -60,10 +48,11 @@
                 </div>
             </a-tab-pane>
         </a-tabs>
-    </a-modal>
+    </arco-modal>
 </template>
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
+import { ArcoModal } from "@easyfe/admin-component";
 import { getCharacterList, autoVoiceDesign, voiceMatchCharacters, CharacterDetailType } from "@/config/apis/character";
 
 type ItemState = "pending" | "running" | "done" | "failed";
@@ -79,6 +68,11 @@ const emit = defineEmits<{
     (e: "changed"): void;
 }>();
 
+const localVisible = computed({
+    get: () => props.visible,
+    set: (v: boolean) => emit("update:visible", v)
+});
+
 const POOL_PREFIX = "路人-";
 
 const mode = ref<"generate" | "match">("generate");
@@ -89,6 +83,15 @@ const loadingCandidates = ref(false);
 const running = ref(false);
 const stopRequested = ref(false);
 const matching = ref(false);
+
+const modalConfig = computed(() => ({
+    title: "配置角色声音",
+    width: "720px",
+    top: "8vh",
+    closable: !running.value,
+    footer: false,
+    onOpen
+}));
 
 function scopeOf(c: CharacterDetailType) {
     if (c.name.startsWith(POOL_PREFIX)) return "pool";

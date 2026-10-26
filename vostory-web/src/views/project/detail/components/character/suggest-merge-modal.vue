@@ -1,19 +1,5 @@
 <template>
-    <a-modal
-        :visible="visible"
-        title="智能合并角色"
-        width="760px"
-        title-align="start"
-        :align-center="false"
-        top="8vh"
-        :mask-closable="false"
-        ok-text="确认合并勾选项"
-        :ok-loading="submitting"
-        :ok-button-props="{ disabled: loading || selectedKeys.length === 0 }"
-        @update:visible="(v: boolean) => emit('update:visible', v)"
-        @open="loadPreview"
-        @before-ok="handleOk"
-    >
+    <arco-modal v-model:visible="localVisible" :config="modalConfig" :ok="handleOk">
         <a-typography-paragraph type="secondary">
             按括号别名、不具名、甲乙丙编号和泛称扫描重复角色。请勾选要合并的分组，主角不会被当作被合并项。
         </a-typography-paragraph>
@@ -48,10 +34,11 @@
                 </a-checkbox-group>
             </template>
         </a-spin>
-    </a-modal>
+    </arco-modal>
 </template>
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
+import { ArcoModal } from "@easyfe/admin-component";
 import {
     suggestMergeCharacters,
     CharacterMergeSuggestGroup,
@@ -68,6 +55,11 @@ const emit = defineEmits<{
     (e: "success", res: CharacterMergeSuggestResult): void;
 }>();
 
+const localVisible = computed({
+    get: () => props.visible,
+    set: (v: boolean) => emit("update:visible", v)
+});
+
 const RULE_LABELS: Record<string, string> = {
     paren_alias: "括号别名",
     unnamed_to_named: "不具名对应",
@@ -77,9 +69,17 @@ const RULE_LABELS: Record<string, string> = {
 };
 
 const loading = ref(false);
-const submitting = ref(false);
 const preview = ref<CharacterMergeSuggestResult | null>(null);
 const selectedKeys = ref<string[]>([]);
+
+const modalConfig = computed(() => ({
+    title: "智能合并角色",
+    width: "760px",
+    top: "8vh",
+    okText: "确认合并勾选项",
+    okButtonProps: { disabled: loading.value || selectedKeys.value.length === 0 },
+    onOpen: loadPreview
+}));
 
 function groupKey(g: CharacterMergeSuggestGroup, idx: number) {
     return `${g.target_kind}:${g.target_id || g.target_name}:${idx}`;
@@ -121,27 +121,15 @@ async function loadPreview() {
     }
 }
 
-async function handleOk(done: (closed: boolean) => void) {
-    if (!preview.value) {
-        done(false);
-        return;
-    }
+async function handleOk() {
+    if (!preview.value) throw new Error("no preview");
     const groups = preview.value.groups.filter((g, idx) => selectedKeys.value.includes(groupKey(g, idx)));
     if (groups.length === 0) {
         Message.warning("请至少勾选一组");
-        done(false);
-        return;
+        throw new Error("no selection");
     }
-    submitting.value = true;
-    try {
-        const res = await suggestMergeCharacters(props.projectId, { dry_run: false, groups });
-        emit("success", res);
-        done(true);
-    } catch {
-        done(false);
-    } finally {
-        submitting.value = false;
-    }
+    const res = await suggestMergeCharacters(props.projectId, { dry_run: false, groups });
+    emit("success", res);
 }
 </script>
 <style lang="scss" scoped>

@@ -1,19 +1,5 @@
 <template>
-    <a-modal
-        :visible="visible"
-        title="合并角色"
-        width="640px"
-        title-align="start"
-        :align-center="false"
-        top="10vh"
-        :mask-closable="false"
-        ok-text="确认合并"
-        :ok-loading="submitting"
-        :ok-button-props="{ disabled: !canSubmit }"
-        @update:visible="(v: boolean) => emit('update:visible', v)"
-        @open="onOpen"
-        @before-ok="handleOk"
-    >
+    <arco-modal v-model:visible="localVisible" :config="modalConfig" :ok="handleOk">
         <a-alert type="info">
             被合并角色的台词会迁移到目标角色，其名称和别名并入目标角色的别名，之后切分章节时会自动识别为目标角色。被合并角色将从列表中移除。
         </a-alert>
@@ -64,11 +50,12 @@
                 <a-tag v-for="a in mergedAliases" :key="a" size="small">{{ a }}</a-tag>
             </a-space>
         </div>
-    </a-modal>
+    </arco-modal>
 </template>
 <script lang="ts" setup>
 import type { PropType } from "vue";
 import { Message } from "@arco-design/web-vue";
+import { ArcoModal } from "@easyfe/admin-component";
 import { debounce } from "lodash-es";
 import { getCharacterList, mergeCharacters, CharacterDetailType, CharacterMergeResult } from "@/config/apis/character";
 
@@ -84,6 +71,11 @@ const emit = defineEmits<{
     (e: "open-generic"): void;
     (e: "open-suggest"): void;
 }>();
+
+const localVisible = computed({
+    get: () => props.visible,
+    set: (v: boolean) => emit("update:visible", v)
+});
 
 const LEVEL_LABELS: Record<string, string> = { main: "主角", supporting: "配角", minor: "龙套" };
 const GENDER_LABELS: Record<string, string> = { male: "男", female: "女" };
@@ -108,7 +100,6 @@ const CharacterOptionLabel = defineComponent({
 });
 
 const form = reactive<{ sourceIds: number[]; targetId: number | undefined }>({ sourceIds: [], targetId: undefined });
-const submitting = ref(false);
 const searching = ref(false);
 const searchResults = ref<CharacterDetailType[]>([]);
 // 已选中的角色需要始终在 options 中，否则搜索后选中项会丢失名称
@@ -136,6 +127,14 @@ const targetOptions = computed(() =>
 );
 
 const canSubmit = computed(() => !!form.targetId && form.sourceIds.length > 0);
+
+const modalConfig = computed(() => ({
+    title: "合并角色",
+    width: "640px",
+    okText: "确认合并",
+    okButtonProps: { disabled: !canSubmit.value },
+    onOpen
+}));
 
 const mergedAliases = computed(() => {
     const target = targetCharacter.value;
@@ -191,22 +190,13 @@ function onOpen() {
     search("");
 }
 
-async function handleOk(done: (closed: boolean) => void) {
+async function handleOk() {
     const target = targetCharacter.value;
     if (!target || form.sourceIds.length === 0) {
         Message.warning("请选择被合并的角色和目标角色");
-        done(false);
-        return;
+        throw new Error("invalid");
     }
-    submitting.value = true;
-    try {
-        const res = await mergeCharacters({ target_id: target.id, source_ids: form.sourceIds });
-        emit("success", res, target);
-        done(true);
-    } catch {
-        done(false);
-    } finally {
-        submitting.value = false;
-    }
+    const res = await mergeCharacters({ target_id: target.id, source_ids: form.sourceIds });
+    emit("success", res, target);
 }
 </script>

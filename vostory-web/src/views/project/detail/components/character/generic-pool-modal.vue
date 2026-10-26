@@ -1,19 +1,5 @@
 <template>
-    <a-modal
-        :visible="visible"
-        title="泛称角色归入路人池"
-        width="680px"
-        title-align="start"
-        :align-center="false"
-        top="10vh"
-        :mask-closable="false"
-        ok-text="确认归入"
-        :ok-loading="submitting"
-        :ok-button-props="{ disabled: loading || !preview || preview.merged_count === 0 }"
-        @update:visible="(v: boolean) => emit('update:visible', v)"
-        @open="loadPreview"
-        @before-ok="handleOk"
-    >
+    <arco-modal v-model:visible="localVisible" :config="modalConfig" :ok="handleOk">
         <a-typography-paragraph type="secondary">
             将「老者」「店小二」「众人」等没有名字的泛称角色，按性别与年龄段合并到路人池角色，共享路人音色。主角级角色不会被处理。
         </a-typography-paragraph>
@@ -37,9 +23,10 @@
                 </a-descriptions>
             </template>
         </a-spin>
-    </a-modal>
+    </arco-modal>
 </template>
 <script lang="ts" setup>
+import { ArcoModal } from "@easyfe/admin-component";
 import { mergeGenericCharacters, CharacterMergeGenericResult } from "@/config/apis/character";
 
 const props = defineProps<{
@@ -52,9 +39,21 @@ const emit = defineEmits<{
     (e: "success", res: CharacterMergeGenericResult): void;
 }>();
 
+const localVisible = computed({
+    get: () => props.visible,
+    set: (v: boolean) => emit("update:visible", v)
+});
+
 const loading = ref(false);
-const submitting = ref(false);
 const preview = ref<CharacterMergeGenericResult | null>(null);
+
+const modalConfig = computed(() => ({
+    title: "泛称角色归入路人池",
+    width: "680px",
+    okText: "确认归入",
+    okButtonProps: { disabled: loading.value || !preview.value || preview.value.merged_count === 0 },
+    onOpen: loadPreview
+}));
 
 async function loadPreview() {
     preview.value = null;
@@ -66,16 +65,8 @@ async function loadPreview() {
     }
 }
 
-async function handleOk(done: (closed: boolean) => void) {
-    submitting.value = true;
-    try {
-        const res = await mergeGenericCharacters(props.projectId, false);
-        emit("success", res);
-        done(true);
-    } catch {
-        done(false);
-    } finally {
-        submitting.value = false;
-    }
+async function handleOk() {
+    const res = await mergeGenericCharacters(props.projectId, false);
+    emit("success", res);
 }
 </script>

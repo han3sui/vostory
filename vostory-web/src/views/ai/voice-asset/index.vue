@@ -43,17 +43,7 @@
             </template>
         </arco-table>
 
-        <a-modal
-            v-model:visible="batchVisible"
-            title="批量添加音色"
-            width="800px"
-            :mask-closable="false"
-            :footer="false"
-            :align-center="false"
-            top="10vh"
-            title-align="start"
-            @close="onBatchClose"
-        >
+        <arco-modal v-model:visible="batchVisible" :config="batchModalConfig">
             <div style="margin-bottom: 12px">
                 <a-space>
                     <a-typography-text type="secondary">
@@ -116,7 +106,7 @@
                     </a-button>
                 </a-space>
             </div>
-        </a-modal>
+        </arco-modal>
 
         <a-drawer
             v-model:visible="emotionDrawerVisible"
@@ -130,7 +120,15 @@
 </template>
 <script lang="ts" setup>
 import { Modal, Message, FileItem } from "@arco-design/web-vue";
-import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
+import {
+    formHelper,
+    ArcoTable,
+    tableHelper,
+    ArcoModalFormShow,
+    ruleHelper,
+    ArcoForm,
+    ArcoModal
+} from "@easyfe/admin-component";
 import {
     getVoiceAssetList,
     addVoiceAsset,
@@ -349,6 +347,13 @@ async function handleToggle(row: VoiceAssetDetailType) {
 const batchVisible = ref(false);
 const batchFiles = ref<FileItem[]>([]);
 const batchProcessing = ref(false);
+
+const batchModalConfig = {
+    title: "批量添加音色",
+    width: "800px",
+    footer: false,
+    onClose: onBatchClose
+};
 
 const batchSuccessCount = computed(() => batchFiles.value.filter((f) => f.status === "done").length);
 const batchFailCount = computed(() => batchFiles.value.filter((f) => f.status === "error").length);

@@ -1,20 +1,5 @@
 <template>
-    <a-modal
-        :visible="visible"
-        :title="`设计音色 · ${character?.name || ''}`"
-        width="680px"
-        title-align="start"
-        :align-center="false"
-        top="8vh"
-        :mask-closable="false"
-        ok-text="保存并绑定"
-        :ok-loading="applying"
-        :ok-button-props="{ disabled: !preview || previewing }"
-        @update:visible="(v: boolean) => emit('update:visible', v)"
-        @open="onOpen"
-        @close="releaseAudio"
-        @before-ok="handleApply"
-    >
+    <arco-modal v-model:visible="localVisible" :config="modalConfig" :ok="handleApply">
         <a-typography-paragraph type="secondary">
             用文字描述生成该角色的基础音色（Breeze-TTS-2 Voice
             Design），保存后作为角色的参考音频，所有台词都基于这个音色按场景演绎。
@@ -52,11 +37,12 @@
                 种子 {{ preview.seed }}，满意后点击「保存并绑定」；不满意可再生成一次，或调整描述后重试。
             </a-typography-text>
         </div>
-    </a-modal>
+    </arco-modal>
 </template>
 <script lang="ts" setup>
 import { Message } from "@arco-design/web-vue";
 import { IconRobot, IconSound } from "@arco-design/web-vue/es/icon";
+import { ArcoModal } from "@easyfe/admin-component";
 import {
     suggestVoiceDesign,
     previewVoiceDesign,
@@ -76,14 +62,28 @@ const emit = defineEmits<{
     (e: "success", res: VoiceDesignApplyResult, character: CharacterDetailType): void;
 }>();
 
+const localVisible = computed({
+    get: () => props.visible,
+    set: (v: boolean) => emit("update:visible", v)
+});
+
 const form = reactive({ instruction: "", sampleText: "" });
 const suggesting = ref(false);
 const previewing = ref(false);
-const applying = ref(false);
 const preview = ref<VoiceDesignPreviewResult | null>(null);
 const previewUrl = ref("");
 
 const canPreview = computed(() => !!form.instruction.trim() && !!form.sampleText.trim());
+
+const modalConfig = computed(() => ({
+    title: `设计音色 · ${props.character?.name || ""}`,
+    width: "680px",
+    top: "8vh",
+    okText: "保存并绑定",
+    okButtonProps: { disabled: !preview.value || previewing.value },
+    onOpen,
+    onClose: releaseAudio
+}));
 
 // 描述或台词改动后，旧试听与新内容不再对应，需要重新生成
 watch(
@@ -146,29 +146,20 @@ async function handlePreview() {
     }
 }
 
-async function handleApply(done: (closed: boolean) => void) {
+async function handleApply() {
     const character = props.character;
     if (!character || !preview.value) {
         Message.warning("请先生成试听");
-        done(false);
-        return;
+        throw new Error("no preview");
     }
-    applying.value = true;
-    try {
-        const res = await applyVoiceDesign(character.id, {
-            preview_path: preview.value.preview_path,
-            instruction: form.instruction.trim(),
-            sample_text: form.sampleText.trim(),
-            seed: preview.value.seed
-        });
-        releaseAudio();
-        emit("success", res, character);
-        done(true);
-    } catch {
-        done(false);
-    } finally {
-        applying.value = false;
-    }
+    const res = await applyVoiceDesign(character.id, {
+        preview_path: preview.value.preview_path,
+        instruction: form.instruction.trim(),
+        sample_text: form.sampleText.trim(),
+        seed: preview.value.seed
+    });
+    releaseAudio();
+    emit("success", res, character);
 }
 
 onUnmounted(releaseAudio);

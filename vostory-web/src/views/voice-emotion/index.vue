@@ -33,15 +33,7 @@
             </div>
         </a-spin>
 
-        <a-modal
-            v-model:visible="formVisible"
-            :title="formTitle"
-            @ok="handleFormOk"
-            @cancel="formVisible = false"
-            :align-center="false"
-            top="10vh"
-            title-align="start"
-        >
+        <arco-modal v-model:visible="formVisible" :config="formModalConfig" :ok="handleFormOk">
             <a-form :model="formData" layout="vertical">
                 <a-form-item label="情绪类型" required>
                     <a-select v-model="formData.emotion_type" placeholder="选择情绪类型">
@@ -89,12 +81,13 @@
                     />
                 </a-form-item>
             </a-form>
-        </a-modal>
+        </arco-modal>
     </div>
 </template>
 <script lang="ts" setup>
 import { Message, RequestOption } from "@arco-design/web-vue";
 import { IconCheckCircle } from "@arco-design/web-vue/es/icon";
+import { ArcoModal } from "@easyfe/admin-component";
 import {
     getVoiceEmotionsByProfile,
     getVoiceEmotionsByAsset,
@@ -115,6 +108,10 @@ const formVisible = ref(false);
 const formTitle = ref("新增情绪音频");
 const formData = ref<Partial<VoiceEmotionDetailType>>({});
 const editingId = ref<number | null>(null);
+
+const formModalConfig = computed(() => ({
+    title: formTitle.value
+}));
 
 async function loadEmotions() {
     if (!ownerId.value) return;
@@ -157,21 +154,16 @@ function handleEdit(item: VoiceEmotionDetailType) {
 async function handleFormOk() {
     if (!formData.value.emotion_type || !formData.value.reference_audio_url) {
         Message.warning("请填写必填项");
-        return;
+        throw new Error("invalid");
     }
-    try {
-        if (editingId.value) {
-            await updateVoiceEmotion({ ...formData.value, id: editingId.value });
-            Message.success("更新成功");
-        } else {
-            await addVoiceEmotion(formData.value);
-            Message.success("新增成功");
-        }
-        formVisible.value = false;
-        loadEmotions();
-    } catch {
-        Message.error("操作失败");
+    if (editingId.value) {
+        await updateVoiceEmotion({ ...formData.value, id: editingId.value });
+        Message.success("更新成功");
+    } else {
+        await addVoiceEmotion(formData.value);
+        Message.success("新增成功");
     }
+    loadEmotions();
 }
 
 function handleAudioUpload(option: RequestOption): any {
