@@ -55,13 +55,16 @@ var DefaultPromptTemplateSeeds = []PromptTemplateSeed{
 2. 在每个场景内，将文本切分为独立片段
 3. 每个片段标注类型：dialogue(对白)、narration(旁白)、monologue(独白)、description(描述)
 4. 对白和独白片段需识别说话人名称，并根据上下文推断该角色的性别和固有特征描述
-5. character_description只描述角色固有特征（身份、外貌、性格、年龄等），不要包含当前情绪状态，情绪由emotion字段单独表达
-6. 标注每个片段的情绪：neutral/happy/sad/angry/fear/surprise/disgust
-7. 标注情绪强度：light/medium/strong
-8. content字段中的特殊字符（引号、反斜杠、换行等）必须按照JSON标准进行转义
+5. 说话人名称必须优先使用下方【已知角色表】中的标准名，昵称、尊称、代称也要还原为标准名；没有名字的泛称角色使用【路人池】中的名称，不要新建角色
+6. character_description只描述角色固有特征（身份、外貌、性格、年龄等），不要包含当前情绪状态，情绪由emotion字段单独表达
+7. 标注每个片段的情绪：neutral/happy/sad/angry/fear/surprise/disgust
+8. 标注情绪强度：light/medium/strong
+9. content字段中的特殊字符（引号、反斜杠、换行等）必须按照JSON标准进行转义
 
 请严格以JSON格式返回，不要包含任何其他文字，不要使用markdown代码块包裹，结构如下：
 {"scenes":[{"title":"场景标题","description":"场景简述","segments":[{"type":"dialogue|narration|monologue|description","content":"片段文本内容","character":"说话人名称（非对白/独白时为空字符串）","character_gender":"male|female|unknown（根据上下文推断，非对白/独白时为空字符串）","character_description":"角色固有特征描述，如身份、外貌、性格、年龄等，不要包含当前情绪状态（非对白/独白时为空字符串）","emotion":"neutral|happy|sad|angry|fear|surprise|disgust","emotion_strength":"light|medium|strong"}]}]}
+
+{{known_characters}}
 
 ---
 {{content}}`,

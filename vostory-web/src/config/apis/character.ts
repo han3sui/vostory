@@ -106,3 +106,37 @@ export type VoiceMatchResult = {
 export function voiceMatchCharacters(projectId: number): Promise<VoiceMatchResult> {
     return request({ url: `/api/v1/character/voice-match/${projectId}`, method: "post", timeout: 0 });
 }
+
+export type CharacterMergeResult = {
+    target_id: number;
+    merged_count: number;
+    affected_segments: number;
+    need_regenerate: number;
+};
+
+export function mergeCharacters(data: { target_id: number; source_ids: number[] }): Promise<CharacterMergeResult> {
+    return request({ url: "/api/v1/character/merge", method: "post", data });
+}
+
+export type CharacterMergeGenericGroup = {
+    pool_name: string;
+    pool_id?: number;
+    source_names: string[];
+};
+
+export type CharacterMergeGenericResult = {
+    dry_run: boolean;
+    merged_count: number;
+    affected_segments: number;
+    need_regenerate: number;
+    groups: CharacterMergeGenericGroup[];
+    skipped_names?: string[];
+};
+
+export function mergeGenericCharacters(projectId: number, dryRun: boolean): Promise<CharacterMergeGenericResult> {
+    return request({
+        url: `/api/v1/character/merge-generic/${projectId}`,
+        method: "post",
+        data: { dry_run: dryRun }
+    });
+}

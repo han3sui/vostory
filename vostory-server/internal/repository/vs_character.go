@@ -52,7 +52,7 @@ func (r *vsCharacterRepository) FindByID(ctx context.Context, id uint64) (*model
 
 func (r *vsCharacterRepository) FindWithPagination(ctx context.Context, query *v1.VsCharacterListQuery) ([]*model.VsCharacter, int64, error) {
 	var characters []*model.VsCharacter
-	db := r.db.WithContext(ctx).Model(&model.VsCharacter{})
+	db := r.db.WithContext(ctx).Model(&model.VsCharacter{}).Where("merged_into_id IS NULL")
 
 	if query.ProjectID > 0 {
 		db = db.Where("project_id = ?", query.ProjectID)
@@ -88,7 +88,7 @@ func (r *vsCharacterRepository) FindWithPagination(ctx context.Context, query *v
 
 func (r *vsCharacterRepository) FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsCharacter, error) {
 	var characters []*model.VsCharacter
-	if err := r.db.WithContext(ctx).Where("project_id = ? AND status = '0'", projectID).
+	if err := r.db.WithContext(ctx).Where("project_id = ? AND status = '0' AND merged_into_id IS NULL", projectID).
 		Order("sort_order ASC, character_id DESC").Find(&characters).Error; err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (r *vsCharacterRepository) FindByProjectID(ctx context.Context, projectID u
 func (r *vsCharacterRepository) CountByProjectID(ctx context.Context, projectID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&model.VsCharacter{}).
-		Where("project_id = ? AND status = '0'", projectID).Count(&count).Error; err != nil {
+		Where("project_id = ? AND status = '0' AND merged_into_id IS NULL", projectID).Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -117,7 +117,7 @@ func (r *vsCharacterRepository) Disable(ctx context.Context, id uint64) error {
 func (r *vsCharacterRepository) FindByVoiceProfileID(ctx context.Context, voiceProfileID uint64) ([]*model.VsCharacter, error) {
 	var characters []*model.VsCharacter
 	if err := r.db.WithContext(ctx).
-		Where("voice_profile_id = ? AND status = '0'", voiceProfileID).
+		Where("voice_profile_id = ? AND status = '0' AND merged_into_id IS NULL", voiceProfileID).
 		Find(&characters).Error; err != nil {
 		return nil, err
 	}

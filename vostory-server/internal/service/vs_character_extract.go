@@ -254,6 +254,12 @@ func (s *vsCharacterExtractService) saveCharacters(ctx context.Context, projectI
 			continue
 		}
 
+		// 泛称不单独建角色，切分时会归入路人池
+		if _, generic := resolveGenericPoolName(ch.Name, ch.Gender); generic {
+			skippedCount++
+			continue
+		}
+
 		character := &model.VsCharacter{
 			ProjectID:   projectID,
 			Name:        ch.Name,

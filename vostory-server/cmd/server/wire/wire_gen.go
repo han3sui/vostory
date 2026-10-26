@@ -97,7 +97,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsScriptSegmentService := service.NewVsScriptSegmentService(serviceService, vsScriptSegmentRepository, vsAudioClipRepository)
 	vsScriptSegmentHandler := handler.NewVsScriptSegmentHandler(handlerHandler, vsScriptSegmentService)
 	vsVoiceProfileRepository := repository.NewVsVoiceProfileRepository(repositoryRepository)
-	vsCharacterService := service.NewVsCharacterService(serviceService, vsCharacterRepository, vsVoiceProfileRepository)
+	vsCharacterService := service.NewVsCharacterService(serviceService, db, vsCharacterRepository, vsVoiceProfileRepository)
 	vsCharacterHandler := handler.NewVsCharacterHandler(handlerHandler, vsCharacterService)
 	vsFileImportService := service.NewVsFileImportService(serviceService, vsProjectRepository, vsChapterRepository)
 	vsFileImportHandler := handler.NewVsFileImportHandler(handlerHandler, vsFileImportService)

@@ -231,3 +231,63 @@ func (h *VsCharacterHandler) GetByProject(ctx *gin.Context) {
 	}
 	v1.HandleSuccess(ctx, characters)
 }
+
+// Merge godoc
+// @Summary      合并角色
+// @Description  将多个重复角色合并到目标角色：迁移片段归属、合并别名，被合并角色标记为已合并并停用
+// @Tags         角色管理
+// @Accept       json
+// @Produce      json
+// @Param        request  body      v1.VsCharacterMergeRequest  true  "合并请求"
+// @Success      200      {object}  v1.Response
+// @Failure      400      {object}  v1.Response
+// @Failure      500      {object}  v1.Response
+// @Router       /api/v1/character/merge [post]
+// @Id        character:merge
+func (h *VsCharacterHandler) Merge(ctx *gin.Context) {
+	request := &v1.VsCharacterMergeRequest{}
+	if err := ctx.ShouldBindJSON(request); err != nil {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
+		return
+	}
+	resp, err := h.svc.Merge(ctx, request)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, resp)
+}
+
+// MergeGeneric godoc
+// @Summary      泛称角色归入路人池
+// @Description  将项目中"老者""店小二""众人"等泛称角色按性别与年龄段合并到路人池角色，dry_run 为 true 时仅预览
+// @Tags         角色管理
+// @Accept       json
+// @Produce      json
+// @Param        project_id  path      int                                true   "项目ID"
+// @Param        request     body      v1.VsCharacterMergeGenericRequest  false  "请求参数"
+// @Success      200         {object}  v1.Response
+// @Failure      400         {object}  v1.Response
+// @Failure      500         {object}  v1.Response
+// @Router       /api/v1/character/merge-generic/{project_id} [post]
+// @Id        character:merge_generic
+func (h *VsCharacterHandler) MergeGeneric(ctx *gin.Context) {
+	projectID := cast.ToUint64(ctx.Param("project_id"))
+	if projectID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "project_id is required"), nil)
+		return
+	}
+	request := &v1.VsCharacterMergeGenericRequest{}
+	if ctx.Request.ContentLength > 0 {
+		if err := ctx.ShouldBindJSON(request); err != nil {
+			v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
+			return
+		}
+	}
+	resp, err := h.svc.MergeGenericToPool(ctx, projectID, request)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, resp)
+}

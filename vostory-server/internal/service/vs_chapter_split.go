@@ -112,7 +112,9 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 		return nil, err
 	}
 
-	prompt := strings.ReplaceAll(promptContent, "{{content}}", chapter.Content)
+	characters, _ := s.characterRepo.FindByProjectID(ctx, project.ProjectID)
+	prompt := injectKnownCharacters(promptContent, buildKnownCharactersBlock(characters, chapter.Content))
+	prompt = strings.ReplaceAll(prompt, "{{content}}", chapter.Content)
 
 	start := time.Now()
 	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
@@ -163,7 +165,6 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 		return nil, fmt.Errorf("解析 LLM 返回结果失败: %w", err)
 	}
 
-	characters, _ := s.characterRepo.FindByProjectID(ctx, project.ProjectID)
 	charMap := buildCharacterMap(characters)
 
 	loginName := s.getLoginName(ctx)
@@ -175,7 +176,7 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 		return nil, fmt.Errorf("预创建角色失败: %w", err)
 	}
 
-	narratorID := resolveCharacterID(charMap, "旁白")
+	narratorID := resolveCharacterID(charMap, narratorName)
 
 	var totalScenes int
 	var totalSegments int
@@ -471,10 +472,12 @@ func (s *vsChapterSplitService) ensureCharacters(
 	}
 
 	needed := make(map[string]*charInfo)
+	// 泛称（小写）→ 路人池名称，角色创建完成后写回 charMap
+	genericNames := make(map[string]string)
 
-	if resolveCharacterID(charMap, "旁白") == nil {
-		needed["旁白"] = &charInfo{
-			name:        "旁白",
+	if resolveCharacterID(charMap, narratorName) == nil {
+		needed[narratorName] = &charInfo{
+			name:        narratorName,
 			gender:      "unknown",
 			description: "系统内置旁白角色，用于旁白与描述类型片段的语音合成",
 			level:       "supporting",
@@ -496,6 +499,24 @@ func (s *vsChapterSplitService) ensureCharacters(
 			if _, exists := charMap[key]; exists {
 				continue
 			}
+			if poolName, ok := resolveGenericPoolName(charName, seg.CharacterGender); ok {
+				genericNames[key] = poolName
+				poolKey := strings.ToLower(poolName)
+				if _, exists := charMap[poolKey]; exists {
+					continue
+				}
+				if _, queued := needed[poolKey]; !queued {
+					role, _ := findPoolRole(poolName)
+					needed[poolKey] = &charInfo{
+						name:        role.Name,
+						gender:      role.Gender,
+						description: role.Description,
+						level:       "minor",
+						sortOrder:   poolSortOrder(role.Name),
+					}
+				}
+				continue
+			}
 			if _, queued := needed[key]; queued {
 				continue
 			}
@@ -507,6 +528,15 @@ func (s *vsChapterSplitService) ensureCharacters(
 			}
 		}
 	}
+
+	// 泛称写回 charMap，使片段归属到对应的路人池角色
+	defer func() {
+		for key, poolName := range genericNames {
+			if id, ok := charMap[strings.ToLower(poolName)]; ok {
+				charMap[key] = id
+			}
+		}
+	}()
 
 	if len(needed) == 0 {
 		return 0, nil
@@ -523,7 +553,12 @@ func (s *vsChapterSplitService) ensureCharacters(
 		Find(&existingChars).Error; err == nil {
 		for _, ec := range existingChars {
 			key := strings.ToLower(ec.Name)
-			charMap[key] = ec.CharacterID
+			// 已被合并的角色名指向合并目标，避免片段重新挂到被合并的角色上
+			if ec.MergedIntoID != nil {
+				charMap[key] = *ec.MergedIntoID
+			} else {
+				charMap[key] = ec.CharacterID
+			}
 			delete(needed, key)
 		}
 	}

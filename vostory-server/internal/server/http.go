@@ -295,6 +295,8 @@ func NewHTTPServer(
 				characterRouter.DELETE("/:id", vsCharacterHandler.Delete)
 				characterRouter.PUT("/:id/enable", vsCharacterHandler.Enable)
 				characterRouter.PUT("/:id/disable", vsCharacterHandler.Disable)
+				characterRouter.POST("/merge", vsCharacterHandler.Merge)
+				characterRouter.POST("/merge-generic/:project_id", vsCharacterHandler.MergeGeneric)
 				characterRouter.POST("/extract/:project_id", vsCharacterExtractHandler.Extract)
 				characterRouter.POST("/extract-from-text", vsCharacterExtractHandler.ExtractFromText)
 				characterRouter.POST("/voice-match/:project_id", vsVoiceMatchHandler.MatchVoices)

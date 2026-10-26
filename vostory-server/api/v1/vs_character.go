@@ -53,3 +53,39 @@ type VsCharacterOptionResponse struct {
 	ID   uint64 `json:"id"`
 	Name string `json:"name"`
 }
+
+// VsCharacterMergeRequest 合并角色请求：将 source_ids 合并到 target_id
+type VsCharacterMergeRequest struct {
+	TargetID  uint64   `json:"target_id" binding:"required"`        // 合并目标角色
+	SourceIDs []uint64 `json:"source_ids" binding:"required,min=1"` // 被合并的角色
+}
+
+// VsCharacterMergeResponse 合并角色响应
+type VsCharacterMergeResponse struct {
+	TargetID         uint64 `json:"target_id"`
+	MergedCount      int    `json:"merged_count"`      // 被合并的角色数
+	AffectedSegments int64  `json:"affected_segments"` // 迁移到目标角色的片段数
+	NeedRegenerate   int64  `json:"need_regenerate"`   // 已生成音频但音色发生变化、建议重新生成的片段数
+}
+
+// VsCharacterMergeGenericRequest 泛称角色归入路人池请求
+type VsCharacterMergeGenericRequest struct {
+	DryRun bool `json:"dry_run"` // 仅预览，不实际合并
+}
+
+// VsCharacterMergeGenericGroup 单个路人池的归并明细
+type VsCharacterMergeGenericGroup struct {
+	PoolName    string   `json:"pool_name"`
+	PoolID      uint64   `json:"pool_id,omitempty"`
+	SourceNames []string `json:"source_names"`
+}
+
+// VsCharacterMergeGenericResponse 泛称角色归入路人池响应
+type VsCharacterMergeGenericResponse struct {
+	DryRun           bool                           `json:"dry_run"`
+	MergedCount      int                            `json:"merged_count"`
+	AffectedSegments int64                          `json:"affected_segments"`
+	NeedRegenerate   int64                          `json:"need_regenerate"`
+	Groups           []VsCharacterMergeGenericGroup `json:"groups"`
+	SkippedNames     []string                       `json:"skipped_names,omitempty"` // 有片段正在生成而跳过的角色
+}

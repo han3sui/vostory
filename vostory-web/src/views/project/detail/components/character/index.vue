@@ -72,6 +72,18 @@
                 allow-clear
             />
         </a-modal>
+        <merge-modal
+            v-model:visible="showMergeModal"
+            :project-id="projectId"
+            :preset-source="mergePresetSource"
+            @success="onMergeSuccess"
+            @open-generic="openGenericPool"
+        />
+        <generic-pool-modal
+            v-model:visible="showGenericPoolModal"
+            :project-id="projectId"
+            @success="onGenericPoolSuccess"
+        />
     </div>
 </template>
 <script lang="ts" setup>
@@ -95,6 +107,9 @@ import { regenerateByCharacter } from "@/config/apis/tts";
 import { IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
+import MergeModal from "./merge-modal.vue";
+import GenericPoolModal from "./generic-pool-modal.vue";
+import type { CharacterMergeResult, CharacterMergeGenericResult } from "@/config/apis/character";
 
 const props = defineProps<{ projectId: number }>();
 
@@ -149,7 +164,7 @@ const tableConfig = computed(() => {
         maxHeight: "auto",
         columns: [
             tableHelper.default("角色名称", "name"),
-            // tableHelper.slot("aliasSlot"),
+            tableHelper.slot("aliasSlot"),
             tableHelper.status("性别", "gender", (item: any) => {
                 const found = GENDERS.find((g) => g.value === item.gender);
                 return { text: found?.label || item.gender, status: "normal" };
@@ -167,6 +182,11 @@ const tableConfig = computed(() => {
                         label: "编辑",
                         if: () => hasPermission("character:edit"),
                         handler: onEdit
+                    },
+                    {
+                        label: "合并到",
+                        if: () => hasPermission("character:merge"),
+                        handler: (row: Record<string, any>) => openMerge(row as CharacterDetailType)
                     },
                     {
                         label: "重新生成配音",
@@ -190,11 +210,17 @@ const tableConfig = computed(() => {
                     }
                 ],
                 {
-                    width: 250
+                    width: 300
                 }
             )
         ],
         trBtns: [
+            {
+                label: "合并角色",
+                type: "outline",
+                if: () => hasPermission("character:merge"),
+                handler: () => openMerge(null)
+            },
             {
                 label: "自动匹配声音",
                 type: "outline",
@@ -279,6 +305,50 @@ async function onEdit(v: Record<string, any> | null) {
             table.value.refresh();
         }
     });
+}
+
+const showMergeModal = ref(false);
+const mergePresetSource = ref<CharacterDetailType | null>(null);
+const showGenericPoolModal = ref(false);
+
+function openMerge(row: CharacterDetailType | null) {
+    mergePresetSource.value = row;
+    showMergeModal.value = true;
+}
+
+function openGenericPool() {
+    if (!hasPermission("character:merge_generic")) {
+        Message.warning("没有归入路人池的权限");
+        return;
+    }
+    showMergeModal.value = false;
+    showGenericPoolModal.value = true;
+}
+
+function onMergeSuccess(res: CharacterMergeResult, target: CharacterDetailType) {
+    Message.success(`已将 ${res.merged_count} 个角色合并到【${target.name}】，迁移 ${res.affected_segments} 个片段`);
+    table.value.refresh();
+    if (res.need_regenerate > 0) {
+        Modal.confirm({
+            title: "音色已变化",
+            content: `有 ${res.need_regenerate} 个已生成的片段合并后音色发生变化，是否立即重新生成【${target.name}】的配音？已锁定的片段将被跳过。`,
+            okText: "重新生成",
+            cancelText: "稍后",
+            onBeforeOk: async () => {
+                const r = await regenerateByCharacter(target.id);
+                Message.success(`已提交 ${r.total_count} 个片段`);
+            }
+        });
+    }
+}
+
+function onGenericPoolSuccess(res: CharacterMergeGenericResult) {
+    const parts = [`已将 ${res.merged_count} 个泛称角色归入路人池，迁移 ${res.affected_segments} 个片段`];
+    if (res.need_regenerate > 0) {
+        parts.push(`其中 ${res.need_regenerate} 个已生成片段音色变化，可在路人角色上重新生成配音`);
+    }
+    Message.success(parts.join("；"));
+    table.value.refresh();
 }
 
 async function handleVoiceMatch() {

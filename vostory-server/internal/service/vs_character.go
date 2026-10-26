@@ -6,6 +6,8 @@ import (
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 type VsCharacterService interface {
@@ -17,18 +19,22 @@ type VsCharacterService interface {
 	FindByProjectID(ctx context.Context, projectID uint64) ([]*v1.VsCharacterOptionResponse, error)
 	Enable(ctx context.Context, id uint64) error
 	Disable(ctx context.Context, id uint64) error
+	Merge(ctx context.Context, request *v1.VsCharacterMergeRequest) (*v1.VsCharacterMergeResponse, error)
+	MergeGenericToPool(ctx context.Context, projectID uint64, request *v1.VsCharacterMergeGenericRequest) (*v1.VsCharacterMergeGenericResponse, error)
 }
 
 func NewVsCharacterService(
 	service *Service,
+	db *gorm.DB,
 	repo repository.VsCharacterRepository,
 	voiceProfileRepo repository.VsVoiceProfileRepository,
 ) VsCharacterService {
-	return &vsCharacterService{Service: service, repo: repo, voiceProfileRepo: voiceProfileRepo}
+	return &vsCharacterService{Service: service, db: db, repo: repo, voiceProfileRepo: voiceProfileRepo}
 }
 
 type vsCharacterService struct {
 	*Service
+	db               *gorm.DB
 	repo             repository.VsCharacterRepository
 	voiceProfileRepo repository.VsVoiceProfileRepository
 }

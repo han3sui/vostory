@@ -26,6 +26,7 @@ type VsCharacter struct {
 	Description    string     `json:"description" gorm:"size:1000;comment:角色描述"`
 	Level          string     `json:"level" gorm:"size:20;default:'main';comment:角色层级（main/supporting/minor）"`
 	VoiceProfileID *uint64    `json:"voice_profile_id" gorm:"comment:绑定的声音配置"`
+	MergedIntoID   *uint64    `json:"merged_into_id" gorm:"index;comment:已合并到的目标角色ID（非空表示已被合并）"`
 	SortOrder      int        `json:"sort_order" gorm:"default:0;comment:排序"`
 	Status         string     `json:"status" gorm:"size:1;default:'0';comment:状态（0正常 1停用）"`
 
