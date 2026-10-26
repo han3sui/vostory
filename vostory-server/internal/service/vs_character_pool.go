@@ -253,11 +253,26 @@ func characterMentioned(c *model.VsCharacter, content string) bool {
 	return false
 }
 
+const maxInstructionRunes = 40
+
+// instructionRequirement 旧版切分模板没有 instruction 字段时追加的输出要求
+const instructionRequirement = `每个片段额外输出 instruction 字段：结合场景上下文，用一句不超过20字的中文描述这句话该怎么演绎（语气、语速、音量、停顿等，如"压低声音，急促地"、"冷笑着，慢条斯理"），不要描述音色和性别；平铺直叙的旁白可为空字符串。`
+
 // injectKnownCharacters 将已知角色表写入 prompt：模板含 {{known_characters}} 占位符时就地替换，
-// 否则（旧版自定义模板）追加到末尾作为补充要求。必须在替换 {{content}} 之前调用。
+// 否则（旧版自定义模板）追加到末尾作为补充要求；旧模板未要求 instruction 字段时一并追加。
+// 必须在替换 {{content}} 之前调用。
 func injectKnownCharacters(promptTemplate, block string) string {
+	var extra []string
 	if strings.Contains(promptTemplate, "{{known_characters}}") {
-		return strings.ReplaceAll(promptTemplate, "{{known_characters}}", block)
+		promptTemplate = strings.ReplaceAll(promptTemplate, "{{known_characters}}", block)
+	} else {
+		extra = append(extra, "【角色识别】\n"+block)
 	}
-	return promptTemplate + "\n\n---\n补充要求（角色识别）：\n" + block
+	if !strings.Contains(promptTemplate, "instruction") {
+		extra = append(extra, "【演绎指令】\n"+instructionRequirement)
+	}
+	if len(extra) == 0 {
+		return promptTemplate
+	}
+	return promptTemplate + "\n\n---\n补充要求：\n" + strings.Join(extra, "\n\n")
 }

@@ -1,223 +1,155 @@
-# IndexTTS2 TTS 对接实现文档
+# Breeze-TTS-2 对接实现文档
 
 ## 概述
 
-VoStory 通过 HTTP 协议对接外部 IndexTTS2 服务，实现零样本语音克隆、情绪控制、发音词典替换等功能。用户在"AI 配置 > TTS 提供商"中配置 IndexTTS2 服务地址即可使用。
+VoStory 通过 HTTP 协议对接自部署的 Breeze-TTS-2 服务，实现三件事：
+
+- **音色设计（Voice Design）**：LLM 根据角色信息写音色描述，Breeze 按描述生成参考音频，保存为角色的基础音色
+- **按场景演绎（Voice Direction）**：保持角色的基础音色，按每个片段的演绎指令调整语气、语速和情绪
+- **发音纠正**：合成前用发音词典把易读错的词替换为同音字
+
+在"AI 配置 > TTS 提供商"中配置 Breeze-TTS-2 服务地址，并在项目设置中选择该提供商即可使用。
+
+> 许可说明：Breeze-TTS-2 的开放权重与自部署产出仅限研究与非商业用途。本项目仅供个人使用。
 
 ---
 
-## 架构流程
+## Breeze-TTS-2 HTTP 协议
+
+| 方法 | 端点 | 请求 | 响应 |
+|------|------|------|------|
+| POST | `/v1/audio/speech` | multipart 表单，见下表 | 24kHz 单声道 16bit 小端 PCM 流 |
+| GET | `/v1/model` | - | 模型信息（`model_digest`、`frame_rate`、`max_new_tokens` 等），用于连通性测试 |
+
+`/v1/audio/speech` 表单字段：
+
+| 字段 | 说明 |
+|------|------|
+| `text` | 要合成的文本，可包含 `[笑]`、`[叹气]`、`[咳嗽]` 等中文声音事件标签 |
+| `ref_audio` | 参考音频文件（克隆 / 导演模式） |
+| `ref_text` | 参考音频的**逐字转写**，与 `ref_audio` 同时提供 |
+| `instruction` | 自然语言指令：音色设计时是音色描述，导演模式下是演绎指令 |
+| `cfg_scale` | 指令遵循强度，官方建议 4；仅在有 `instruction` 时传入 |
+| `seed` | 随机种子 |
+
+三种模式由字段组合决定：
+
+| 模式 | 字段 | VoStory 用途 |
+|------|------|-------------|
+| Voice Clone | `ref_audio` + `ref_text` + `text` | 演绎指令为空的片段（平静/自动情绪） |
+| Voice Direction | `ref_audio` + `ref_text` + `text` + `instruction` | 带演绎指令的片段 |
+| Voice Design | `text` + `instruction` | 为角色生成基础音色 |
+
+客户端实现在 `vostory-server/internal/tts/client.go`：`Speech` 发起合成并把 PCM 封装为 WAV，`TestConnection` 调用 `/v1/model`。
+
+---
+
+## 片段合成流程
 
 ```mermaid
 sequenceDiagram
     participant FE as 前端
     participant API as VoStory 后端
-    participant TTS as IndexTTS2 服务
+    participant TTS as Breeze-TTS-2
 
-    FE->>API: POST /tts/synthesize/:segment_id
-    API->>API: 查 Segment → Character → VoiceProfile
-    API->>API: 查 VoiceEmotion 参考音频（按情绪类型+强度匹配）
-    API->>API: 合并发音词典，文本替换
-    API->>API: 情绪类型+强度 → 8维向量 × alpha
-    API->>TTS: GET /v1/check/audio（检查参考音频是否存在）
-    alt 参考音频不存在
-        API->>TTS: POST /v1/upload_audio（上传参考音频）
-    end
-    API->>TTS: POST /v2/synthesize（合成请求）
-    TTS-->>API: 音频字节流（WAV）
-    API->>API: 保存 AudioClip 文件 + 数据库记录
-    API-->>FE: 返回 { clip_id, audio_url, duration, version }
+    FE->>API: 批量/单句生成（入 Redis 队列）
+    API->>API: Segment → Character → VoiceProfile
+    API->>API: 可选：按情绪类型+强度匹配 VoiceEmotion 参考音频
+    API->>API: 发音词典替换文本
+    API->>API: 演绎指令 = segment.instruction，为空时按情绪+强度兜底
+    API->>TTS: POST /v1/audio/speech（ref_audio + ref_text + text + instruction + seed）
+    TTS-->>API: PCM 流
+    API->>API: 封装 WAV → 响度归一化 → 保存 AudioClip
+    API-->>FE: SSE 推送进度
 ```
 
----
+`VsTTSSynthesizeService.SynthesizeSegment` 的步骤：
 
-## IndexTTS2 HTTP 协议
+1. **查片段 / 角色 / 声音配置**，角色未绑定声音配置时报错
+2. **选择参考音频**：命中 `VoiceEmotion`（且有参考文本）时用情绪参考音频，否则用声音配置的基础音色
+3. **校验参考文本**：Breeze 克隆需要参考音频的逐字转写，缺失时报错
+4. **发音词典替换**：把词替换为词典里的"替换读法"（同音字）
+5. **演绎指令**：`segment.instruction` 优先；为空时按下表兜底
+6. **固定种子**：`tts_params.seed`（音色设计时记录），否则用声音配置 ID，保证同一角色各句音色稳定
+7. **合成并保存**：`storage/audio/{chapterID}/{segmentID}_v{version}.wav`，标记旧版本为非当前
 
-VoStory 后端调用的 IndexTTS2 HTTP 端点（参考 SonicVale 项目的 `TTSEngine` 实现）：
+### 情绪 → 兜底演绎指令
 
-| 方法 | 端点 | 请求体 | 响应 |
-|------|------|--------|------|
-| POST | `/v2/synthesize` | JSON: `{text, audio_path, emo_vector?, emo_text?}` | 音频字节流 |
-| GET | `/v1/check/audio?file_name=xxx` | - | `{exists: bool}` |
-| POST | `/v1/upload_audio` | multipart: `audio` 文件 + `full_path` | JSON |
-| GET | `/v1/models` | - | 模型信息 |
+| 情绪 | light | medium | strong |
+|------|-------|--------|--------|
+| happy | 语气轻快，略带笑意 | 语气愉快，带着笑意 | 非常开心，语调上扬，充满兴奋 |
+| sad | 语气略显低落 | 语气悲伤，语速稍慢 | 极度悲伤，带着哭腔，声音哽咽 |
+| angry | 语气不满，略带怒意 | 语气愤怒，语速加快 | 暴怒，大声呵斥 |
+| fear | 语气有些不安 | 语气紧张害怕，声音发颤 | 极度恐惧，声音颤抖急促 |
+| surprise | 语气略带惊讶 | 语气惊讶 | 非常震惊，脱口而出 |
+| disgust | 语气略带嫌弃 | 语气厌恶 | 极度厌恶，语带鄙夷 |
 
----
-
-## 后端文件清单
-
-### 新增文件
-
-| 文件路径 | 说明 |
-|----------|------|
-| `internal/tts/client.go` | IndexTTS2 HTTP 客户端，封装 Synthesize / CheckAudioExists / UploadAudio / EnsureAudioUploaded / TestConnection |
-| `internal/repository/vs_audio_clip.go` | AudioClip 数据访问层 — Create / FindCurrentBySegmentID / FindCurrentBySegmentIDs / SetAllNonCurrent / GetMaxVersion |
-| `internal/repository/vs_voice_emotion.go` | VoiceEmotion 数据访问层 — CRUD + FindByMatch(profile, type, strength) |
-| `internal/service/vs_voice_emotion.go` | VoiceEmotion 业务层 — 完整 CRUD |
-| `internal/handler/vs_voice_emotion.go` | VoiceEmotion HTTP 处理层 — 6 个 REST 端点 |
-| `api/v1/vs_voice_emotion.go` | VoiceEmotion DTO（Create/Update/Detail/ListQuery） |
-| `internal/service/vs_tts_synthesize.go` | **TTS 合成编排服务**（核心），包含情绪向量映射、发音词典替换、完整合成流程 |
-| `internal/handler/vs_tts_synthesize.go` | TTS 合成 HTTP 处理层 |
-| `api/v1/vs_tts_synthesize.go` | TTS 合成响应 DTO |
-
-### 修改文件
-
-| 文件路径 | 修改内容 |
-|----------|----------|
-| `cmd/server/wire/wire.go` | repositorySet / serviceSet / handlerSet 注册新模块 |
-| `internal/server/http.go` | 添加 handler 参数 + 路由注册（voice-emotion CRUD、tts synthesize/audio） |
-| `api/v1/vs_script_segment.go` | DetailResponse 增加 `has_audio` + `audio_url` 字段 |
-| `internal/service/vs_script_segment.go` | FindByChapterID 批量查询 AudioClip，填充 has_audio/audio_url |
+`neutral` 与 `auto` 不下发指令，按参考音色原样克隆，由模型根据文本把握语气。
 
 ---
 
-## API 端点
+## 演绎指令的生成
 
-### TTS 合成
+章节切分（`dialogue_parse` 模板）时，LLM 已经拿到整章文本和场景划分，因此由它顺带为每个片段输出 `instruction`：
+
+- 一句不超过 20 字的中文，描述语气、语速、音量、停顿，例如"压低声音，急促地"、"冷笑着，慢条斯理"
+- 不描述音色和性别（音色由参考音频决定）
+- 平铺直叙的旁白可为空
+
+后端截断到 40 字后存入 `vs_script_segment.instruction`。旧的自定义切分模板没有 `instruction` 字段时，后端会在 prompt 末尾自动追加这条要求。
+
+脚本编辑器中每个片段都有「演绎」输入框，可以直接改写后重新生成。
+
+---
+
+## 音色设计
 
 | 方法 | 路径 | 权限 ID | 说明 |
 |------|------|---------|------|
-| POST | `/api/v1/tts/synthesize/:segment_id` | `tts:synthesize` | 合成单个片段语音，返回音频信息 |
-| GET | `/api/v1/tts/audio/:segment_id` | `tts:audio` | 获取片段当前版本音频 |
+| POST | `/api/v1/character/:id/voice-design/suggest` | `character:voice_design` | LLM 根据角色信息和台词，生成音色描述与参考台词 |
+| POST | `/api/v1/character/:id/voice-design/preview` | `character:voice_design_preview` | Voice Design 生成试听，返回 WAV（base64）、种子和试听文件路径 |
+| POST | `/api/v1/character/:id/voice-design/apply` | `character:voice_design_apply` | 把试听保存为声音配置（参考音频 + 参考台词 + 种子）并绑定角色 |
+| POST | `/api/v1/character/:id/voice-design/auto` | `character:voice_design_auto` | 以上三步一次完成，用于批量生成 |
 
-**TTSSynthesizeResponse**:
+- 音色描述的 prompt 模板类型为 `voice_design`，可在"AI 配置 > Prompt 模板"中修改
+- 参考台词既是试听文本，也是保存后的 `reference_text`（Voice Design 生成的音频与这句台词逐字对应）
+- 试听文件存放在 `storage/reference-audio/voice-design/`，保存时移动到 `storage/reference-audio/`，未保存的试听 24 小时后清理
+- 保存的声音配置 `tts_params` 中记录 `seed` 与 `voice_design`（音色描述），`description` 也写入音色描述，供"匹配已有声音"使用
 
-```json
-{
-    "clip_id": 1,
-    "audio_url": "storage/audio/1/42_v1.wav",
-    "duration": 0,
-    "version": 1
-}
-```
+前端入口：
 
-### VoiceEmotion CRUD
-
-| 方法 | 路径 | 权限 ID | 说明 |
-|------|------|---------|------|
-| GET | `/api/v1/voice-emotion/:id` | `voice-emotion:detail` | 获取详情 |
-| GET | `/api/v1/voice-emotion/list` | `voice-emotion:list` | 分页列表 |
-| POST | `/api/v1/voice-emotion` | `voice-emotion:add` | 创建 |
-| PUT | `/api/v1/voice-emotion/:id` | `voice-emotion:edit` | 更新 |
-| DELETE | `/api/v1/voice-emotion/:id` | `voice-emotion:remove` | 删除 |
-| GET | `/api/v1/common/voice-emotion/profile/:voice_profile_id` | - | 按声音配置查询（无需权限） |
-
-### ScriptSegment 列表增强
-
-`GET /api/v1/common/script-segment/chapter/:chapter_id` 的响应现在包含：
-
-```json
-{
-    "id": 88,
-    "has_audio": true,
-    "audio_url": "storage/audio/1/88_v1.wav",
-    "..."
-}
-```
-
-前端通过 `has_audio` 判断是否显示播放按钮，无需单独请求每个片段的音频状态。
-
----
-
-## 情绪映射
-
-### 7 种情绪 → IndexTTS2 8 维向量
-
-IndexTTS2 的情绪向量维度顺序为：`[happy, angry, sad, afraid, disgusted, melancholic, surprised, calm]`
-
-| VoStory 情绪 | IndexTTS2 向量 |
-|-------------|---------------|
-| neutral | `[0, 0, 0, 0, 0, 0, 0, 1.0]` |
-| happy | `[1.0, 0, 0, 0, 0, 0, 0, 0]` |
-| sad | `[0, 0, 1.0, 0, 0, 0, 0, 0]` |
-| angry | `[0, 1.0, 0, 0, 0, 0, 0, 0]` |
-| fear | `[0, 0, 0, 1.0, 0, 0, 0, 0]` |
-| surprise | `[0, 0, 0, 0, 0, 0, 1.0, 0]` |
-| disgust | `[0, 0, 0, 0, 1.0, 0, 0, 0]` |
-
-### 情绪强度 → emo_alpha
-
-| 强度 | alpha 值 |
-|------|---------|
-| light | 0.3 |
-| medium | 0.6 |
-| strong | 0.9 |
-
-最终向量 = 基础向量 × alpha，例如 `happy + strong` = `[0.9, 0, 0, 0, 0, 0, 0, 0]`
-
----
-
-## 合成流程详解
-
-`VsTTSSynthesizeService.SynthesizeSegment(ctx, segmentID)` 的完整流程：
-
-1. **查片段** — `segmentRepo.FindByID(segmentID)` → 获取 content, emotion_type, emotion_strength, character_id
-2. **查角色** — `characterRepo.FindByID(character_id)` → 获取 voice_profile_id
-3. **查声音配置** — `voiceProfileRepo.FindByID(voice_profile_id)` → 获取参考音频 URL、TTS 提供商
-4. **查情绪音频** — `voiceEmotionRepo.FindByMatch(profile_id, emotion_type, emotion_strength)`
-   - 命中 → 使用情绪参考音频
-   - 未命中 → 回退到 VoiceProfile 的默认参考音频
-5. **解析 TTS 提供商** — 优先用 VoiceProfile 绑定的提供商，否则取系统第一个启用的 TTS 提供商
-6. **发音词典替换** — 查询项目级词典，将文本中的词替换为拼音标注（IndexTTS2 支持混合拼音）
-7. **情绪向量映射** — emotion_type + emotion_strength → 8 维向量
-8. **确保参考音频上传** — `client.EnsureAudioUploaded(localPath, remoteKey)` → 先 check 再 upload
-9. **调用合成** — `client.Synthesize(text, remoteKey, emoVector, "")` → 返回音频字节流
-10. **保存音频** — 写入 `storage/audio/{chapterID}/{segmentID}_v{version}.wav`
-11. **创建 AudioClip 记录** — 标记旧版本为非当前，创建新版本记录
-
----
-
-## 音频存储
-
-- **路径格式**: `storage/audio/{chapterID}/{segmentID}_v{version}.wav`
-- **版本管理**: 每次合成创建新版本，通过 `is_current` 字段标记当前版本
-
----
-
-## 前端文件清单
-
-### 新增文件
-
-| 文件路径 | 说明 |
-|----------|------|
-| `src/config/apis/tts.ts` | TTS API — synthesizeSegment / getSegmentAudio |
-| `src/config/apis/voice-emotion.ts` | VoiceEmotion CRUD API |
-| `src/views/voice-emotion/index.vue` | 情绪参考音频管理组件（卡片布局，支持 CRUD） |
-
-### 修改文件
-
-| 文件路径 | 修改内容 |
-|----------|----------|
-| `src/config/apis/script-segment.ts` | ScriptSegmentDetailType 增加 has_audio / audio_url |
-| `src/views/script-editor/index.vue` | 每个片段卡片增加"试听"按钮和播放按钮；列表接口直接返回音频状态 |
-| `src/views/voice-profile/index.vue` | 操作列增加"情绪音频"按钮，打开侧栏 Drawer 管理情绪参考音频 |
+- 角色列表每行「设计音色」：AI 撰写描述 → 生成试听（可反复换）→ 保存并绑定
+- 工具栏「配置声音」→「自动生成音色」：为未绑定声音的角色批量一键生成，可按主角/配角/路人池/其他龙套筛选
+- 工具栏「配置声音」→「匹配已有声音」：LLM 把角色匹配到项目里已有的声音配置
 
 ---
 
 ## 部署说明
 
-### IndexTTS2 服务部署
-
-VoStory 不内置 IndexTTS2 模型，需要自行部署 IndexTTS2 服务。VoStory 提供 Docker 镜像，一键部署：
+### Breeze-TTS-2 服务
 
 ```bash
-docker run -d --gpus all -p 8080:8080 vostory/index-tts2
+git clone https://github.com/breezeblue-ai/breeze-tts
+cd breeze-tts
+python -m pip install -r requirements.txt
+# 下载权重到 ../breeze-tts-2 后启动单并发流式 API
+python -m breeze_infer.api ../breeze-tts-2 --host 0.0.0.0 --port 7860
 ```
 
-**硬件要求**：需要 NVIDIA GPU，推荐 8GB+ 显存（FP16 模式）。
+- 普通推理约 7.7GB 显存，建议 12GB 以上；`--fast-all` 约 14.4GB，建议 24GB
+- 服务是单并发的，TTS 提供商的"最大并发数"保持 1
 
 ### 配置 TTS 提供商
 
-在 VoStory 的"AI 配置 > TTS 提供商"页面中：
+"AI 配置 > TTS 提供商"：
 
-- **名称**: IndexTTS2
-- **类型**: local
-- **API 地址**: `http://127.0.0.1:8080`（IndexTTS2 服务地址）
-- **支持能力**: `["emotion", "clone"]`
+- **API 地址**：`http://<GPU 机器 IP>:7860`
+- **API 密钥**：留空（如在前面加了鉴权代理再填写，后端会以 `Authorization: Bearer` 发送）
+- 点击「测试」会调用 `/v1/model` 并显示模型摘要
 
 ### 配置声音
 
-1. 在"声音配置"中创建声音配置，上传参考音频
-2. 在角色管理中将角色绑定到声音配置
-3. 可选：在声音配置的"情绪音频"中为不同情绪上传专用参考音频
-4. 在脚本编辑器中点击"试听"按钮即可合成语音
+1. 项目设置中选择 TTS 提供商和 LLM 提供商
+2. 角色管理 →「配置声音」→「自动生成音色」，或逐个「设计音色」
+3. 也可以手动在"声音配置"中上传参考音频，**必须填写参考音频的逐字转写**
+4. 在脚本编辑器中调整演绎指令，点击「生成」试听

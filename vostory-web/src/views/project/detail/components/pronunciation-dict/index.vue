@@ -46,7 +46,7 @@ const tableConfig = computed(() => {
         ],
         columns: [
             tableHelper.default("原始词", "word"),
-            tableHelper.default("发音标注", "phoneme"),
+            tableHelper.default("替换读法", "phoneme"),
             tableHelper.default("备注", "remark"),
             tableHelper.date("创建时间", "created_at", { format: "YYYY-MM-DD HH:mm" }),
             tableHelper.btns("操作", [
@@ -90,7 +90,10 @@ const getData = computed(() => {
 function getFormConfig(isEdit: boolean) {
     return [
         formHelper.input("原始词", "word", { rules: [ruleHelper.require("请输入原始词")] }),
-        formHelper.input("发音标注", "phoneme", { rules: [ruleHelper.require("请输入发音标注")] }),
+        formHelper.input("替换读法", "phoneme", {
+            rules: [ruleHelper.require("请输入替换读法")],
+            placeholder: "用同音字写出正确读音，如：单于 → 蝉于"
+        }),
         formHelper.input("备注", "remark")
     ];
 }

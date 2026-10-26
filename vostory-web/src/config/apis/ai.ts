@@ -148,33 +148,6 @@ export function testTTSProvider(data: {
     return request({ url: "/api/v1/ai/tts-provider/test", method: "post", data, timeout: 0 });
 }
 
-export type TTSProviderStatusGPU = {
-    name: string;
-    gpu_utilization: number | null;
-    memory_total_mb: number;
-    memory_allocated_mb: number;
-    memory_reserved_mb: number;
-};
-
-export type TTSProviderStatusResult = {
-    cpu: {
-        name: string;
-        percent: number;
-        count_physical: number | null;
-        count_logical: number;
-    };
-    memory: {
-        total_mb: number;
-        used_mb: number;
-        percent: number;
-    };
-    gpu: TTSProviderStatusGPU | null;
-};
-
-export function getTTSProviderStatus(id: number): Promise<TTSProviderStatusResult> {
-    return request({ url: `/api/v1/ai/tts-provider/${id}/status`, timeout: 15000 });
-}
-
 // ============= Prompt 模板相关接口 =============
 
 export type PromptTemplateDetailType = {

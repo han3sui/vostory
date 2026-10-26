@@ -1,7 +1,14 @@
+// Package tts 封装 Breeze-TTS-2 流式 HTTP API。
+//
+// Breeze-TTS-2 一个接口覆盖三种模式，由传入字段决定：
+//   - Voice Clone：ref_audio + ref_text + text，按参考音频克隆音色
+//   - Voice Direction：ref_audio + ref_text + text + instruction，保持参考音色，按指令调整语气/语速/情绪
+//   - Voice Design：text + instruction，不传参考音频，按文字描述生成新音色
 package tts
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,9 +16,20 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
+
+// Breeze-TTS-2 输出固定为 24kHz 单声道 16bit 小端 PCM
+const (
+	SampleRate    = 24000
+	Channels      = 1
+	BitsPerSample = 16
+)
+
+// DefaultCfgScale 官方建议使用 4 以增强指令遵循
+const DefaultCfgScale = 4.0
 
 type Client struct {
 	baseURL    string
@@ -38,61 +56,69 @@ func (c *Client) setAuth(req *http.Request) {
 	}
 }
 
-// SynthesizeOptions holds optional emotion parameters for TTS synthesis.
-type SynthesizeOptions struct {
-	EmoVector   []float64
-	EmoAlpha    float64
-	EmoText     string
-	UseEmoText  bool
+// SpeechRequest 合成请求。RefAudioPath 为空时即 Voice Design 模式，此时 Instruction 必填。
+type SpeechRequest struct {
+	Text         string
+	RefAudioPath string
+	RefText      string
+	Instruction  string
+	CfgScale     float64
+	Seed         *int64
 }
 
-// Synthesize sends the reference audio file along with the text in a single
-// multipart request. The TTS server does not persist any files.
-func (c *Client) Synthesize(audioFilePath, text string, opts SynthesizeOptions) ([]byte, error) {
-	f, err := os.Open(audioFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("open audio file %s: %w", audioFilePath, err)
+// Speech 调用 POST /v1/audio/speech，返回封装好 WAV 头的音频数据。
+func (c *Client) Speech(sr SpeechRequest) ([]byte, error) {
+	if strings.TrimSpace(sr.Text) == "" {
+		return nil, fmt.Errorf("合成文本为空")
 	}
-	defer f.Close()
+	if sr.RefAudioPath == "" && strings.TrimSpace(sr.Instruction) == "" {
+		return nil, fmt.Errorf("音色设计模式需要提供音色描述")
+	}
+	if sr.RefAudioPath != "" && strings.TrimSpace(sr.RefText) == "" {
+		return nil, fmt.Errorf("参考音频缺少逐字转写文本（ref_text）")
+	}
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	part, err := writer.CreateFormFile("audio", filepath.Base(audioFilePath))
-	if err != nil {
-		return nil, fmt.Errorf("create form file: %w", err)
-	}
-	if _, err := io.Copy(part, f); err != nil {
-		return nil, fmt.Errorf("copy audio data: %w", err)
+	if sr.RefAudioPath != "" {
+		f, err := os.Open(sr.RefAudioPath)
+		if err != nil {
+			return nil, fmt.Errorf("open audio file %s: %w", sr.RefAudioPath, err)
+		}
+		part, err := writer.CreateFormFile("ref_audio", filepath.Base(sr.RefAudioPath))
+		if err != nil {
+			f.Close()
+			return nil, fmt.Errorf("create form file: %w", err)
+		}
+		_, err = io.Copy(part, f)
+		f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("copy audio data: %w", err)
+		}
 	}
 
-	if err := writer.WriteField("text", text); err != nil {
-		return nil, fmt.Errorf("write text field: %w", err)
+	fields := map[string]string{"text": sr.Text}
+	if sr.RefAudioPath != "" {
+		fields["ref_text"] = sr.RefText
 	}
-
-	if len(opts.EmoVector) > 0 {
-		vecJSON, _ := json.Marshal(opts.EmoVector)
-		if err := writer.WriteField("emo_vector", string(vecJSON)); err != nil {
-			return nil, fmt.Errorf("write emo_vector field: %w", err)
+	if inst := strings.TrimSpace(sr.Instruction); inst != "" {
+		fields["instruction"] = inst
+		cfg := sr.CfgScale
+		if cfg <= 0 {
+			cfg = DefaultCfgScale
 		}
-		if opts.EmoAlpha > 0 {
-			if err := writer.WriteField("emo_alpha", fmt.Sprintf("%.2f", opts.EmoAlpha)); err != nil {
-				return nil, fmt.Errorf("write emo_alpha field: %w", err)
-			}
+		fields["cfg_scale"] = strconv.FormatFloat(cfg, 'f', -1, 64)
+	}
+	if sr.Seed != nil {
+		fields["seed"] = strconv.FormatInt(*sr.Seed, 10)
+	}
+	for k, v := range fields {
+		if v == "" {
+			continue
 		}
-	} else if opts.UseEmoText {
-		if err := writer.WriteField("use_emo_text", "true"); err != nil {
-			return nil, fmt.Errorf("write use_emo_text field: %w", err)
-		}
-		if opts.EmoText != "" {
-			if err := writer.WriteField("emo_text", opts.EmoText); err != nil {
-				return nil, fmt.Errorf("write emo_text field: %w", err)
-			}
-		}
-		if opts.EmoAlpha > 0 {
-			if err := writer.WriteField("emo_alpha", fmt.Sprintf("%.2f", opts.EmoAlpha)); err != nil {
-				return nil, fmt.Errorf("write emo_alpha field: %w", err)
-			}
+		if err := writer.WriteField(k, v); err != nil {
+			return nil, fmt.Errorf("write %s field: %w", k, err)
 		}
 	}
 
@@ -100,7 +126,7 @@ func (c *Client) Synthesize(audioFilePath, text string, opts SynthesizeOptions) 
 		return nil, fmt.Errorf("close multipart writer: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.baseURL+"/v2/synthesize", &buf)
+	req, err := http.NewRequest("POST", c.baseURL+"/v1/audio/speech", &buf)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -119,24 +145,83 @@ func (c *Client) Synthesize(audioFilePath, text string, opts SynthesizeOptions) 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("synthesize failed (status %d): %s", resp.StatusCode, string(data))
+		return nil, fmt.Errorf("synthesize failed (status %d): %s", resp.StatusCode, truncateBody(data))
+	}
+	if len(data) == 0 {
+		return nil, fmt.Errorf("TTS 服务返回空音频")
 	}
 
-	return data, nil
+	// 兼容返回 WAV 的部署（例如自行封装的服务）
+	if bytes.HasPrefix(data, []byte("RIFF")) {
+		return data, nil
+	}
+	return PCMToWAV(data, SampleRate, Channels, BitsPerSample), nil
 }
 
-// TestConnection calls GET /health to verify the TTS service is reachable.
-func (c *Client) TestConnection() error {
+// ModelInfo GET /v1/model 返回的模型信息
+type ModelInfo struct {
+	ModelDigest   string  `json:"model_digest"`
+	FrameRate     float64 `json:"frame_rate"`
+	MaxNewTokens  int     `json:"max_new_tokens"`
+	MaxBatchTexts int     `json:"max_batch_texts"`
+}
+
+// TestConnection 调用 GET /v1/model 验证服务可用并返回模型信息。
+func (c *Client) TestConnection() (*ModelInfo, error) {
 	testClient := &http.Client{Timeout: 15 * time.Second}
 
-	resp, err := testClient.Get(c.baseURL + "/health")
+	req, err := http.NewRequest("GET", c.baseURL+"/v1/model", nil)
 	if err != nil {
-		return fmt.Errorf("connection failed: %w", err)
+		return nil, fmt.Errorf("构建请求失败: %w", err)
+	}
+	c.setAuth(req)
+
+	resp, err := testClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("connection failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 500 {
-		return fmt.Errorf("server error (status %d)", resp.StatusCode)
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server error (status %d): %s", resp.StatusCode, truncateBody(data))
 	}
-	return nil
+
+	var info ModelInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		return nil, fmt.Errorf("不是 Breeze-TTS-2 服务（/v1/model 返回无法解析）: %w", err)
+	}
+	return &info, nil
+}
+
+// PCMToWAV 为裸 PCM 数据加上 44 字节 WAV 头
+func PCMToWAV(pcm []byte, sampleRate, channels, bitsPerSample int) []byte {
+	byteRate := sampleRate * channels * bitsPerSample / 8
+	blockAlign := channels * bitsPerSample / 8
+
+	var buf bytes.Buffer
+	buf.Grow(44 + len(pcm))
+	buf.WriteString("RIFF")
+	_ = binary.Write(&buf, binary.LittleEndian, uint32(36+len(pcm)))
+	buf.WriteString("WAVE")
+	buf.WriteString("fmt ")
+	_ = binary.Write(&buf, binary.LittleEndian, uint32(16))
+	_ = binary.Write(&buf, binary.LittleEndian, uint16(1))
+	_ = binary.Write(&buf, binary.LittleEndian, uint16(channels))
+	_ = binary.Write(&buf, binary.LittleEndian, uint32(sampleRate))
+	_ = binary.Write(&buf, binary.LittleEndian, uint32(byteRate))
+	_ = binary.Write(&buf, binary.LittleEndian, uint16(blockAlign))
+	_ = binary.Write(&buf, binary.LittleEndian, uint16(bitsPerSample))
+	buf.WriteString("data")
+	_ = binary.Write(&buf, binary.LittleEndian, uint32(len(pcm)))
+	buf.Write(pcm)
+	return buf.Bytes()
+}
+
+func truncateBody(data []byte) string {
+	s := string(data)
+	if len(s) > 500 {
+		return s[:500] + "..."
+	}
+	return s
 }

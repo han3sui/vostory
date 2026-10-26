@@ -5,7 +5,7 @@ type VsPromptTemplate struct {
 	BaseModel
 	TemplateID   uint64 `json:"template_id" gorm:"primaryKey;autoIncrement;comment:模板ID"`
 	Name         string `json:"name" gorm:"size:100;not null;uniqueIndex:uk_template_type_name;comment:模板名称"`
-	TemplateType string `json:"template_type" gorm:"size:30;not null;uniqueIndex:uk_template_type_name;comment:模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）"`
+	TemplateType string `json:"template_type" gorm:"size:30;not null;uniqueIndex:uk_template_type_name;comment:模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct/voice_match/voice_design）"`
 	Content      string `json:"content" gorm:"type:text;not null;comment:Prompt内容"`
 	Description  string `json:"description" gorm:"size:500;comment:模板描述"`
 	IsSystem     string `json:"is_system" gorm:"size:1;default:'0';comment:是否系统内置（1是 0否）"`
@@ -59,10 +59,11 @@ var DefaultPromptTemplateSeeds = []PromptTemplateSeed{
 6. character_description只描述角色固有特征（身份、外貌、性格、年龄等），不要包含当前情绪状态，情绪由emotion字段单独表达
 7. 标注每个片段的情绪：neutral/happy/sad/angry/fear/surprise/disgust
 8. 标注情绪强度：light/medium/strong
-9. content字段中的特殊字符（引号、反斜杠、换行等）必须按照JSON标准进行转义
+9. 标注演绎指令 instruction：结合场景上下文，用一句不超过20字的中文描述这句话该怎么演绎（语气、语速、音量、停顿等，如"压低声音，急促地"、"冷笑着，慢条斯理"），不要描述音色和性别；平铺直叙的旁白可为空字符串
+10. content字段中的特殊字符（引号、反斜杠、换行等）必须按照JSON标准进行转义
 
 请严格以JSON格式返回，不要包含任何其他文字，不要使用markdown代码块包裹，结构如下：
-{"scenes":[{"title":"场景标题","description":"场景简述","segments":[{"type":"dialogue|narration|monologue|description","content":"片段文本内容","character":"说话人名称（非对白/独白时为空字符串）","character_gender":"male|female|unknown（根据上下文推断，非对白/独白时为空字符串）","character_description":"角色固有特征描述，如身份、外貌、性格、年龄等，不要包含当前情绪状态（非对白/独白时为空字符串）","emotion":"neutral|happy|sad|angry|fear|surprise|disgust","emotion_strength":"light|medium|strong"}]}]}
+{"scenes":[{"title":"场景标题","description":"场景简述","segments":[{"type":"dialogue|narration|monologue|description","content":"片段文本内容","character":"说话人名称（非对白/独白时为空字符串）","character_gender":"male|female|unknown（根据上下文推断，非对白/独白时为空字符串）","character_description":"角色固有特征描述，如身份、外貌、性格、年龄等，不要包含当前情绪状态（非对白/独白时为空字符串）","emotion":"neutral|happy|sad|angry|fear|surprise|disgust","emotion_strength":"light|medium|strong","instruction":"演绎指令"}]}]}
 
 {{known_characters}}
 
@@ -147,5 +148,26 @@ B. 音色描述型：名称描述音色特征（如"御姐音""少年音""沧桑
 请严格以JSON格式返回，不要包含任何其他文字，不要使用markdown代码块包裹，结构如下：
 {"matches":[{"character_id":1,"voice_profile_id":2,"reason":"简要匹配理由"}]}`,
 		Description: "根据角色信息与声音信息（名称+描述）自动匹配最合适的声音配置",
+	},
+	{
+		Name:         "默认音色设计",
+		TemplateType: "voice_design",
+		Content: `你是一个专业的有声书选角与配音导演。请根据角色信息，为该角色设计一个固定的基础音色，用于 TTS 的音色设计（Voice Design）。
+
+要求：
+1. instruction：用一段 30~80 字的中文描述这个角色的声音，包括性别、年龄段、音高（低沉/中等/清亮）、音质（沙哑/醇厚/清脆/柔和等）、说话节奏和整体气质；只描述声音本身，不要写剧情，不要写具体情绪
+2. 路人、群体等泛称角色，按其性别与年龄段给出普通、辨识度适中的声音
+3. sample_text：写一句 20~40 字、符合角色身份与说话习惯的台词，语气平稳中性，不含拟声词、括号和特殊符号，将用作该音色的参考音频文本
+4. 角色台词示例仅用于把握说话风格，不要照抄
+
+角色信息：
+{{character}}
+
+角色台词示例：
+{{lines}}
+
+请严格以JSON格式返回，不要包含任何其他文字，不要使用markdown代码块包裹，结构如下：
+{"instruction":"音色描述","sample_text":"参考台词"}`,
+		Description: "根据角色信息生成音色描述与参考台词，用于 Breeze-TTS-2 音色设计",
 	},
 }

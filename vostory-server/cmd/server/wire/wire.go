@@ -94,6 +94,7 @@ var serviceSet = wire.NewSet(
 	service.NewVsTTSSynthesizeService,
 	service.NewVsVoiceAssetService,
 	service.NewVsVoiceMatchService,
+	service.NewVsVoiceDesignService,
 	service.NewVsExportJobService,
 	cache.NewUserCache,
 	mqtt.NewMqttClient,
@@ -133,6 +134,7 @@ var handlerSet = wire.NewSet(
 	handler.NewVsVoiceAssetHandler,
 	handler.NewVsCommonUploadHandler,
 	handler.NewVsVoiceMatchHandler,
+	handler.NewVsVoiceDesignHandler,
 	handler.NewVsExportJobHandler,
 )
 

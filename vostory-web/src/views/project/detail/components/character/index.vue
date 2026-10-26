@@ -79,6 +79,12 @@
             @success="onMergeSuccess"
             @open-generic="openGenericPool"
         />
+        <voice-design-modal
+            v-model:visible="showVoiceDesignModal"
+            :character="voiceDesignCharacter"
+            @success="onVoiceDesigned"
+        />
+        <auto-voice-modal v-model:visible="showAutoVoiceModal" :project-id="projectId" @changed="onAutoVoiceChanged" />
         <generic-pool-modal
             v-model:visible="showGenericPoolModal"
             :project-id="projectId"
@@ -98,7 +104,6 @@ import {
     disableCharacter,
     extractCharacters,
     extractFromText,
-    voiceMatchCharacters,
     CharacterDetailType
 } from "@/config/apis/character";
 import { getVoiceProfilesByProject, VoiceProfileOptionType } from "@/config/apis/voice-profile";
@@ -109,7 +114,13 @@ import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import MergeModal from "./merge-modal.vue";
 import GenericPoolModal from "./generic-pool-modal.vue";
-import type { CharacterMergeResult, CharacterMergeGenericResult } from "@/config/apis/character";
+import VoiceDesignModal from "./voice-design-modal.vue";
+import AutoVoiceModal from "./auto-voice-modal.vue";
+import type {
+    CharacterMergeResult,
+    CharacterMergeGenericResult,
+    VoiceDesignApplyResult
+} from "@/config/apis/character";
 
 const props = defineProps<{ projectId: number }>();
 
@@ -138,7 +149,6 @@ const extracting = ref(false);
 const showSmartImportModal = ref(false);
 const smartImportText = ref("");
 const smartImporting = ref(false);
-const voiceMatching = ref(false);
 const voiceProfileOptions = ref<VoiceProfileOptionType[]>([]);
 
 async function loadVoiceProfiles() {
@@ -184,6 +194,11 @@ const tableConfig = computed(() => {
                         handler: onEdit
                     },
                     {
+                        label: "设计音色",
+                        if: () => hasPermission("character:voice_design"),
+                        handler: (row: Record<string, any>) => openVoiceDesign(row as CharacterDetailType)
+                    },
+                    {
                         label: "合并到",
                         if: () => hasPermission("character:merge"),
                         handler: (row: Record<string, any>) => openMerge(row as CharacterDetailType)
@@ -222,11 +237,12 @@ const tableConfig = computed(() => {
                 handler: () => openMerge(null)
             },
             {
-                label: "自动匹配声音",
+                label: "配置声音",
                 type: "outline",
-                loading: voiceMatching.value,
-                if: () => hasPermission("character:voice_match"),
-                handler: handleVoiceMatch
+                if: () => hasPermission("character:voice_match") || hasPermission("character:voice_design_auto"),
+                handler: () => {
+                    showAutoVoiceModal.value = true;
+                }
             },
             {
                 label: "智能录入",
@@ -351,26 +367,36 @@ function onGenericPoolSuccess(res: CharacterMergeGenericResult) {
     table.value.refresh();
 }
 
-async function handleVoiceMatch() {
-    Modal.confirm({
-        title: "自动匹配声音",
-        content: "将使用 LLM 根据角色描述和声音描述自动匹配声音配置，已绑定声音的角色会自动跳过。是否继续？",
-        okText: "开始匹配",
-        cancelText: "取消",
-        onBeforeOk: async () => {
-            voiceMatching.value = true;
-            try {
-                const res = await voiceMatchCharacters(props.projectId);
-                const parts = [`匹配完成：成功 ${res.matched_count} 个`];
-                if (res.skipped_count > 0) parts.push(`跳过 ${res.skipped_count} 个（已绑定）`);
-                if (res.failed_count > 0) parts.push(`未匹配 ${res.failed_count} 个`);
-                Message.success(parts.join("，"));
-                table.value.refresh();
-            } finally {
-                voiceMatching.value = false;
+const showAutoVoiceModal = ref(false);
+const showVoiceDesignModal = ref(false);
+const voiceDesignCharacter = ref<CharacterDetailType | null>(null);
+
+function openVoiceDesign(row: CharacterDetailType) {
+    voiceDesignCharacter.value = row;
+    showVoiceDesignModal.value = true;
+}
+
+function onVoiceDesigned(res: VoiceDesignApplyResult, character: CharacterDetailType) {
+    Message.success(`已为【${character.name}】生成并绑定音色「${res.voice_profile_name}」`);
+    loadVoiceProfiles();
+    table.value.refresh();
+    if (character.voice_profile_id) {
+        Modal.confirm({
+            title: "音色已更换",
+            content: `是否立即用新音色重新生成【${character.name}】的配音？已锁定的片段将被跳过。`,
+            okText: "重新生成",
+            cancelText: "稍后",
+            onBeforeOk: async () => {
+                const r = await regenerateByCharacter(character.id);
+                Message.success(`已提交 ${r.total_count} 个片段`);
             }
-        }
-    });
+        });
+    }
+}
+
+function onAutoVoiceChanged() {
+    loadVoiceProfiles();
+    table.value.refresh();
 }
 
 async function handleExtract() {

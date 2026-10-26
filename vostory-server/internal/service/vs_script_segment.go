@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
@@ -45,6 +46,7 @@ func (s *vsScriptSegmentService) Create(ctx context.Context, request *v1.VsScrip
 		CharacterID:     request.CharacterID,
 		EmotionType:     request.EmotionType,
 		EmotionStrength: request.EmotionStrength,
+		Instruction:     request.Instruction,
 		Status:          "raw",
 		Version:         1,
 		BaseModel: model.BaseModel{
@@ -78,6 +80,9 @@ func (s *vsScriptSegmentService) Update(ctx context.Context, request *v1.VsScrip
 	}
 	if request.EmotionStrength != "" {
 		existing.EmotionStrength = request.EmotionStrength
+	}
+	if request.Instruction != nil {
+		existing.Instruction = strings.TrimSpace(*request.Instruction)
 	}
 	if request.Status != "" {
 		existing.Status = request.Status
@@ -202,6 +207,7 @@ func (s *vsScriptSegmentService) convertToDetailResponse(seg *model.VsScriptSegm
 		CharacterID:     seg.CharacterID,
 		EmotionType:     seg.EmotionType,
 		EmotionStrength: seg.EmotionStrength,
+		Instruction:     seg.Instruction,
 		Status:          seg.Status,
 		ErrorMessage:    seg.ErrorMessage,
 		Version:         seg.Version,

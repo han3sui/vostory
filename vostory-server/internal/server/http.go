@@ -57,6 +57,7 @@ func NewHTTPServer(
 	vsVoiceAssetHandler *handler.VsVoiceAssetHandler,
 	vsCommonUploadHandler *handler.VsCommonUploadHandler,
 	vsVoiceMatchHandler *handler.VsVoiceMatchHandler,
+	vsVoiceDesignHandler *handler.VsVoiceDesignHandler,
 	vsExportJobHandler *handler.VsExportJobHandler,
 
 ) *http.Server {
@@ -300,6 +301,10 @@ func NewHTTPServer(
 				characterRouter.POST("/extract/:project_id", vsCharacterExtractHandler.Extract)
 				characterRouter.POST("/extract-from-text", vsCharacterExtractHandler.ExtractFromText)
 				characterRouter.POST("/voice-match/:project_id", vsVoiceMatchHandler.MatchVoices)
+				characterRouter.POST("/:id/voice-design/suggest", vsVoiceDesignHandler.Suggest)
+				characterRouter.POST("/:id/voice-design/preview", vsVoiceDesignHandler.Preview)
+				characterRouter.POST("/:id/voice-design/apply", vsVoiceDesignHandler.Apply)
+				characterRouter.POST("/:id/voice-design/auto", vsVoiceDesignHandler.Auto)
 			}
 
 			voiceProfileRouter := strictAuthRouter.Group("/voice-profile")
@@ -390,7 +395,6 @@ func NewHTTPServer(
 					ttsProviderRouter.PUT("/:id/enable", vsTTSProviderHandler.Enable)
 					ttsProviderRouter.PUT("/:id/disable", vsTTSProviderHandler.Disable)
 					ttsProviderRouter.POST("/test", vsTTSProviderHandler.TestConnection)
-					ttsProviderRouter.GET("/:id/status", vsTTSProviderHandler.GetStatus)
 				}
 
 				promptTemplateRouter := aiRouter.Group("/prompt-template")

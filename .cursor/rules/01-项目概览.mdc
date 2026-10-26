@@ -6,7 +6,7 @@ alwaysApply: true
 
 # 项目概览
 
-VoStory 是一个面向团队协作的 AI 有声小说 / 广播剧制作平台，基于 Vue 3 + Golang 构建。当前阶段为 MVP，基础框架已搭建完成，正在推进核心业务模块开发。
+VoStory 是一个自用的 AI 有声小说 / 广播剧制作工具，基于 Vue 3 + Golang 构建。当前阶段为 MVP，基础框架已搭建完成，正在推进核心业务模块开发。
 
 产品目标详见 `docs/README.md`，MVP 方案详见 `docs/mvp-plan.md`，技术注意点详见 `docs/tech-notes.md`。
 
@@ -37,7 +37,7 @@ vostory-server/
 │   ├── service/       # 业务逻辑层
 │   ├── handler/       # HTTP 处理器（Gin）
 │   ├── server/        # HTTP 路由注册、Migration、Job
-│   ├── tts/           # TTS 客户端（IndexTTS2 HTTP 适配）
+│   ├── tts/           # TTS 客户端（Breeze-TTS-2 HTTP 适配）
 │   ├── middleware/     # 中间件（认证、CORS、操作日志等）
 │   ├── cache/         # 缓存层（Redis / 内存）
 │   ├── job/           # 定时任务
@@ -105,7 +105,7 @@ vostory-web/src/
 **核心业务**：
 
 - [x] **数据库表设计**：Workspace、Project、Chapter、Scene、ScriptSegment、Character、VoiceProfile、VoiceAsset、PronunciationDictionary、GenerationTask、TaskBatch、AudioClip、ExportJob、LLMProvider、TTSProvider、PromptTemplate、LLMLog
-- [x] **工作空间模块**：团队/组织空间管理（前后端完成）
+- [x] **工作空间模块**：工作空间（项目分组）管理（前后端完成）
 - [x] **项目管理模块**：创建项目、项目列表、项目状态（前后端完成）
 - [x] **文件导入**：txt / docx / epub 上传与解析（前后端完成，txt 自动章节切分）
 - [x] **章节管理模块**：章节切分、排序、状态（前后端完成）
@@ -127,8 +127,9 @@ vostory-web/src/
 
 #### 第 3 阶段：可生成（进行中）  <!-- 技术注意点见 docs/tech-notes.md「第 3 阶段」，TTS 对接详见 vostory-server/docs/tts-integration.md -->
 
-- [x] TTS 适配层 — IndexTTS2 HTTP 客户端（internal/tts/client.go），支持合成/检查/上传参考音频
-- [x] 情绪 + 强度双维度传参 — 7 种情绪 × 3 级强度 → IndexTTS2 8 维向量映射
+- [x] TTS 适配层 — Breeze-TTS-2 HTTP 客户端（internal/tts/client.go），Voice Clone / Direction / Design，PCM 封装为 WAV
+- [x] 演绎指令 — 切分时 LLM 生成片段 instruction，合成时传给 Voice Direction；为空时按 7 种情绪 × 3 级强度兜底
+- [x] 音色设计 — LLM 撰写音色描述 → Voice Design 生成参考音频 → 保存为声音配置并绑定角色
 - [x] 多情绪参考音频 — VoiceEmotion CRUD 全套（按声音配置 + 情绪类型 + 强度精确匹配）
 - [x] 音频版本管理 — AudioClip 模型 + is_current 版本标记 + 自动递增版本号
 - [x] 单句试听与重生成 — POST /tts/synthesize/:segment_id + 前端试听按钮 + 播放逻辑
@@ -145,7 +146,6 @@ vostory-web/src/
 
 #### 第 5 阶段：可协作
 
-- [ ] 团队权限分工
 - [ ] 审核流程
 - [ ] 全局声音资产库（跨项目复用）
 

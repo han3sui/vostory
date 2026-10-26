@@ -314,7 +314,8 @@ function onEdit(v: Record<string, any> | null) {
                 customRequest: uploadReferenceAudio
             }),
             formHelper.input("参考文本", "reference_text", {
-                placeholder: "参考音频对应的文本内容"
+                placeholder: "参考音频的逐字转写（Breeze-TTS-2 克隆音色必填）",
+                rules: [ruleHelper.require("请输入参考音频的逐字转写")]
             })
         ],
         ok: async (data: any) => {

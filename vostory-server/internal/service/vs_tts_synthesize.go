@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	v1 "iot-alert-center/api/v1"
@@ -16,22 +17,39 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// IndexTTS2 8-dim emotion vector order:
-// [happy, angry, sad, afraid, disgusted, melancholic, surprised, calm]
-var emotionVectorMap = map[string][8]float64{
-	"neutral":  {0, 0, 0, 0, 0, 0, 0, 1.0},
-	"happy":    {1.0, 0, 0, 0, 0, 0, 0, 0},
-	"sad":      {0, 0, 1.0, 0, 0, 0, 0, 0},
-	"angry":    {0, 1.0, 0, 0, 0, 0, 0, 0},
-	"fear":     {0, 0, 0, 1.0, 0, 0, 0, 0},
-	"surprise": {0, 0, 0, 0, 0, 0, 1.0, 0},
-	"disgust":  {0, 0, 0, 0, 1.0, 0, 0, 0},
-}
-
-var strengthAlphaMap = map[string]float64{
-	"light":  0.3,
-	"medium": 0.6,
-	"strong": 0.9,
+// emotionInstructions 情绪类型+强度 → Breeze-TTS-2 演绎指令（片段未填写 instruction 时兜底）。
+// neutral / auto 不下发指令，按参考音色原样克隆，由模型根据文本自行把握语气。
+var emotionInstructions = map[string]map[string]string{
+	"happy": {
+		"light":  "语气轻快，略带笑意",
+		"medium": "语气愉快，带着笑意",
+		"strong": "非常开心，语调上扬，充满兴奋",
+	},
+	"sad": {
+		"light":  "语气略显低落",
+		"medium": "语气悲伤，语速稍慢",
+		"strong": "极度悲伤，带着哭腔，声音哽咽",
+	},
+	"angry": {
+		"light":  "语气不满，略带怒意",
+		"medium": "语气愤怒，语速加快",
+		"strong": "暴怒，大声呵斥",
+	},
+	"fear": {
+		"light":  "语气有些不安",
+		"medium": "语气紧张害怕，声音发颤",
+		"strong": "极度恐惧，声音颤抖急促",
+	},
+	"surprise": {
+		"light":  "语气略带惊讶",
+		"medium": "语气惊讶",
+		"strong": "非常震惊，脱口而出",
+	},
+	"disgust": {
+		"light":  "语气略带嫌弃",
+		"medium": "语气厌恶",
+		"strong": "极度厌恶，语带鄙夷",
+	},
 }
 
 type VsTTSSynthesizeService interface {
@@ -130,25 +148,36 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 		return failAndReturn(fmt.Sprintf("TTS 提供商不可用: %v", err))
 	}
 
+	// 情绪参考音频（如有）优先，否则使用声音配置的基础音色
 	referenceAudioURL := voiceProfile.ReferenceAudioURL
+	referenceText := voiceProfile.ReferenceText
 	emotion, _ := s.voiceEmotionRepo.FindByMatch(ctx, voiceProfile.VoiceProfileID, segment.EmotionType, segment.EmotionStrength)
-	if emotion != nil {
+	if emotion != nil && emotion.ReferenceAudioURL != "" && emotion.ReferenceText != "" {
 		referenceAudioURL = emotion.ReferenceAudioURL
+		referenceText = emotion.ReferenceText
 	}
 
 	if referenceAudioURL == "" {
-		return failAndReturn(fmt.Sprintf("声音配置「%s」缺少参考音频", voiceProfile.Name))
+		return failAndReturn(fmt.Sprintf("声音配置「%s」缺少参考音频，可在角色管理中「设计音色」自动生成", voiceProfile.Name))
+	}
+	if strings.TrimSpace(referenceText) == "" {
+		return failAndReturn(fmt.Sprintf("声音配置「%s」缺少参考文本（参考音频的逐字转写），Breeze-TTS-2 克隆音色需要", voiceProfile.Name))
 	}
 
 	_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
 
 	text := s.applyPronunciationDict(ctx, segment)
 
-	opts := buildSynthesizeOptions(segment.EmotionType, segment.EmotionStrength, segment.Content)
-
 	client := tts.NewClient(provider.APIBaseURL, provider.APIKey)
 
-	audioData, err := client.Synthesize(referenceAudioURL, text, opts)
+	audioData, err := client.Speech(tts.SpeechRequest{
+		Text:         text,
+		RefAudioPath: referenceAudioURL,
+		RefText:      referenceText,
+		Instruction:  segmentInstruction(segment),
+		CfgScale:     ttsParamFloat(voiceProfile.TTSParams, "cfg_scale"),
+		Seed:         voiceSeed(voiceProfile),
+	})
 	if err != nil {
 		return failAndReturn(fmt.Sprintf("TTS 合成失败: %v", err))
 	}
@@ -229,32 +258,52 @@ func (s *vsTTSSynthesizeService) applyPronunciationDict(ctx context.Context, seg
 	return text
 }
 
-func buildSynthesizeOptions(emotionType, emotionStrength, content string) tts.SynthesizeOptions {
-	if emotionType == "auto" {
-		return tts.SynthesizeOptions{
-			UseEmoText: true,
-			EmoAlpha:   0.6,
+// segmentInstruction 片段的演绎指令：优先使用片段上的 instruction（由切分时 LLM 按场景生成或人工编辑），
+// 为空时按情绪类型+强度兜底。
+func segmentInstruction(segment *model.VsScriptSegment) string {
+	if inst := strings.TrimSpace(segment.Instruction); inst != "" {
+		return inst
+	}
+	if byStrength, ok := emotionInstructions[segment.EmotionType]; ok {
+		if inst, ok := byStrength[segment.EmotionStrength]; ok {
+			return inst
+		}
+		return byStrength["medium"]
+	}
+	return ""
+}
+
+// voiceSeed 同一声音配置固定使用同一个随机种子，保证不同片段之间音色稳定。
+// 优先取 tts_params.seed（音色设计时记录），否则以声音配置 ID 作为种子。
+func voiceSeed(profile *model.VsVoiceProfile) *int64 {
+	if v, ok := ttsParamInt(profile.TTSParams, "seed"); ok {
+		return &v
+	}
+	seed := int64(profile.VoiceProfileID)
+	return &seed
+}
+
+func ttsParamFloat(params model.TTSParamsMap, key string) float64 {
+	switch v := params[key].(type) {
+	case float64:
+		return v
+	case string:
+		f, _ := strconv.ParseFloat(v, 64)
+		return f
+	}
+	return 0
+}
+
+func ttsParamInt(params model.TTSParamsMap, key string) (int64, bool) {
+	switch v := params[key].(type) {
+	case float64:
+		return int64(v), true
+	case string:
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return n, true
 		}
 	}
-
-	baseVector, ok := emotionVectorMap[emotionType]
-	if !ok {
-		return tts.SynthesizeOptions{}
-	}
-
-	alpha, ok := strengthAlphaMap[emotionStrength]
-	if !ok {
-		alpha = 0.6
-	}
-
-	result := make([]float64, 8)
-	for i, v := range baseVector {
-		result[i] = v * alpha
-	}
-	return tts.SynthesizeOptions{
-		EmoVector: result,
-		EmoAlpha:  alpha,
-	}
+	return 0, false
 }
 
 func (s *vsTTSSynthesizeService) saveAudioFile(segment *model.VsScriptSegment, audioData []byte) (string, int64, error) {

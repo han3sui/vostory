@@ -9,6 +9,7 @@ export type CharacterDetailType = {
     description: string;
     level: string;
     voice_profile_id: number | null;
+    voice_profile_name?: string;
     sort_order: number;
     status: string;
     created_at: string;
@@ -139,4 +140,56 @@ export function mergeGenericCharacters(projectId: number, dryRun: boolean): Prom
         method: "post",
         data: { dry_run: dryRun }
     });
+}
+
+export type VoiceDesignSuggestResult = {
+    instruction: string;
+    sample_text: string;
+    input_tokens: number;
+    output_tokens: number;
+};
+
+export type VoiceDesignPreviewResult = {
+    preview_path: string;
+    seed: number;
+    audio_base64: string;
+};
+
+export type VoiceDesignApplyResult = {
+    voice_profile_id: number;
+    voice_profile_name: string;
+};
+
+export type VoiceDesignAutoResult = VoiceDesignApplyResult & {
+    character_id: number;
+    instruction: string;
+    sample_text: string;
+    seed: number;
+};
+
+export function suggestVoiceDesign(characterId: number): Promise<VoiceDesignSuggestResult> {
+    return request({ url: `/api/v1/character/${characterId}/voice-design/suggest`, method: "post", timeout: 0 });
+}
+
+export function previewVoiceDesign(
+    characterId: number,
+    data: { instruction: string; sample_text: string; seed?: number }
+): Promise<VoiceDesignPreviewResult> {
+    return request({
+        url: `/api/v1/character/${characterId}/voice-design/preview`,
+        method: "post",
+        data,
+        timeout: 0
+    });
+}
+
+export function applyVoiceDesign(
+    characterId: number,
+    data: { preview_path: string; instruction: string; sample_text: string; seed: number; name?: string }
+): Promise<VoiceDesignApplyResult> {
+    return request({ url: `/api/v1/character/${characterId}/voice-design/apply`, method: "post", data });
+}
+
+export function autoVoiceDesign(characterId: number): Promise<VoiceDesignAutoResult> {
+    return request({ url: `/api/v1/character/${characterId}/voice-design/auto`, method: "post", timeout: 0 });
 }

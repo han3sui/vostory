@@ -1,8 +1,8 @@
 # VoStory
 
-**Voice + Story** — 面向团队协作的 AI 有声小说 / 广播剧制作平台。
+**Voice + Story** — 自用的 AI 有声小说 / 广播剧制作工具。
 
-VoStory 不是简单的文本转语音工具，而是将长篇小说内容转化为可编辑、可复用、可协作生产的广播剧项目的完整制作平台。
+VoStory 不是简单的文本转语音工具，而是将长篇小说转化为可编辑、可返工的广播剧工程：角色合并去重、为角色自动设计固定的基础音色、按场景语境生成每句台词的语气，最终拼接导出。
 
 ## 功能预览
 
@@ -70,28 +70,30 @@ VoStory 不是简单的文本转语音工具，而是将长篇小说内容转化
 ### 角色抽取与管理
 
 - LLM 自动抽取角色候选，识别别名与称呼
-- 支持角色合并、别名编辑、层级分类（主角 / 配角 / 路人）
-- 自动归属台词说话人
-- 情绪类型 + 情绪强度双维度标注
+- 切分时注入已知角色表，称呼自动还原为标准名
+- 角色合并（迁移台词与别名）、泛称角色（老者、店小二、众人等）一键归入路人池
+- 层级分类（主角 / 配角 / 龙套）、自动归属台词说话人
+- 情绪类型 + 情绪强度 + 演绎指令标注
 
 ### 声音资产管理
 
 - **全局声音资产库**（`VoiceAsset`）：跨项目复用的音色资源
-- **项目声音配置**（`VoiceProfile`）：项目内角色绑定具体音色
-- 同一角色支持多情绪参考音频（开心 / 悲伤 / 愤怒等）
+- **项目声音配置**（`VoiceProfile`）：角色的基础音色（参考音频 + 逐字转写 + 固定种子）
+- **音色设计**：LLM 撰写音色描述 → Breeze-TTS-2 Voice Design 生成参考音频，可逐个试听或批量一键生成
+- 可选的多情绪参考音频（开心 / 悲伤 / 愤怒等）
 - 参考音频上传、试听、替换
 
 ### 脚本编辑
 
 - 片段级浏览与编辑
-- 修正说话人归属、片段类型、情绪标签与强度
-- 发音词典管理（项目级 + 全局级）
+- 修正说话人归属、片段类型、情绪标签与强度、演绎指令
+- 发音词典管理（项目级 + 全局级，以同音字替换纠正读音）
 - 精准填充：LLM 输出自动对齐回原文，确保不丢字不加字
 
 ### 批量语音生成
 
 - 按章节批量生成音频
-- 情绪 + 强度双维度传参
+- 基础音色 + 演绎指令（Voice Direction），指令为空时按情绪 + 强度兜底
 - 单片段试听与重生成
 - 异步任务队列，支持排队、重试、超时、取消与恢复
 - SSE 实时推送生成进度
@@ -106,7 +108,7 @@ VoStory 不是简单的文本转语音工具，而是将长篇小说内容转化
 ### 系统管理
 
 - RBAC 权限控制
-- 工作区与团队管理
+- 工作区管理
 - 操作审计日志
 - LLM 调用日志审计
 
@@ -140,8 +142,8 @@ VoStory 不是简单的文本转语音工具，而是将长篇小说内容转化
 │    └ 自定义兼容接口   │                              │
 │                      │                              │
 │  TTS 引擎            │                              │
-│    └ IndexTTS2       │                              │
-│      (Docker 自部署)  │                              │
+│    └ Breeze-TTS-2    │                              │
+│      (GPU 自部署)     │                              │
 └──────────────────────┴──────────────────────────────┘
 ```
 
@@ -185,7 +187,7 @@ VoStory 不是简单的文本转语音工具，而是将长篇小说内容转化
 
 | 对象 | 说明 |
 |------|------|
-| `Workspace` | 组织或团队空间 |
+| `Workspace` | 工作空间（项目分组） |
 | `Project` | 一本书或一个制作项目 |
 | `Chapter` | 章节 |
 | `ScriptSegment` | 脚本片段（旁白/对白/独白），含情绪类型和强度 |
@@ -306,59 +308,35 @@ docker-compose up -d
 
 ### TTS 引擎
 
-语音合成基于 **IndexTTS2**，需自行部署。镜像地址：`han3sui/index-tts`
-
-**Docker 运行：**
+语音合成基于 **Breeze-TTS-2**，需自行在 GPU 机器上部署（[breezeblue-ai/breeze-tts](https://github.com/breezeblue-ai/breeze-tts)）：
 
 ```bash
-docker run -d --name index-tts-api \
-  --gpus '"device=0"' \
-  -p 8300:8300 \
-  -e API_KEY=your-secret-key-here \
-  -e USE_FP16=true \
-  -e PORT=8300 \
-  --restart unless-stopped \
-  han3sui/index-tts:latest
+git clone https://github.com/breezeblue-ai/breeze-tts
+cd breeze-tts
+python -m pip install -r requirements.txt
+# 权重下载到 ../breeze-tts-2 后启动单并发流式 API
+python -m breeze_infer.api ../breeze-tts-2 --host 0.0.0.0 --port 7860
 ```
 
-**Docker Compose：**
+运行后在「AI 配置 > TTS 供应商」中把 API 地址设为 `http://<服务器IP>:7860`，点击「测试」验证连通。
 
-```yaml
-services:
-  index-tts:
-    image: han3sui/index-tts:latest
-    container_name: index-tts-api
-    restart: unless-stopped
-    ports:
-      - "8300:8300"
-    environment:
-      - API_KEY=${API_KEY:-your-secret-key-here}
-      - USE_FP16=${USE_FP16:-true}
-      - USE_DEEPSPEED=${USE_DEEPSPEED:-false}
-      - USE_CUDA_KERNEL=${USE_CUDA_KERNEL:-false}
-```
+VoStory 用到 Breeze-TTS-2 的三种模式：
 
-```bash
-docker compose up -d
-```
+- **Voice Design**：LLM 根据角色信息写音色描述，按描述生成参考音频，保存为角色的基础音色
+- **Voice Direction**：保持角色的基础音色，按每句的演绎指令（切分时由 LLM 结合场景生成）调整语气、语速和情绪
+- **Voice Clone**：无演绎指令的片段按参考音色原样克隆
 
-运行后在 VoStory 系统中配置 TTS Provider 地址指向 `http://<服务器IP>:8300` 即可。
+硬件：普通推理约 8GB 显存，建议 12GB 以上。
 
-**IndexTTS2 特性：**
+> Breeze-TTS-2 的开放权重与自部署产出仅限研究与非商业用途，本项目仅供个人使用。
 
-- 零样本声音克隆：一段参考音频即可克隆音色
-- 情绪与音色解耦：独立控制音色和情绪表达
-- 多模态情绪控制：支持情绪参考音频、8 维情绪向量、文本情绪描述
-- 情绪强度连续可调（0.0-1.0）
-- 原生中文拼音标注，直接对接发音词典
-
-VoStory 后端通过 HTTP 协议与 IndexTTS2 服务通信，传递参考音频 + 文本 + 情绪参数。
+详见 [docs/tts-integration.md](docs/tts-integration.md)。
 
 ## 生产流程
 
 ```
-导入小说 → 自动分章 → LLM 结构化脚本 → 抽取角色 → 绑定声音
-    → 批量 TTS 生成 → 人工修正 → 局部重生成 → 导出章节音频
+导入小说 → 自动分章 → LLM 结构化脚本（含演绎指令）→ 合并角色 / 归入路人池
+    → 自动设计音色 → 批量 TTS 生成 → 人工修正 → 局部重生成 → 导出章节音频
 ```
 
 ## License

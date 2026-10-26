@@ -2,16 +2,13 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
 	"time"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
+	"iot-alert-center/internal/tts"
 )
 
 type VsTTSProviderService interface {
@@ -24,7 +21,6 @@ type VsTTSProviderService interface {
 	Enable(ctx context.Context, id uint64) error
 	Disable(ctx context.Context, id uint64) error
 	TestConnection(ctx context.Context, request *v1.VsTTSProviderTestRequest) *v1.VsTTSProviderTestResponse
-	GetStatus(ctx context.Context, id uint64) (*v1.VsTTSProviderStatusResponse, error)
 }
 
 func NewVsTTSProviderService(
@@ -132,29 +128,11 @@ func (s *vsTTSProviderService) Disable(ctx context.Context, id uint64) error {
 	return s.repo.Disable(ctx, id)
 }
 
+// TestConnection 调用 Breeze-TTS-2 的 GET /v1/model 验证服务可用。
 func (s *vsTTSProviderService) TestConnection(_ context.Context, request *v1.VsTTSProviderTestRequest) *v1.VsTTSProviderTestResponse {
 	start := time.Now()
 
-	url := strings.TrimRight(request.APIBaseURL, "/")
-	if !strings.HasSuffix(url, "/health") && !strings.HasSuffix(url, "/ping") {
-		url += "/health"
-	}
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return &v1.VsTTSProviderTestResponse{
-			Success:  false,
-			Message:  fmt.Sprintf("构建请求失败: %v", err),
-			Duration: time.Since(start).Milliseconds(),
-		}
-	}
-
-	if request.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+request.APIKey)
-	}
-
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(req)
+	info, err := tts.NewClient(request.APIBaseURL, request.APIKey).TestConnection()
 	if err != nil {
 		return &v1.VsTTSProviderTestResponse{
 			Success:  false,
@@ -162,62 +140,16 @@ func (s *vsTTSProviderService) TestConnection(_ context.Context, request *v1.VsT
 			Duration: time.Since(start).Milliseconds(),
 		}
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode < 500 {
-		return &v1.VsTTSProviderTestResponse{
-			Success:  true,
-			Message:  "连接成功",
-			Duration: time.Since(start).Milliseconds(),
-		}
+	msg := "连接成功"
+	if info.ModelDigest != "" {
+		msg = fmt.Sprintf("连接成功，模型 %s", info.ModelDigest)
 	}
-
 	return &v1.VsTTSProviderTestResponse{
-		Success:  false,
-		Message:  fmt.Sprintf("服务端错误: HTTP %d", resp.StatusCode),
+		Success:  true,
+		Message:  msg,
 		Duration: time.Since(start).Milliseconds(),
 	}
-}
-
-func (s *vsTTSProviderService) GetStatus(ctx context.Context, id uint64) (*v1.VsTTSProviderStatusResponse, error) {
-	provider, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("提供商不存在")
-	}
-
-	url := strings.TrimRight(provider.APIBaseURL, "/") + "/status"
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("构建请求失败: %v", err)
-	}
-
-	if provider.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+provider.APIKey)
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("连接失败: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("远程服务返回错误: HTTP %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应失败: %v", err)
-	}
-
-	var status v1.VsTTSProviderStatusResponse
-	if err := json.Unmarshal(body, &status); err != nil {
-		return nil, fmt.Errorf("解析响应失败: %v", err)
-	}
-
-	return &status, nil
 }
 
 func (s *vsTTSProviderService) convertToDetailResponse(p *model.VsTTSProvider) *v1.VsTTSProviderDetailResponse {

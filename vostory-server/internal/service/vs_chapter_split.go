@@ -86,6 +86,7 @@ type llmSegment struct {
 	CharacterDescription string `json:"character_description"`
 	Emotion              string `json:"emotion"`
 	EmotionStrength      string `json:"emotion_strength"`
+	Instruction          string `json:"instruction"`
 }
 
 func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint64) (*v1.ChapterSplitResponse, error) {
@@ -232,6 +233,7 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 					CharacterID:     charID,
 					EmotionType:     normalizeEmotion(seg.Emotion),
 					EmotionStrength: normalizeStrength(seg.EmotionStrength),
+					Instruction:     normalizeInstruction(seg.Instruction),
 					Status:          "raw",
 					Version:         1,
 					BaseModel: model.BaseModel{
@@ -440,6 +442,15 @@ func normalizeEmotion(e string) string {
 	default:
 		return "neutral"
 	}
+}
+
+// normalizeInstruction 演绎指令只保留一句短描述，超长截断，避免把整段分析塞给 TTS
+func normalizeInstruction(s string) string {
+	runes := []rune(strings.TrimSpace(s))
+	if len(runes) > maxInstructionRunes {
+		runes = runes[:maxInstructionRunes]
+	}
+	return string(runes)
 }
 
 func normalizeStrength(s string) string {

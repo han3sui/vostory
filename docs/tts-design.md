@@ -1,6 +1,6 @@
 # TTS 合成设计文档
 
-本文档整理 VoStory TTS 合成链路的设计思路，涵盖发音词典、声音配置、情绪体系及与 TTS 引擎的关联。
+本文档整理 VoStory TTS 合成链路的设计思路，涵盖发音词典、声音配置、基础音色设计、按场景演绎及与 Breeze-TTS-2 的关联。
 
 ---
 
@@ -28,8 +28,8 @@
                     └──────┬───────┘             │
                            │                     │
                     ┌──────▼─────────────────────▼──┐
-                    │        TTS 适配层              │
-                    │  (统一接口，多引擎切换)          │
+                    │   Breeze-TTS-2 Voice Direction │
+                    │  (参考音色 + 演绎指令)          │
                     └──────────┬────────────────────┘
                                │
                         ┌──────▼───────┐
@@ -41,7 +41,7 @@
 合成一个脚本片段时，分两条线并行准备：
 
 - **文本侧**：片段原文 → 经发音词典纠音 → 得到可发音文本
-- **音频侧**：片段角色 → 声音配置 → 按情绪查参考音频 → 确定 TTS 引擎和参数
+- **音频侧**：片段角色 → 声音配置（基础音色）→ 可选的情绪参考音频 → 演绎指令（片段 instruction 或情绪兜底）
 
 两侧汇合后交给 TTS 适配层，生成 AudioClip。
 
@@ -78,7 +78,7 @@ TTS 引擎遇到多音字、专有名词、生僻字时经常读错。发音词�
 
 ### 与 TTS 的对接方式
 
-合成时将有效词典转换为 IndexTTS2 支持的拼音标注格式，混入文本中传给 TTS 引擎。IndexTTS2 原生支持中文混合拼音标注。
+Breeze-TTS-2 不支持拼音标注，词典的 `phoneme` 字段改为「替换读法」：合成前把原始词直接替换为同音字写法（如"单于"→"蝉于"），再把文本传给 TTS 引擎。
 
 ### 当前状态
 
@@ -157,34 +157,48 @@ Character.voice_profile_id → VoiceProfile
 
 ---
 
-## 四、情绪体系设计
+## 四、音色与语气：固定基础音色 + 按场景演绎
 
-### 双维度：类型 × 强度
+### 设计思路
 
-| 维度 | 可选值 | 说明 |
+角色声音分两层：
+
+| 层 | 存在哪里 | 由谁决定 | 是否变化 |
+|----|----------|----------|----------|
+| 基础音色 | `VoiceProfile`：参考音频 + 逐字转写 + 种子 | 音色设计（Voice Design）或手动上传 | 整本书固定 |
+| 语境语气 | `ScriptSegment.instruction` | 切分时 LLM 结合场景生成，可人工修改 | 每句不同 |
+
+合成时以 Breeze-TTS-2 的 Voice Direction 模式把两层合在一起：参考音频锁定"谁在说"，演绎指令决定"怎么说"。
+
+### 基础音色的生成（Voice Design）
+
+```
+角色信息（名称/别名/性别/层级/描述）+ 若干台词
+    → LLM（voice_design 模板）→ 音色描述 instruction + 参考台词 sample_text
+    → Breeze Voice Design（只传 instruction + text）→ 参考音频
+    → 试听满意 → 保存为 VoiceProfile（reference_audio_url / reference_text / tts_params.seed）并绑定角色
+```
+
+Voice Design 每次生成的音色都不同，所以只在设计时调用一次，满意后把音频冻结为参考音频；之后所有片段都基于这条参考音频克隆，不再重新设计。
+
+### 演绎指令（instruction）
+
+- 章节切分时 LLM 已有整章上下文，为每个片段输出一句 ≤20 字的演绎描述（语气、语速、音量、停顿）
+- 不描述音色、性别，避免指令把音色带偏
+- 为空时按情绪类型 + 强度生成兜底指令（见 [tts-integration.md](./tts-integration.md)）；`neutral` / `auto` 不下发指令
+
+### 情绪类型 × 强度的作用
+
+| 维度 | 可选值 | 作用 |
 |------|--------|------|
-| emotion_type | neutral, happy, sad, angry, fear, surprise, disgust | 7 种基础情绪 |
-| emotion_strength | light, medium, strong | 3 档强度 |
+| emotion_type | auto, neutral, happy, sad, angry, fear, surprise, disgust | 演绎指令为空时的兜底；匹配可选的情绪参考音频；筛选统计 |
+| emotion_strength | light, medium, strong | 同上 |
 
-总计 7 × 3 = 21 种组合。
+### 音色稳定性
 
-### 三档强度的合理性
-
-三档强度（light / medium / strong）对 MVP 阶段足够，原因：
-
-1. **主流 TTS 引擎的情绪控制靠参考音频驱动**，而非精确数值参数。三档强度本质是"参考音频选择器"——选择不同强度的参考音频样本。
-2. **每种情绪最多 3 条参考音频**，实际制作中是合理的工作量。
-3. **人耳对情绪强度的感知本身是模糊的**，过细的分级增加标注成本，TTS 引擎也无法精确还原。
-
-### 后续扩展方向
-
-如果三档不够用，可向后兼容地扩展：
-
-| 场景 | 方案 |
-|------|------|
-| 需要更细粒度 | 增加 `very_light` / `very_strong`，变成五档 |
-| 引擎支持连续值 | TTS 适配层做映射：light→0.3, medium→0.6, strong→0.9 |
-| SSML 精细控制 | 语速/音量/音调通过 `tts_params` 独立控制，不混入情绪强度 |
+- 同一声音配置固定种子：优先 `tts_params.seed`（音色设计时记录），否则用声音配置 ID
+- 演绎指令只写语气，不写音色
+- 指令遵循强度 `cfg_scale` 默认 4，可在 `tts_params.cfg_scale` 中按声音配置调整
 
 ---
 
@@ -196,31 +210,29 @@ Character.voice_profile_id → VoiceProfile
 1. 输入：ScriptSegment
    ├── content          → 原始文本
    ├── character_id     → 角色 ID
+   ├── instruction      → 演绎指令
    ├── emotion_type     → 情绪类型
    └── emotion_strength → 情绪强度
 
 2. 文本处理：
-   ├── getEffectivePronunciationDict(workspace_id, project_id)
-   └── 按引擎协议将词典应用到文本
+   └── 项目发音词典：词 → 替换读法（同音字）
 
 3. 声音查找：
    ├── Character → voice_profile_id → VoiceProfile
-   ├── VoiceEmotion WHERE
-   │     voice_profile_id = X
-   │     AND emotion_type = 片段.emotion_type
-   │     AND emotion_strength = 片段.emotion_strength
-   ├── 找到 → 用情绪参考音频
-   └── 未找到 → 回退到 VoiceProfile 默认参考音频
+   ├── VoiceEmotion WHERE voice_profile_id = X
+   │     AND emotion_type = 片段.emotion_type AND emotion_strength = 片段.emotion_strength
+   ├── 找到且有参考文本 → 用情绪参考音频
+   └── 否则 → 用 VoiceProfile 的基础音色
 
-4. 引擎选择：
-   ├── VoiceProfile.tts_provider_id（优先）
-   └── Project 默认 tts_provider_id（兜底）
+4. 引擎：Project.tts_provider_id
 
-5. 调用 TTS 适配层：
-   ├── text: 纠音后的文本
-   ├── reference_audio: 参考音频 URL
-   ├── reference_text: 参考文本
-   └── tts_params: 引擎特定参数
+5. 调用 Breeze-TTS-2：
+   ├── text:        纠音后的文本
+   ├── ref_audio:   参考音频
+   ├── ref_text:    参考音频逐字转写（必填）
+   ├── instruction: 片段演绎指令 / 情绪兜底指令 / 空
+   ├── cfg_scale:   tts_params.cfg_scale，默认 4
+   └── seed:        tts_params.seed，默认声音配置 ID
 
 6. 输出：AudioClip
    ├── audio_url, duration, file_size, format
@@ -230,21 +242,18 @@ Character.voice_profile_id → VoiceProfile
 
 ---
 
-## 六、TTS 引擎（IndexTTS2）
+## 六、TTS 引擎（Breeze-TTS-2）
 
-语音合成基于 IndexTTS2，需自行部署（VoStory 提供 Docker 镜像）。Go 后端通过 HTTP 协议调用：
+语音合成基于 Breeze-TTS-2，需自行部署。Go 后端通过 HTTP 协议调用：
 
 ```text
-IndexTTS2 HTTP 端点：
-    POST /v2/synthesize    → 合成语音（传入文本、参考音频、情绪向量）
-    GET  /v1/check/audio   → 检查参考音频是否存在
-    POST /v1/upload_audio  → 上传参考音频
-    GET  /v1/models        → 获取模型信息
+Breeze-TTS-2 HTTP 端点：
+    POST /v1/audio/speech  → 合成（multipart：text / ref_audio / ref_text / instruction / cfg_scale / seed）
+                             返回 24kHz 单声道 16bit PCM 流
+    GET  /v1/model         → 模型信息
 ```
 
-Go 后端客户端实现在 `internal/tts/client.go`，封装了 Synthesize / CheckAudioExists / UploadAudio / EnsureAudioUploaded / TestConnection 等方法。
-
-当前不支持其他 TTS 引擎。
+Go 后端客户端实现在 `internal/tts/client.go`：`Speech` 发起合成并把 PCM 封装为 WAV，`TestConnection` 调用 `/v1/model`。协议细节与部署见 [tts-integration.md](./tts-integration.md)。
 
 ---
 

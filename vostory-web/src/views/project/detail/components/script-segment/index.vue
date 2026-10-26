@@ -116,6 +116,7 @@ const tableConfig = computed(() => {
             tableHelper.default("内容", "content"),
             tableHelper.default("角色", "character_name"),
             tableHelper.slot("emotionSlot"),
+            tableHelper.default("演绎指令", "instruction"),
             tableHelper.default("版本", "version"),
             tableHelper.btns("操作", [
                 {
@@ -165,6 +166,10 @@ function onEdit(v: Record<string, any> | null) {
             }),
             formHelper.select("情绪类型", "emotion_type", EMOTION_TYPES),
             formHelper.select("情绪强度", "emotion_strength", EMOTION_STRENGTHS),
+            formHelper.input("演绎指令", "instruction", {
+                maxLength: 40,
+                placeholder: "如：压低声音，急促地（留空则按情绪推断）"
+            }),
             formHelper.inputNumber("片段序号", "segment_num")
         ],
         ok: async (data: any) => {

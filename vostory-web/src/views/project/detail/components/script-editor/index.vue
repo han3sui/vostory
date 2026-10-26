@@ -315,6 +315,19 @@
                                         {{ seg.content || "（点击编辑内容）" }}
                                     </div>
 
+                                    <a-input
+                                        v-model="seg.instruction"
+                                        class="segment-instruction"
+                                        size="mini"
+                                        allow-clear
+                                        :max-length="40"
+                                        placeholder="演绎指令，如：压低声音，急促地（留空则按情绪推断）"
+                                        @change="() => saveSegment(seg)"
+                                        @clear="() => saveSegment(seg)"
+                                    >
+                                        <template #prepend>演绎</template>
+                                    </a-input>
+
                                     <div
                                         v-if="seg.original_content && seg.original_content !== seg.content"
                                         class="original-text"
@@ -550,6 +563,7 @@ function handleEditContent(seg: ScriptSegmentDetailType) {
                 character_id: seg.character_id,
                 emotion_type: seg.emotion_type,
                 emotion_strength: seg.emotion_strength,
+                instruction: seg.instruction ?? "",
                 status: "edited"
             });
             Message.success("保存成功");
@@ -569,6 +583,7 @@ async function saveSegment(seg: ScriptSegmentDetailType) {
                 character_id: seg.character_id,
                 emotion_type: seg.emotion_type,
                 emotion_strength: seg.emotion_strength,
+                instruction: seg.instruction ?? "",
                 status: "edited"
             });
         } catch {
@@ -1429,6 +1444,10 @@ function statusLabel(status: string) {
         background-color: var(--color-fill-1);
         border-radius: 4px;
     }
+}
+
+.segment-instruction {
+    margin-top: 6px;
 }
 
 .segment-content-display {

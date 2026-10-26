@@ -25,6 +25,7 @@ type VsScriptSegmentCreateRequest struct {
 	CharacterID     *uint64 `json:"character_id"`                      // 说话人角色ID
 	EmotionType     string  `json:"emotion_type"`                      // 情绪类型
 	EmotionStrength string  `json:"emotion_strength"`                  // 情绪强度
+	Instruction     string  `json:"instruction"`                       // 演绎指令
 }
 
 // VsScriptSegmentUpdateRequest 更新脚本片段请求
@@ -36,6 +37,7 @@ type VsScriptSegmentUpdateRequest struct {
 	CharacterID     *uint64 `json:"character_id"`      // 说话人角色ID
 	EmotionType     string  `json:"emotion_type"`      // 情绪类型
 	EmotionStrength string  `json:"emotion_strength"`  // 情绪强度
+	Instruction     *string `json:"instruction"`       // 演绎指令（nil 表示不修改）
 	Status          string  `json:"status"`            // 片段状态
 }
 
@@ -59,6 +61,7 @@ type VsScriptSegmentDetailResponse struct {
 	CharacterName   string    `json:"character_name"`
 	EmotionType     string    `json:"emotion_type"`
 	EmotionStrength string    `json:"emotion_strength"`
+	Instruction     string    `json:"instruction"`
 	Status          string    `json:"status"`
 	ErrorMessage    string    `json:"error_message,omitempty"`
 	Version         int       `json:"version"`

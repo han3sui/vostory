@@ -4,7 +4,7 @@
 
 - 前端：`Vue 3 + TypeScript + Vite + Arco Design Vue`
 - 服务端：`Golang (Gin + GORM + Wire)`
-- TTS 服务：`IndexTTS2`（Docker 自部署）
+- TTS 服务：`Breeze-TTS-2`（自部署，HTTP 流式接口）
 - 数据库：`PostgreSQL`
 - 缓存 / 队列：`Redis`
 - 对象存储：`MinIO` 或兼容 S3 的对象存储
@@ -40,8 +40,8 @@
 │    └ 自定义兼容接口   │                              │
 │                      │                              │
 │  TTS 引擎            │                              │
-│    └ IndexTTS2       │                              │
-│      (Docker 自部署)  │                              │
+│    └ Breeze-TTS-2    │                              │
+│      (GPU 自部署)     │                              │
 └──────────────────────┴──────────────────────────────┘
 ```
 
@@ -82,7 +82,7 @@
 - **人物抽取**：角色识别、别名归并
 - **台词归属**：说话人判定
 - **情绪标签**：情绪类型 + 情绪强度双维度标注
-- **TTS 引擎**：基于 IndexTTS2（Docker 自部署），Go 后端通过 HTTP 协议调用
+- **TTS 引擎**：基于 Breeze-TTS-2（自部署），Go 后端通过 HTTP 协议调用；音色设计（Voice Design）与按场景演绎（Voice Direction）
 - **精准填充**：LLM 输出对齐回原文
 
 ### 4. 存储层
@@ -102,7 +102,7 @@
 
 | 对象 | 说明 |
 |------|------|
-| `Workspace` | 组织或团队空间 |
+| `Workspace` | 工作空间（项目分组） |
 | `Project` | 一本书或一个制作项目 |
 | `Chapter` | 章节 |
 | `Scene` | 场景 |
@@ -155,22 +155,24 @@ LLMProvider interface {
 
 配置存储在数据库（`LLMProvider` 表），支持运行时切换，无需重启服务。
 
-### TTS 引擎（IndexTTS2）
+### TTS 引擎（Breeze-TTS-2）
 
-语音合成基于 IndexTTS2，需自行部署（提供 Docker 镜像）。Go 后端通过 HTTP 协议调用：
+语音合成基于 Breeze-TTS-2，需自行部署。Go 后端通过 HTTP 协议调用：
 
 ```text
-IndexTTS2 HTTP 端点：
-    POST /v2/synthesize    → 合成语音（传入文本、参考音频、情绪向量）
-    GET  /v1/check/audio   → 检查参考音频是否存在
-    POST /v1/upload_audio  → 上传参考音频
-    GET  /v1/models        → 获取模型信息
+Breeze-TTS-2 HTTP 端点：
+    POST /v1/audio/speech  → 合成语音（multipart：text / ref_audio / ref_text / instruction / cfg_scale / seed）
+                             返回 24kHz 单声道 16bit PCM 流，后端封装为 WAV
+    GET  /v1/model         → 模型信息（用于连通性测试）
 ```
 
-情绪系统设计：
-- `ScriptSegment` 携带 `emotion_type`（情绪类型）和 `emotion_strength`（情绪强度）
-- `VoiceProfile` 支持 `multi_emotion` 配置：同一角色不同情绪绑定不同参考音频
-- 情绪类型映射为 IndexTTS2 的 8 维向量，情绪强度映射为 emo_alpha（0.0-1.0）
+音色与语气设计：
+- `VoiceProfile` 保存角色的基础音色：参考音频 + 逐字转写 + 固定种子（`tts_params.seed`）
+- 基础音色可由 Voice Design 自动生成：LLM 根据角色信息写音色描述 → 只传 `instruction` 生成参考音频
+- `ScriptSegment.instruction` 是该句的演绎指令，由切分时 LLM 结合场景生成，可人工修改
+- 合成时以 Voice Direction 模式传入参考音频 + 演绎指令；指令为空时按 `emotion_type` + `emotion_strength` 生成兜底指令
+
+详见 [tts-design.md](./tts-design.md)。
 
 ### 长文分批处理
 
@@ -295,12 +297,14 @@ PromptTemplate
 
 ### TTS 策略
 
-语音合成统一使用 IndexTTS2，需自行部署（提供 Docker 镜像）。IndexTTS2 的核心优势：
+语音合成统一使用 Breeze-TTS-2，需自行部署。选择它的原因：
 
-- 零样本声音克隆，一段参考音频即可定义角色音色
-- 情绪与音色解耦，独立控制
-- 8 维情绪向量 + 连续强度控制
-- 原生中文拼音标注支持
+- 一个模型覆盖三种模式：音色克隆、音色设计（文字描述生成新音色）、音色导演（保持音色、用自然语言调整语气）
+- "固定基础音色 + 每句演绎指令"正好对应「角色声音一致、语气随场景变化」的需求
+- 中英双语，支持 `[笑]`、`[叹气]` 等中文声音事件标签
+- 普通推理约 8GB 显存，单卡即可部署
+
+注意：Breeze-TTS-2 的开放权重与自部署产出仅限研究与非商业用途，本项目仅供个人使用。
 
 ## 开发注意点
 
@@ -330,6 +334,6 @@ PostProcessAudio(clips) -> final_audio
 
 预留分层：项目内角色 → 全局可复用声音资产 → 可复用的声音配置模板。
 
-### 提前考虑版权与合规
+### 使用边界
 
-需要预留对这些问题的处理能力：小说版权授权、声音克隆授权、商用边界、敏感内容审核、私有化部署的数据安全。
+本项目仅供个人使用：导入的小说与生成的音频不对外分发；Breeze-TTS-2 模型权重与产出受其非商业许可约束。
