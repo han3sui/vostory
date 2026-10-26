@@ -304,7 +304,7 @@ func (h *VsCharacterHandler) MergeGeneric(ctx *gin.Context) {
 // @Failure      400         {object}  v1.Response
 // @Failure      500         {object}  v1.Response
 // @Router       /api/v1/character/merge-suggest/{project_id} [post]
-// @Id        character:merge
+// @Id        character:merge_suggest
 func (h *VsCharacterHandler) SuggestMerge(ctx *gin.Context) {
 	projectID := cast.ToUint64(ctx.Param("project_id"))
 	if projectID == 0 {

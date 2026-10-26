@@ -2445,6 +2445,59 @@
                 }
             }
         },
+        "/api/v1/character/merge-suggest/{project_id}": {
+            "post": {
+                "description": "按括号别名、不具名、甲乙丙、泛称等规则扫描可合并角色；dry_run 为 true 时仅预览，确认时可传入勾选的 groups",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "规则扫描并合并重复角色",
+                "operationId": "character:merge_suggest",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsCharacterMergeSuggestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/character/voice-match/{project_id}": {
             "post": {
                 "description": "调用 LLM 根据角色描述和声音描述自动匹配，已绑定声音的角色自动跳过",
@@ -10466,6 +10519,61 @@
                 "target_id": {
                     "description": "合并目标角色",
                     "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsCharacterMergeSuggestGroup": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "description": "给用户看的原因",
+                    "type": "string"
+                },
+                "rule": {
+                    "description": "paren_alias / unnamed_to_named / unnamed_pool / numbered_pool / generic_pool",
+                    "type": "string"
+                },
+                "source_ids": {
+                    "description": "被合并角色",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "source_names": {
+                    "description": "预览用",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "target_id": {
+                    "description": "已有目标角色",
+                    "type": "integer"
+                },
+                "target_kind": {
+                    "description": "character | pool",
+                    "type": "string"
+                },
+                "target_name": {
+                    "description": "目标名称（路人池名或角色名）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsCharacterMergeSuggestRequest": {
+            "type": "object",
+            "properties": {
+                "dry_run": {
+                    "description": "仅预览",
+                    "type": "boolean"
+                },
+                "groups": {
+                    "description": "确认合并时必须传入勾选的分组（dry_run=false 且为空会报错）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iot-alert-center_api_v1.VsCharacterMergeSuggestGroup"
+                    }
                 }
             }
         },

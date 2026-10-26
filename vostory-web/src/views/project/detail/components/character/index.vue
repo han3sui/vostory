@@ -241,7 +241,7 @@ const tableConfig = computed(() => {
             {
                 label: "智能合并",
                 type: "outline",
-                if: () => hasPermission("character:merge"),
+                if: () => hasPermission("character:merge_suggest"),
                 handler: () => {
                     showSuggestMergeModal.value = true;
                 }
@@ -359,6 +359,10 @@ function openGenericPool() {
 }
 
 function openSuggestMerge() {
+    if (!hasPermission("character:merge_suggest")) {
+        Message.warning("没有智能合并的权限");
+        return;
+    }
     showMergeModal.value = false;
     showSuggestMergeModal.value = true;
 }

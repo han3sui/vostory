@@ -15,35 +15,48 @@ func (s *vsCharacterService) SuggestMerge(ctx context.Context, projectID uint64,
 	if request == nil {
 		request = &v1.VsCharacterMergeSuggestRequest{DryRun: true}
 	}
+	if !request.DryRun {
+		// 确认合并必须显式传入勾选的分组，避免漏传参数时把扫描结果全部合并
+		if len(request.Groups) == 0 {
+			return nil, fmt.Errorf("请选择要合并的分组")
+		}
+		return s.applySuggestGroups(ctx, projectID, request.Groups)
+	}
+
 	characters, err := s.repo.FindByProjectID(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("查询角色失败: %w", err)
 	}
-
 	suggested := suggestMergeGroups(characters)
-	resp := &v1.VsCharacterMergeSuggestResponse{DryRun: request.DryRun, Groups: suggested}
+	resp := &v1.VsCharacterMergeSuggestResponse{DryRun: true, Groups: suggested}
 	for _, g := range suggested {
 		resp.MergedCount += len(g.SourceIDs)
 	}
-	if request.DryRun {
-		return resp, nil
-	}
+	return resp, nil
+}
 
-	toApply := request.Groups
-	if len(toApply) == 0 {
-		toApply = suggested
-	}
-	return s.applySuggestGroups(ctx, projectID, toApply)
+// suggestTarget 单个源角色的合并去向：characterID 非 0 为已有角色，否则为路人池
+type suggestTarget struct {
+	characterID uint64
+	poolName    string
+	rule        string
+	reason      string
 }
 
 func suggestMergeGroups(characters []*model.VsCharacter) []v1.VsCharacterMergeSuggestGroup {
 	idx := newNameIndex(characters)
-	used := make(map[uint64]bool, len(characters))
-	grouped := make(map[string]*v1.VsCharacterMergeSuggestGroup)
-	order := make([]string, 0)
+	byID := make(map[uint64]*model.VsCharacter, len(characters))
+	assigned := make(map[uint64]suggestTarget, len(characters))
+	var sources []*model.VsCharacter
 
+	for _, c := range characters {
+		byID[c.CharacterID] = c
+	}
 	for _, src := range characters {
-		if !canBeMergeSource(src) || used[src.CharacterID] {
+		if !canBeMergeSource(src) {
+			continue
+		}
+		if _, done := assigned[src.CharacterID]; done {
 			continue
 		}
 		res := resolveSpeaker(idx, src.Name, src.Gender, src.CharacterID)
@@ -53,27 +66,44 @@ func suggestMergeGroups(characters []*model.VsCharacter) []v1.VsCharacterMergeSu
 		if res.Existing != nil && (res.Existing.CharacterID == src.CharacterID || !canReceiveMerge(res.Existing)) {
 			continue
 		}
+		t := suggestTarget{poolName: res.PoolName, rule: res.Rule, reason: res.Reason}
+		if res.Existing != nil {
+			t.characterID = res.Existing.CharacterID
+		}
+		assigned[src.CharacterID] = t
+		sources = append(sources, src)
+	}
+
+	grouped := make(map[string]*v1.VsCharacterMergeSuggestGroup)
+	order := make([]string, 0)
+	for _, src := range sources {
+		t, ok := resolveSuggestChain(assigned, assigned[src.CharacterID])
+		if !ok || t.characterID == src.CharacterID {
+			continue
+		}
 
 		var key, targetKind, targetName string
-		var targetID uint64
-		if res.Existing != nil {
-			key = "c:" + strconv.FormatUint(res.Existing.CharacterID, 10)
+		if t.characterID != 0 {
+			target := byID[t.characterID]
+			if target == nil {
+				continue
+			}
+			key = "c:" + strconv.FormatUint(t.characterID, 10)
 			targetKind = "character"
-			targetName = res.Existing.Name
-			targetID = res.Existing.CharacterID
+			targetName = target.Name
 		} else {
-			key = "p:" + res.PoolName
+			key = "p:" + t.poolName
 			targetKind = "pool"
-			targetName = res.PoolName
+			targetName = t.poolName
 		}
 
 		g, ok := grouped[key]
 		if !ok {
 			g = &v1.VsCharacterMergeSuggestGroup{
-				Rule:       res.Rule,
-				Reason:     res.Reason,
+				Rule:       t.rule,
+				Reason:     t.reason,
 				TargetKind: targetKind,
-				TargetID:   targetID,
+				TargetID:   t.characterID,
 				TargetName: targetName,
 			}
 			grouped[key] = g
@@ -81,7 +111,6 @@ func suggestMergeGroups(characters []*model.VsCharacter) []v1.VsCharacterMergeSu
 		}
 		g.SourceIDs = append(g.SourceIDs, src.CharacterID)
 		g.SourceNames = append(g.SourceNames, src.Name)
-		used[src.CharacterID] = true
 	}
 
 	result := make([]v1.VsCharacterMergeSuggestGroup, 0, len(order))
@@ -89,6 +118,24 @@ func suggestMergeGroups(characters []*model.VsCharacter) []v1.VsCharacterMergeSu
 		result = append(result, *grouped[key])
 	}
 	return result
+}
+
+// resolveSuggestChain 目标本身也被建议合并时（如 不具名长老→长老→路人池），沿链找到最终去向，
+// 保留源角色自己的规则与原因。出现环时返回 false，该源角色不给出建议。
+func resolveSuggestChain(assigned map[uint64]suggestTarget, t suggestTarget) (suggestTarget, bool) {
+	visited := map[uint64]bool{}
+	for t.characterID != 0 {
+		next, ok := assigned[t.characterID]
+		if !ok {
+			return t, true
+		}
+		if visited[t.characterID] {
+			return t, false
+		}
+		visited[t.characterID] = true
+		t = suggestTarget{characterID: next.characterID, poolName: next.poolName, rule: t.rule, reason: t.reason}
+	}
+	return t, true
 }
 
 func canReceiveMerge(c *model.VsCharacter) bool {
@@ -126,10 +173,6 @@ func (s *vsCharacterService) applySuggestGroups(ctx context.Context, projectID u
 			if err != nil {
 				return err
 			}
-			if seen[target.CharacterID] && targetKindOf(g) == "character" {
-				return fmt.Errorf("目标角色「%s」不能同时作为被合并角色", target.Name)
-			}
-
 			var mergeable []*model.VsCharacter
 			busy, err := activeSegmentCharacterIDs(tx, sourceIDs)
 			if err != nil {
@@ -192,12 +235,25 @@ func resolveSuggestTarget(tx *gorm.DB, projectID uint64, g v1.VsCharacterMergeSu
 	if g.TargetID == 0 {
 		return nil, fmt.Errorf("缺少合并目标角色")
 	}
-	var target model.VsCharacter
-	if err := tx.Where("project_id = ? AND character_id = ?", projectID, g.TargetID).First(&target).Error; err != nil {
-		return nil, fmt.Errorf("目标角色不存在")
+	return findFinalMergeTargetTx(tx, projectID, g.TargetID)
+}
+
+// findFinalMergeTargetTx 目标已被合并（例如同一批次中先作为源角色合并掉）时，顺着 merged_into_id 找到最终角色
+func findFinalMergeTargetTx(tx *gorm.DB, projectID, targetID uint64) (*model.VsCharacter, error) {
+	visited := map[uint64]bool{}
+	id := targetID
+	for {
+		if visited[id] {
+			return nil, fmt.Errorf("角色合并关系出现循环")
+		}
+		visited[id] = true
+		var target model.VsCharacter
+		if err := tx.Where("project_id = ? AND character_id = ?", projectID, id).First(&target).Error; err != nil {
+			return nil, fmt.Errorf("目标角色不存在")
+		}
+		if target.MergedIntoID == nil {
+			return &target, nil
+		}
+		id = *target.MergedIntoID
 	}
-	if target.MergedIntoID != nil {
-		return nil, fmt.Errorf("目标角色「%s」已被合并", target.Name)
-	}
-	return &target, nil
 }

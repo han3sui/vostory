@@ -74,6 +74,12 @@ func (s *vsChapterSplitService) ensureCharacters(
 			needed[key] = info
 			continue
 		}
+		// 「不具名X」在本章同时出现「X」时，先等「X」入库再归一；
+		// resolveSpeaker 对找不到本名的不具名角色会直接给出路人池，必须在调用前拦下
+		if isUnnamedVariantOfSpeaker(info.name, speakers, idx) {
+			deferred[key] = info
+			continue
+		}
 		res := resolveSpeaker(idx, info.name, info.gender, 0)
 		if res.Existing != nil {
 			bindExisting(info.name, res.Existing, res.AddAliases)
@@ -84,8 +90,8 @@ func (s *vsChapterSplitService) ensureCharacters(
 			queuePoolSpeaker(needed, charMap, res.PoolName)
 			continue
 		}
-		// 括号/不具名变体等本名入库后再归一，避免先建成独立角色
-		if speakerNameHasParen(info.name) || stripUnnamedPrefix(info.name) != info.name {
+		// 括号变体等本名入库后再归一，避免先建成独立角色
+		if speakerNameHasParen(info.name) {
 			deferred[key] = info
 			continue
 		}
@@ -264,4 +270,16 @@ func (s *vsChapterSplitService) persistResolvedAliases(ctx context.Context, upda
 		}
 	}
 	return nil
+}
+
+// isUnnamedVariantOfSpeaker 判断「不具名X」的本名「X」是否也是本章说话人且尚未入库
+func isUnnamedVariantOfSpeaker(name string, speakers map[string]*splitSpeaker, idx *nameIndex) bool {
+	stripped := stripUnnamedPrefix(name)
+	if stripped == name {
+		return false
+	}
+	if _, ok := speakers[strings.ToLower(stripped)]; !ok {
+		return false
+	}
+	return idx.lookupExcept(stripped, 0) == nil
 }

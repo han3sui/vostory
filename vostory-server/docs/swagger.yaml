@@ -657,6 +657,46 @@ definitions:
     - source_ids
     - target_id
     type: object
+  iot-alert-center_api_v1.VsCharacterMergeSuggestGroup:
+    properties:
+      reason:
+        description: 给用户看的原因
+        type: string
+      rule:
+        description: paren_alias / unnamed_to_named / unnamed_pool / numbered_pool
+          / generic_pool
+        type: string
+      source_ids:
+        description: 被合并角色
+        items:
+          type: integer
+        type: array
+      source_names:
+        description: 预览用
+        items:
+          type: string
+        type: array
+      target_id:
+        description: 已有目标角色
+        type: integer
+      target_kind:
+        description: character | pool
+        type: string
+      target_name:
+        description: 目标名称（路人池名或角色名）
+        type: string
+    type: object
+  iot-alert-center_api_v1.VsCharacterMergeSuggestRequest:
+    properties:
+      dry_run:
+        description: 仅预览
+        type: boolean
+      groups:
+        description: 确认合并时必须传入勾选的分组（dry_run=false 且为空会报错）
+        items:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsCharacterMergeSuggestGroup'
+        type: array
+    type: object
   iot-alert-center_api_v1.VsCharacterUpdateRequest:
     properties:
       aliases:
@@ -3261,6 +3301,41 @@ paths:
           schema:
             $ref: '#/definitions/iot-alert-center_api_v1.Response'
       summary: 泛称角色归入路人池
+      tags:
+      - 角色管理
+  /api/v1/character/merge-suggest/{project_id}:
+    post:
+      consumes:
+      - application/json
+      description: 按括号别名、不具名、甲乙丙、泛称等规则扫描可合并角色；dry_run 为 true 时仅预览，确认时可传入勾选的 groups
+      operationId: character:merge_suggest
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: 请求参数
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsCharacterMergeSuggestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 规则扫描并合并重复角色
       tags:
       - 角色管理
   /api/v1/character/voice-match/{project_id}:

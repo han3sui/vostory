@@ -93,7 +93,7 @@ type VsCharacterMergeGenericResponse struct {
 // VsCharacterMergeSuggestRequest 规则扫描合并请求
 type VsCharacterMergeSuggestRequest struct {
 	DryRun bool                           `json:"dry_run"` // 仅预览
-	Groups []VsCharacterMergeSuggestGroup `json:"groups"`  // 确认合并时传入勾选的分组；为空则按扫描结果全部合并
+	Groups []VsCharacterMergeSuggestGroup `json:"groups"`  // 确认合并时必须传入勾选的分组（dry_run=false 且为空会报错）
 }
 
 // VsCharacterMergeSuggestGroup 一条建议：多个源角色合并到同一目标或路人池
