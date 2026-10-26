@@ -8,7 +8,9 @@ package tts
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,8 +20,53 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+// knownRefs 记录各 TTS 实例已缓存的参考音频 SHA-256，命中后不再重复上传文件。
+var knownRefs = struct {
+	mu sync.Mutex
+	m  map[string]map[string]struct{}
+}{m: make(map[string]map[string]struct{})}
+
+func rememberRefHash(baseURL, digest string) {
+	if digest == "" {
+		return
+	}
+	knownRefs.mu.Lock()
+	defer knownRefs.mu.Unlock()
+	if knownRefs.m[baseURL] == nil {
+		knownRefs.m[baseURL] = make(map[string]struct{})
+	}
+	knownRefs.m[baseURL][digest] = struct{}{}
+}
+
+func knowsRefHash(baseURL, digest string) bool {
+	knownRefs.mu.Lock()
+	defer knownRefs.mu.Unlock()
+	_, ok := knownRefs.m[baseURL][digest]
+	return ok
+}
+
+func forgetRefHash(baseURL, digest string) {
+	knownRefs.mu.Lock()
+	defer knownRefs.mu.Unlock()
+	delete(knownRefs.m[baseURL], digest)
+}
+
+func hashFileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
 
 // Breeze-TTS-2 输出固定为 24kHz 单声道 16bit 小端 PCM
 const (
@@ -86,29 +133,75 @@ func (c *Client) Speech(sr SpeechRequest) ([]byte, error) {
 		return nil, fmt.Errorf("参考音频缺少逐字转写文本（ref_text）")
 	}
 
+	digest := ""
+	if sr.RefAudioPath != "" {
+		var err error
+		digest, err = hashFileSHA256(sr.RefAudioPath)
+		if err != nil {
+			return nil, fmt.Errorf("hash ref audio %s: %w", sr.RefAudioPath, err)
+		}
+	}
+
+	// 同一实例已缓存过则只发 hash，避免每句重传参考音频
+	attachFile := sr.RefAudioPath != "" && !knowsRefHash(c.baseURL, digest)
+	data, status, err := c.postSpeech(sr, digest, attachFile)
+	if err != nil {
+		return nil, err
+	}
+	// GPU 重启后缓存丢失，带文件重试一次
+	if status == http.StatusPreconditionFailed && !attachFile && sr.RefAudioPath != "" {
+		forgetRefHash(c.baseURL, digest)
+		data, status, err = c.postSpeech(sr, digest, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if status == http.StatusConflict {
+		return nil, fmt.Errorf("TTS 服务持续繁忙（409），请确认没有其他程序在使用该服务")
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("synthesize failed (status %d): %s", status, truncateBody(data))
+	}
+	if len(data) == 0 {
+		return nil, fmt.Errorf("TTS 服务返回空音频")
+	}
+	rememberRefHash(c.baseURL, digest)
+
+	// 兼容返回 WAV 的部署（例如自行封装的服务）
+	if bytes.HasPrefix(data, []byte("RIFF")) {
+		return data, nil
+	}
+	return PCMToWAV(data, SampleRate, Channels, BitsPerSample), nil
+}
+
+func (c *Client) buildSpeechBody(sr SpeechRequest, digest string, attachFile bool) ([]byte, string, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	if sr.RefAudioPath != "" {
+	if attachFile && sr.RefAudioPath != "" {
 		f, err := os.Open(sr.RefAudioPath)
 		if err != nil {
-			return nil, fmt.Errorf("open audio file %s: %w", sr.RefAudioPath, err)
+			return nil, "", fmt.Errorf("open audio file %s: %w", sr.RefAudioPath, err)
 		}
 		part, err := writer.CreateFormFile("ref_audio", filepath.Base(sr.RefAudioPath))
 		if err != nil {
 			f.Close()
-			return nil, fmt.Errorf("create form file: %w", err)
+			return nil, "", fmt.Errorf("create form file: %w", err)
 		}
 		_, err = io.Copy(part, f)
 		f.Close()
 		if err != nil {
-			return nil, fmt.Errorf("copy audio data: %w", err)
+			return nil, "", fmt.Errorf("copy audio data: %w", err)
 		}
 	}
 
 	fields := map[string]string{"text": sr.Text}
 	if sr.RefAudioPath != "" {
 		fields["ref_text"] = sr.RefText
+		if digest != "" {
+			fields["ref_audio_hash"] = digest
+		}
 	}
 	if inst := strings.TrimSpace(sr.Instruction); inst != "" {
 		fields["instruction"] = inst
@@ -126,18 +219,23 @@ func (c *Client) Speech(sr SpeechRequest) ([]byte, error) {
 			continue
 		}
 		if err := writer.WriteField(k, v); err != nil {
-			return nil, fmt.Errorf("write %s field: %w", k, err)
+			return nil, "", fmt.Errorf("write %s field: %w", k, err)
 		}
 	}
 
 	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("close multipart writer: %w", err)
+		return nil, "", fmt.Errorf("close multipart writer: %w", err)
+	}
+	return buf.Bytes(), writer.FormDataContentType(), nil
+}
+
+func (c *Client) postSpeech(sr SpeechRequest, digest string, attachFile bool) ([]byte, int, error) {
+	body, contentType, err := c.buildSpeechBody(sr, digest, attachFile)
+	if err != nil {
+		return nil, 0, err
 	}
 
-	body := buf.Bytes()
-	contentType := writer.FormDataContentType()
-
-	// Breeze 服务单并发，已有请求在跑时返回 409；等待后重试（如批量生成时又在试听音色设计）
+	// Breeze 服务单并发，已有请求在跑时返回 409；等待后重试
 	var (
 		status int
 		data   []byte
@@ -146,19 +244,19 @@ func (c *Client) Speech(sr SpeechRequest) ([]byte, error) {
 	for attempt := 0; ; attempt++ {
 		req, err := http.NewRequest("POST", c.baseURL+"/v1/audio/speech", bytes.NewReader(body))
 		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
+			return nil, 0, fmt.Errorf("create request: %w", err)
 		}
 		req.Header.Set("Content-Type", contentType)
 		c.setAuth(req)
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("synthesize request failed: %w", err)
+			return nil, 0, fmt.Errorf("synthesize request failed: %w", err)
 		}
 		data, err = io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			return nil, fmt.Errorf("read response: %w", err)
+			return nil, 0, fmt.Errorf("read response: %w", err)
 		}
 		status = resp.StatusCode
 
@@ -167,22 +265,7 @@ func (c *Client) Speech(sr SpeechRequest) ([]byte, error) {
 		}
 		time.Sleep(busyRetryDelay(attempt))
 	}
-
-	if status == http.StatusConflict {
-		return nil, fmt.Errorf("TTS 服务持续繁忙（409），请确认没有其他程序在使用该服务")
-	}
-	if status != http.StatusOK {
-		return nil, fmt.Errorf("synthesize failed (status %d): %s", status, truncateBody(data))
-	}
-	if len(data) == 0 {
-		return nil, fmt.Errorf("TTS 服务返回空音频")
-	}
-
-	// 兼容返回 WAV 的部署（例如自行封装的服务）
-	if bytes.HasPrefix(data, []byte("RIFF")) {
-		return data, nil
-	}
-	return PCMToWAV(data, SampleRate, Channels, BitsPerSample), nil
+	return data, status, nil
 }
 
 // ModelInfo GET /v1/model 返回的模型信息

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/service"
@@ -29,9 +30,11 @@ type TTSWorker struct {
 	cancel       context.CancelFunc
 	wg           sync.WaitGroup
 
-	mu           sync.RWMutex
-	providerSems map[uint64]chan struct{}
-	defaultSem   chan struct{}
+	mu             sync.RWMutex
+	providerSems   map[uint64]chan struct{} // GPU 坑：只罩住 Speech HTTP
+	providerPipes  map[uint64]chan struct{} // 流水线坑：准备 + 落库，比 GPU 多 1 条以便预取
+	defaultSem     chan struct{}
+	defaultPipeSem chan struct{}
 }
 
 func NewTTSWorker(
@@ -51,8 +54,10 @@ func NewTTSWorker(
 		ttsSvc:       ttsSvc,
 		providerRepo: providerRepo,
 		projectRepo:  projectRepo,
-		providerSems: make(map[uint64]chan struct{}),
-		defaultSem:   make(chan struct{}, 1),
+		providerSems:   make(map[uint64]chan struct{}),
+		providerPipes:  make(map[uint64]chan struct{}),
+		defaultSem:     make(chan struct{}, 1),
+		defaultPipeSem: make(chan struct{}, 2),
 	}
 }
 
@@ -93,20 +98,25 @@ func (w *TTSWorker) refreshProviderSems(ctx context.Context) {
 		if maxC < 1 {
 			maxC = 1
 		}
+		pipeC := maxC + 1
 		existing, ok := w.providerSems[p.ProviderID]
-		if ok && cap(existing) == maxC {
+		pipe, pipeOK := w.providerPipes[p.ProviderID]
+		if ok && cap(existing) == maxC && pipeOK && cap(pipe) == pipeC {
 			continue
 		}
 		w.logger.Info("tts: updating provider concurrency",
 			zap.Uint64("provider_id", p.ProviderID),
 			zap.String("provider_name", p.Name),
-			zap.Int("concurrency", maxC))
+			zap.Int("concurrency", maxC),
+			zap.Int("pipeline", pipeC))
 		w.providerSems[p.ProviderID] = make(chan struct{}, maxC)
+		w.providerPipes[p.ProviderID] = make(chan struct{}, pipeC)
 	}
 
 	for pid := range w.providerSems {
 		if !active[pid] {
 			delete(w.providerSems, pid)
+			delete(w.providerPipes, pid)
 		}
 	}
 }
@@ -118,6 +128,15 @@ func (w *TTSWorker) getProviderSem(providerID uint64) chan struct{} {
 		return sem
 	}
 	return w.defaultSem
+}
+
+func (w *TTSWorker) getProviderPipe(providerID uint64) chan struct{} {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if sem, ok := w.providerPipes[providerID]; ok {
+		return sem
+	}
+	return w.defaultPipeSem
 }
 
 func (w *TTSWorker) concurrencyRefreshLoop(ctx context.Context) {
@@ -267,14 +286,15 @@ func (w *TTSWorker) consumeLoop(ctx context.Context) {
 		}
 
 		providerID := w.resolveProviderID(ctx, taskID)
-		sem := w.getProviderSem(providerID)
-		sem <- struct{}{}
+		// 流水线坑比 GPU 多 1：当前条在推理时，下一条可以先下好参考音频
+		pipe := w.getProviderPipe(providerID)
+		pipe <- struct{}{}
 		w.wg.Add(1)
-		go func(tID, sID uint64) {
+		go func(tID, sID, pID uint64) {
 			defer w.wg.Done()
-			defer func() { <-sem }()
-			w.processSegment(ctx, tID, sID)
-		}(taskID, segmentID)
+			defer func() { <-pipe }()
+			w.processSegment(ctx, tID, sID, pID)
+		}(taskID, segmentID, providerID)
 	}
 }
 
@@ -286,7 +306,7 @@ func (w *TTSWorker) isTaskCancelled(ctx context.Context, taskID uint64) bool {
 	return task.Status == "cancelled"
 }
 
-func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64) {
+func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID, providerID uint64) {
 	if w.isTaskCancelled(ctx, taskID) {
 		w.logger.Info("task cancelled, skipping segment",
 			zap.Uint64("task_id", taskID), zap.Uint64("segment_id", segmentID))
@@ -308,7 +328,40 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 
 	_ = w.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
 
-	synthResult, synthErr := w.ttsSvc.SynthesizeSegment(ctx, segmentID)
+	job, synthErr := w.ttsSvc.PrepareSegmentSpeech(ctx, segmentID)
+	if synthErr != nil {
+		w.finishSegment(ctx, taskID, segmentID, seg, nil, synthErr)
+		return
+	}
+	defer job.Close()
+
+	if w.isTaskCancelled(ctx, taskID) {
+		w.logger.Info("task cancelled before speech, skipping",
+			zap.Uint64("task_id", taskID), zap.Uint64("segment_id", segmentID))
+		return
+	}
+
+	// GPU 坑只罩住 HTTP；落库放到坑外，下一条可以马上开跑
+	gpuSem := w.getProviderSem(providerID)
+	gpuSem <- struct{}{}
+	audioData, synthErr := w.ttsSvc.RunPreparedSpeech(ctx, job)
+	<-gpuSem
+	if synthErr != nil {
+		w.finishSegment(ctx, taskID, segmentID, seg, nil, synthErr)
+		return
+	}
+
+	synthResult, synthErr := w.ttsSvc.PersistPreparedSpeech(ctx, job, audioData)
+	w.finishSegment(ctx, taskID, segmentID, seg, synthResult, synthErr)
+}
+
+func (w *TTSWorker) finishSegment(
+	ctx context.Context,
+	taskID, segmentID uint64,
+	seg *model.VsScriptSegment,
+	synthResult *v1.TTSSynthesizeResponse,
+	synthErr error,
+) {
 
 	var segStatus, segErrMsg string
 	var clipID *uint64

@@ -50,11 +50,15 @@ type VsVoiceDesignService interface {
 	Apply(ctx context.Context, characterID uint64, request *v1.VoiceDesignApplyRequest) (*v1.VoiceDesignApplyResponse, error)
 	Auto(ctx context.Context, characterID uint64) (*v1.VoiceDesignAutoResponse, error)
 
-	// 批量音色设计：创建任务后由后台 worker 调用 ProcessItem 逐个处理
+	// 批量音色设计：创建任务后由后台 worker 流水线调用 Prepare / Run / Finish
 	StartBatch(ctx context.Context, projectID uint64, request *v1.VoiceDesignBatchRequest) (*v1.VoiceDesignBatchResponse, error)
 	GetBatch(ctx context.Context, projectID uint64) (*v1.VoiceDesignBatchResponse, error)
 	CancelBatch(ctx context.Context, projectID uint64) (int64, error)
 	ProcessItem(ctx context.Context, itemID uint64) error
+	PrepareItem(ctx context.Context, itemID uint64) (*VoiceDesignPrepared, error)
+	RunPreparedDesign(ctx context.Context, job *VoiceDesignPrepared) ([]byte, int64, error)
+	FinishPreparedDesign(job *VoiceDesignPrepared, data []byte, seed int64) error
+	FailPreparedDesign(job *VoiceDesignPrepared, cause error) error
 	ApplyItem(ctx context.Context, itemID uint64) (*v1.VoiceDesignApplyResponse, error)
 	RegenerateItem(ctx context.Context, itemID uint64) error
 	DiscardItem(ctx context.Context, itemID uint64) error

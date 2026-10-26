@@ -53,8 +53,32 @@ var emotionInstructions = map[string]map[string]string{
 	},
 }
 
+// TTSPreparedSpeech 已备好参考音频的合成任务。Run 只打 GPU，Persist 落库，用完必须 Close。
+type TTSPreparedSpeech struct {
+	segment      *model.VsScriptSegment
+	provider     *model.VsTTSProvider
+	voiceProfile *model.VsVoiceProfile
+	request      tts.SpeechRequest
+	cleanup      func()
+	closed       bool
+}
+
+// Close 删除参考音频临时文件。
+func (j *TTSPreparedSpeech) Close() {
+	if j == nil || j.closed {
+		return
+	}
+	j.closed = true
+	if j.cleanup != nil {
+		j.cleanup()
+	}
+}
+
 type VsTTSSynthesizeService interface {
 	SynthesizeSegment(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error)
+	PrepareSegmentSpeech(ctx context.Context, segmentID uint64) (*TTSPreparedSpeech, error)
+	RunPreparedSpeech(ctx context.Context, job *TTSPreparedSpeech) ([]byte, error)
+	PersistPreparedSpeech(ctx context.Context, job *TTSPreparedSpeech, audioData []byte) (*v1.TTSSynthesizeResponse, error)
 	GetSegmentAudio(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error)
 	SingleGenerate(ctx context.Context, segmentID uint64) (*v1.BatchGenerateResponse, error)
 	BatchGenerate(ctx context.Context, chapterID uint64) (*v1.BatchGenerateResponse, error)
@@ -120,39 +144,51 @@ type vsTTSSynthesizeService struct {
 	fileStorage           filestorage.FileStorage
 }
 
+func (s *vsTTSSynthesizeService) failSegment(ctx context.Context, segmentID uint64, msg string) error {
+	_ = s.segmentRepo.UpdateStatusWithError(ctx, segmentID, "failed", msg)
+	return fmt.Errorf("%s", msg)
+}
+
 func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error) {
+	job, err := s.PrepareSegmentSpeech(ctx, segmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer job.Close()
+	audioData, err := s.RunPreparedSpeech(ctx, job)
+	if err != nil {
+		return nil, err
+	}
+	return s.PersistPreparedSpeech(ctx, job, audioData)
+}
+
+// PrepareSegmentSpeech 查库并下载参考音频，不占用 GPU。
+func (s *vsTTSSynthesizeService) PrepareSegmentSpeech(ctx context.Context, segmentID uint64) (*TTSPreparedSpeech, error) {
 	segment, err := s.segmentRepo.FindByID(ctx, segmentID)
 	if err != nil {
 		return nil, fmt.Errorf("片段不存在: %w", err)
 	}
-
-	failAndReturn := func(msg string) (*v1.TTSSynthesizeResponse, error) {
-		_ = s.segmentRepo.UpdateStatusWithError(ctx, segmentID, "failed", msg)
-		return nil, fmt.Errorf("%s", msg)
-	}
-
 	if segment.CharacterID == nil {
-		return failAndReturn("该片段未关联角色，无法合成。请先为片段指定说话人（旁白/描述类型请指定「旁白」角色）")
+		return nil, s.failSegment(ctx, segmentID, "该片段未关联角色，无法合成。请先为片段指定说话人（旁白/描述类型请指定「旁白」角色）")
 	}
 
 	character, err := s.characterRepo.FindByID(ctx, *segment.CharacterID)
 	if err != nil {
-		return failAndReturn(fmt.Sprintf("角色不存在: %v", err))
+		return nil, s.failSegment(ctx, segmentID, fmt.Sprintf("角色不存在: %v", err))
 	}
 	if character.VoiceProfileID == nil {
-		return failAndReturn(fmt.Sprintf("角色「%s」未绑定声音配置，请先在角色管理中绑定", character.Name))
+		return nil, s.failSegment(ctx, segmentID, fmt.Sprintf("角色「%s」未绑定声音配置，请先在角色管理中绑定", character.Name))
 	}
 	voiceProfile, err := s.voiceProfileRepo.FindByID(ctx, *character.VoiceProfileID)
 	if err != nil {
-		return failAndReturn(fmt.Sprintf("声音配置不存在: %v", err))
+		return nil, s.failSegment(ctx, segmentID, fmt.Sprintf("声音配置不存在: %v", err))
 	}
 
 	provider, err := s.resolveTTSProvider(ctx, segment.ChapterID)
 	if err != nil {
-		return failAndReturn(fmt.Sprintf("TTS 提供商不可用: %v", err))
+		return nil, s.failSegment(ctx, segmentID, fmt.Sprintf("TTS 提供商不可用: %v", err))
 	}
 
-	// 情绪参考音频（如有）优先，否则使用声音配置的基础音色
 	referenceAudioURL := voiceProfile.ReferenceAudioURL
 	referenceText := voiceProfile.ReferenceText
 	emotion, _ := s.voiceEmotionRepo.FindByMatch(ctx, voiceProfile.VoiceProfileID, segment.EmotionType, segment.EmotionStrength)
@@ -160,38 +196,54 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 		referenceAudioURL = emotion.ReferenceAudioURL
 		referenceText = emotion.ReferenceText
 	}
-
 	if referenceAudioURL == "" {
-		return failAndReturn(fmt.Sprintf("声音配置「%s」缺少参考音频，可在角色管理中「设计音色」自动生成", voiceProfile.Name))
+		return nil, s.failSegment(ctx, segmentID, fmt.Sprintf("声音配置「%s」缺少参考音频，可在角色管理中「设计音色」自动生成", voiceProfile.Name))
 	}
 	if strings.TrimSpace(referenceText) == "" {
-		return failAndReturn(fmt.Sprintf("声音配置「%s」缺少参考文本（参考音频的逐字转写），Breeze-TTS-2 克隆音色需要", voiceProfile.Name))
+		return nil, s.failSegment(ctx, segmentID, fmt.Sprintf("声音配置「%s」缺少参考文本（参考音频的逐字转写），Breeze-TTS-2 克隆音色需要", voiceProfile.Name))
 	}
 
 	_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
 
-	text := s.applyPronunciationDict(ctx, segment)
-
 	refPath, cleanup, err := s.fileStorage.DownloadToTemp(ctx, filestorage.NormalizeKey(referenceAudioURL))
 	if err != nil {
-		return failAndReturn(fmt.Sprintf("参考音频不存在: %v", err))
+		return nil, s.failSegment(ctx, segmentID, fmt.Sprintf("参考音频不存在: %v", err))
 	}
-	defer cleanup()
 
-	client := tts.NewClient(provider.APIBaseURL, provider.APIKey)
+	return &TTSPreparedSpeech{
+		segment:      segment,
+		provider:     provider,
+		voiceProfile: voiceProfile,
+		request: tts.SpeechRequest{
+			Text:         s.applyPronunciationDict(ctx, segment),
+			RefAudioPath: refPath,
+			RefText:      referenceText,
+			Instruction:  segmentInstruction(segment),
+			CfgScale:     ttsParamFloat(voiceProfile.TTSParams, "cfg_scale"),
+			Seed:         voiceSeed(voiceProfile),
+		},
+		cleanup: cleanup,
+	}, nil
+}
 
-	audioData, err := client.Speech(tts.SpeechRequest{
-		Text:         text,
-		RefAudioPath: refPath,
-		RefText:      referenceText,
-		Instruction:  segmentInstruction(segment),
-		CfgScale:     ttsParamFloat(voiceProfile.TTSParams, "cfg_scale"),
-		Seed:         voiceSeed(voiceProfile),
-	})
+// RunPreparedSpeech 调用 TTS HTTP，这是唯一占用 GPU 的步骤。
+func (s *vsTTSSynthesizeService) RunPreparedSpeech(ctx context.Context, job *TTSPreparedSpeech) ([]byte, error) {
+	if job == nil {
+		return nil, fmt.Errorf("合成任务为空")
+	}
+	client := tts.NewClient(job.provider.APIBaseURL, job.provider.APIKey)
+	audioData, err := client.Speech(job.request)
 	if err != nil {
-		return failAndReturn(fmt.Sprintf("TTS 合成失败: %v", err))
+		return nil, s.failSegment(ctx, job.segment.SegmentID, fmt.Sprintf("TTS 合成失败: %v", err))
 	}
+	return audioData, nil
+}
 
+// PersistPreparedSpeech 归一化、写文件、建版本，不占用 GPU。
+func (s *vsTTSSynthesizeService) PersistPreparedSpeech(ctx context.Context, job *TTSPreparedSpeech, audioData []byte) (*v1.TTSSynthesizeResponse, error) {
+	if job == nil {
+		return nil, fmt.Errorf("合成任务为空")
+	}
 	normalizedData, normErr := audio.NormalizeLoudness(audioData, -16.0)
 	if normErr != nil {
 		s.logger.Warn(fmt.Sprintf("音量归一化失败，使用原始音频: %v", normErr))
@@ -199,18 +251,15 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 		audioData = normalizedData
 	}
 
-	audioURL, fileSize, err := s.saveAudioFile(ctx, segment, audioData)
+	audioURL, fileSize, err := s.saveAudioFile(ctx, job.segment, audioData)
 	if err != nil {
-		return failAndReturn(fmt.Sprintf("保存音频文件失败: %v", err))
+		return nil, s.failSegment(ctx, job.segment.SegmentID, fmt.Sprintf("保存音频文件失败: %v", err))
 	}
-
-	clip, err := s.createAudioClip(ctx, segment, provider, voiceProfile, audioURL, fileSize)
+	clip, err := s.createAudioClip(ctx, job.segment, job.provider, job.voiceProfile, audioURL, fileSize)
 	if err != nil {
-		return failAndReturn(fmt.Sprintf("创建音频记录失败: %v", err))
+		return nil, s.failSegment(ctx, job.segment.SegmentID, fmt.Sprintf("创建音频记录失败: %v", err))
 	}
-
-	_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "generated")
-
+	_ = s.segmentRepo.UpdateStatus(ctx, job.segment.SegmentID, "generated")
 	return &v1.TTSSynthesizeResponse{
 		ClipID:   clip.ClipID,
 		AudioURL: clip.AudioURL,

@@ -14,8 +14,8 @@ import (
 
 const voiceDesignPollInterval = 2 * time.Second
 
-// VoiceDesignWorker 逐条处理批量音色设计任务项。
-// Breeze-TTS-2 单并发，这里只用一个协程顺序处理；任务项状态存在数据库里，服务重启后可继续。
+// VoiceDesignWorker 批量音色设计：LLM 与 GPU 错开，当前条推理时预取下一条描述。
+// Breeze 仍单并发，同一时刻只有一条 Speech。
 type VoiceDesignWorker struct {
 	logger   *log.Logger
 	itemRepo repository.VsVoiceDesignItemRepository
@@ -58,25 +58,77 @@ func (w *VoiceDesignWorker) Stop() {
 
 func (w *VoiceDesignWorker) loop(ctx context.Context) {
 	defer w.wg.Done()
+	var ready *service.VoiceDesignPrepared
 	for {
 		if ctx.Err() != nil {
 			return
 		}
+		if ready == nil {
+			ready = w.claimAndPrepare(ctx)
+			if ready == nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(voiceDesignPollInterval):
+				}
+				continue
+			}
+		}
+
+		// 推理当前条时，下一条先写 LLM 描述
+		nextCh := make(chan *service.VoiceDesignPrepared, 1)
+		go func() {
+			nextCh <- w.claimAndPrepare(ctx)
+		}()
+
+		data, seed, synthErr := w.svc.RunPreparedDesign(ctx, ready)
+		job := ready
+		ready = nil
+
+		// 落库不占 GPU，与下一条推理重叠
+		w.wg.Add(1)
+		go func() {
+			defer w.wg.Done()
+			if synthErr != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				w.logger.Error("voice design: synthesize failed",
+					zap.Uint64("item_id", job.ItemID()), zap.Error(synthErr))
+				_ = w.svc.FailPreparedDesign(job, synthErr)
+				return
+			}
+			if err := w.svc.FinishPreparedDesign(job, data, seed); err != nil {
+				w.logger.Error("voice design: persist failed",
+					zap.Uint64("item_id", job.ItemID()), zap.Error(err))
+			}
+		}()
+
+		ready = <-nextCh
+	}
+}
+
+func (w *VoiceDesignWorker) claimAndPrepare(ctx context.Context) *service.VoiceDesignPrepared {
+	for {
+		if ctx.Err() != nil {
+			return nil
+		}
 		item, err := w.itemRepo.NextQueued(ctx)
 		if err != nil {
 			w.logger.Error("voice design: query queued item failed", zap.Error(err))
+			return nil
 		}
-		if err != nil || item == nil {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(voiceDesignPollInterval):
-			}
+		if item == nil {
+			return nil
+		}
+		job, err := w.svc.PrepareItem(ctx, item.ItemID)
+		if err != nil {
+			w.logger.Error("voice design: prepare item failed",
+				zap.Uint64("item_id", item.ItemID), zap.Error(err))
 			continue
 		}
-		if err := w.svc.ProcessItem(ctx, item.ItemID); err != nil {
-			w.logger.Error("voice design: process item failed",
-				zap.Uint64("item_id", item.ItemID), zap.Error(err))
+		if job != nil {
+			return job
 		}
 	}
 }
