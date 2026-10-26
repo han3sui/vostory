@@ -322,6 +322,7 @@ func (s *vsVoiceDesignService) RegenerateItem(ctx context.Context, itemID uint64
 		"status":        repository.VoiceDesignItemQueued,
 		"preview_path":  "",
 		"error_message": "",
+		"updated_at":    time.Now(), // 让 NextQueued 把它排到队首
 	})
 }
 

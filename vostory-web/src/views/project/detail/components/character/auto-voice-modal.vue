@@ -101,12 +101,18 @@
                                                 <a-button
                                                     size="mini"
                                                     type="primary"
-                                                    :loading="actingId === item.item_id"
+                                                    :loading="isActing(item.item_id)"
                                                     @click="apply(item)"
                                                 >
                                                     保存
                                                 </a-button>
-                                                <a-button size="mini" @click="regenerate(item)">重新生成</a-button>
+                                                <a-button
+                                                    size="mini"
+                                                    :loading="isActing(item.item_id)"
+                                                    @click="regenerate(item)"
+                                                >
+                                                    重新生成
+                                                </a-button>
                                                 <a-button size="mini" status="danger" @click="discard(item)">
                                                     放弃
                                                 </a-button>
@@ -114,6 +120,7 @@
                                             <a-button
                                                 v-else-if="item.status === 'failed'"
                                                 size="mini"
+                                                :loading="isActing(item.item_id)"
                                                 @click="regenerate(item)"
                                             >
                                                 重试
@@ -221,7 +228,23 @@ const loadingCandidates = ref(false);
 const starting = ref(false);
 const cancelling = ref(false);
 const matching = ref(false);
-const actingId = ref<number | null>(null);
+const actingIds = ref<Set<number>>(new Set());
+
+function isActing(id: number) {
+    return actingIds.value.has(id);
+}
+
+function beginAct(id: number) {
+    const next = new Set(actingIds.value);
+    next.add(id);
+    actingIds.value = next;
+}
+
+function endAct(id: number) {
+    const next = new Set(actingIds.value);
+    next.delete(id);
+    actingIds.value = next;
+}
 
 const modalConfig = computed(() => ({
     title: "配置角色声音",
@@ -411,22 +434,32 @@ async function backToSelect() {
 }
 
 async function apply(item: VoiceDesignBatchItem) {
-    actingId.value = item.item_id;
+    if (isActing(item.item_id)) return;
+    beginAct(item.item_id);
     try {
         if (playingId.value === item.item_id) stopAudio();
         await applyVoiceDesignItem(item.item_id);
         Message.success(`已为「${item.character_name}」保存音色`);
         await refreshBatch();
     } finally {
-        actingId.value = null;
+        endAct(item.item_id);
     }
 }
 
 async function regenerate(item: VoiceDesignBatchItem) {
-    if (playingId.value === item.item_id) stopAudio();
-    await regenerateVoiceDesignItem(item.item_id);
-    await refreshBatch();
-    schedulePoll();
+    if (isActing(item.item_id)) return;
+    beginAct(item.item_id);
+    try {
+        if (playingId.value === item.item_id) stopAudio();
+        await regenerateVoiceDesignItem(item.item_id);
+        item.status = "queued";
+        item.error_message = "";
+        Message.success(`「${item.character_name}」已重新排队，将优先重试`);
+        await refreshBatch();
+        schedulePoll();
+    } finally {
+        endAct(item.item_id);
+    }
 }
 
 async function discard(item: VoiceDesignBatchItem) {

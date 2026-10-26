@@ -68,9 +68,10 @@ func (r *vsVoiceDesignItemRepository) Claim(ctx context.Context, id uint64) (boo
 
 func (r *vsVoiceDesignItemRepository) NextQueued(ctx context.Context) (*model.VsVoiceDesignItem, error) {
 	var items []*model.VsVoiceDesignItem
+	// 刚重试的项 updated_at 最新，插到队首；其余仍按创建顺序
 	if err := r.db.WithContext(ctx).
 		Where("status = ?", VoiceDesignItemQueued).
-		Order("item_id ASC").Limit(1).
+		Order("updated_at DESC, item_id ASC").Limit(1).
 		Find(&items).Error; err != nil {
 		return nil, err
 	}
