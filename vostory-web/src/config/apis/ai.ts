@@ -76,6 +76,7 @@ export type TTSProviderStatusGPU = {
     name: string;
     gpu_utilization: number | null;
     memory_total_mb: number;
+    memory_used_mb?: number;
     memory_allocated_mb: number;
     memory_reserved_mb: number;
 };

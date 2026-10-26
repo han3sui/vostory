@@ -85,11 +85,12 @@ type VsTTSProviderStatusMemory struct {
 
 // VsTTSProviderStatusGPU GPU状态
 type VsTTSProviderStatusGPU struct {
-	Name             string  `json:"name"`
-	GPUUtilization   *int    `json:"gpu_utilization"`
-	MemoryTotalMB    int     `json:"memory_total_mb"`
-	MemoryAllocatedMB int   `json:"memory_allocated_mb"`
-	MemoryReservedMB int     `json:"memory_reserved_mb"`
+	Name              string `json:"name"`
+	GPUUtilization    *int   `json:"gpu_utilization"`
+	MemoryTotalMB     int    `json:"memory_total_mb"`
+	MemoryUsedMB      int    `json:"memory_used_mb"`      // NVML / nvidia-smi 整卡占用
+	MemoryAllocatedMB int    `json:"memory_allocated_mb"` // PyTorch 当前张量
+	MemoryReservedMB  int    `json:"memory_reserved_mb"`  // PyTorch 缓存池
 }
 
 // VsTTSProviderStatusResponse 系统状态响应

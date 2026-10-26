@@ -106,7 +106,7 @@
                                     <template #content>
                                         <div>{{ statusMap[record.id].data!.gpu!.name }}</div>
                                         <div>
-                                            显存 {{ formatSize(statusMap[record.id].data!.gpu!.memory_allocated_mb) }} /
+                                            显存 {{ formatSize(gpuMemUsed(statusMap[record.id].data!.gpu!)) }} /
                                             {{ formatSize(statusMap[record.id].data!.gpu!.memory_total_mb) }}
                                         </div>
                                     </template>
@@ -182,8 +182,9 @@ async function fetchStatus(row: TTSProviderDetailType) {
 }
 
 function getProgressColor(percent: number): string {
-    if (percent >= 90) return "var(--color-danger-6)";
-    if (percent >= 70) return "var(--color-warning-6)";
+    // Arco 没有 --color-danger-6，高占用时用无效变量会导致圆环描边不画
+    if (percent >= 90) return "rgb(var(--red-6))";
+    if (percent >= 70) return "rgb(var(--orange-6))";
     return "rgb(var(--arcoblue-6))";
 }
 
@@ -192,9 +193,14 @@ function formatSize(mb: number): string {
     return mb + " MB";
 }
 
+// 优先 NVML 整卡占用，兼容旧接口
+function gpuMemUsed(gpu: TTSProviderStatusGPU): number {
+    return gpu.memory_used_mb || gpu.memory_reserved_mb || gpu.memory_allocated_mb || 0;
+}
+
 function gpuMemPercent(gpu: TTSProviderStatusGPU): number {
     if (!gpu.memory_total_mb) return 0;
-    return gpu.memory_allocated_mb / gpu.memory_total_mb;
+    return gpuMemUsed(gpu) / gpu.memory_total_mb;
 }
 
 const getFilterConfig = computed(() => {
