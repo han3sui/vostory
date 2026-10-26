@@ -14,6 +14,7 @@ type VsProjectRepository interface {
 	FindByID(ctx context.Context, id uint64) (*model.VsProject, error)
 	FindWithPagination(ctx context.Context, query *v1.VsProjectListQuery) ([]*model.VsProject, int64, error)
 	FindByWorkspaceID(ctx context.Context, workspaceID uint64) ([]*model.VsProject, error)
+	CountByLLMModelID(ctx context.Context, modelID uint64) (int64, error)
 }
 
 func NewVsProjectRepository(repository *Repository) VsProjectRepository {
@@ -42,7 +43,8 @@ func (r *vsProjectRepository) FindByID(ctx context.Context, id uint64) (*model.V
 	var project model.VsProject
 	if err := r.db.WithContext(ctx).
 		Preload("Workspace").
-		Preload("LLMProvider").
+		Preload("LLMModel").
+		Preload("LLMModel.Provider").
 		Preload("TTSProvider").
 		Where("project_id = ?", id).First(&project).Error; err != nil {
 		return nil, err
@@ -78,7 +80,7 @@ func (r *vsProjectRepository) FindWithPagination(ctx context.Context, query *v1.
 		db = db.Scopes(model.Paginate(query.Page, query.Size))
 	}
 
-	if err := db.Preload("Workspace").Preload("LLMProvider").Preload("TTSProvider").
+	if err := db.Preload("Workspace").Preload("LLMModel").Preload("LLMModel.Provider").Preload("TTSProvider").
 		Order("project_id DESC").Find(&projects).Error; err != nil {
 		return nil, 0, err
 	}
@@ -95,4 +97,11 @@ func (r *vsProjectRepository) FindByWorkspaceID(ctx context.Context, workspaceID
 		return nil, err
 	}
 	return projects, nil
+}
+
+func (r *vsProjectRepository) CountByLLMModelID(ctx context.Context, modelID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.VsProject{}).
+		Where("llm_model_id = ?", modelID).Count(&count).Error
+	return count, err
 }

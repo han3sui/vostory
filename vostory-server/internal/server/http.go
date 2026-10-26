@@ -38,6 +38,7 @@ func NewHTTPServer(
 	sysOperLogHandler *handler.SysOperLogHandler,
 	sysOperLogService service.SysOperLogService,
 	vsLLMProviderHandler *handler.VsLLMProviderHandler,
+	vsLLMModelHandler *handler.VsLLMModelHandler,
 	vsTTSProviderHandler *handler.VsTTSProviderHandler,
 	vsPromptTemplateHandler *handler.VsPromptTemplateHandler,
 	vsWorkspaceHandler *handler.VsWorkspaceHandler,
@@ -373,16 +374,29 @@ func NewHTTPServer(
 
 			aiRouter := strictAuthRouter.Group("/ai")
 			{
-				llmProviderRouter := aiRouter.Group("/llm-provider")
+				llmProviderRouter := aiRouter.Group("/provider")
 				{
 					llmProviderRouter.GET("/:id", vsLLMProviderHandler.Get)
 					llmProviderRouter.GET("/list", vsLLMProviderHandler.List)
 					llmProviderRouter.POST("", vsLLMProviderHandler.Create)
 					llmProviderRouter.PUT("/:id", vsLLMProviderHandler.Update)
 					llmProviderRouter.DELETE("/:id", vsLLMProviderHandler.Delete)
+					llmProviderRouter.DELETE("", vsLLMProviderHandler.DeleteByIDs)
 					llmProviderRouter.PUT("/:id/enable", vsLLMProviderHandler.Enable)
 					llmProviderRouter.PUT("/:id/disable", vsLLMProviderHandler.Disable)
 					llmProviderRouter.POST("/test", vsLLMProviderHandler.TestConnection)
+				}
+
+				llmModelRouter := aiRouter.Group("/model")
+				{
+					llmModelRouter.GET("/:id", vsLLMModelHandler.Get)
+					llmModelRouter.GET("/list", vsLLMModelHandler.List)
+					llmModelRouter.POST("", vsLLMModelHandler.Create)
+					llmModelRouter.PUT("/:id", vsLLMModelHandler.Update)
+					llmModelRouter.DELETE("/:id", vsLLMModelHandler.Delete)
+					llmModelRouter.DELETE("", vsLLMModelHandler.DeleteByIDs)
+					llmModelRouter.PUT("/:id/enable", vsLLMModelHandler.Enable)
+					llmModelRouter.PUT("/:id/disable", vsLLMModelHandler.Disable)
 				}
 
 				ttsProviderRouter := aiRouter.Group("/tts-provider")

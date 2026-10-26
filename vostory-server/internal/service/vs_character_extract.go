@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	v1 "iot-alert-center/api/v1"
+	"iot-alert-center/internal/llmconfig"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/pkg/llm"
@@ -27,7 +28,7 @@ func NewVsCharacterExtractService(
 	chapterRepo repository.VsChapterRepository,
 	characterRepo repository.VsCharacterRepository,
 	promptRepo repository.VsPromptTemplateRepository,
-	providerRepo repository.VsLLMProviderRepository,
+	llmResolver llmconfig.Resolver,
 	llmLogRepo repository.VsLLMLogRepository,
 ) VsCharacterExtractService {
 	return &vsCharacterExtractService{
@@ -36,7 +37,7 @@ func NewVsCharacterExtractService(
 		chapterRepo:   chapterRepo,
 		characterRepo: characterRepo,
 		promptRepo:    promptRepo,
-		providerRepo:  providerRepo,
+		llmResolver:   llmResolver,
 		llmLogRepo:    llmLogRepo,
 		llmClient:     llm.NewClient(),
 	}
@@ -48,7 +49,7 @@ type vsCharacterExtractService struct {
 	chapterRepo   repository.VsChapterRepository
 	characterRepo repository.VsCharacterRepository
 	promptRepo    repository.VsPromptTemplateRepository
-	providerRepo  repository.VsLLMProviderRepository
+	llmResolver   llmconfig.Resolver
 	llmLogRepo    repository.VsLLMLogRepository
 	llmClient     *llm.Client
 }
@@ -71,7 +72,7 @@ func (s *vsCharacterExtractService) ExtractCharacters(ctx context.Context, proje
 		return nil, fmt.Errorf("项目不存在")
 	}
 
-	provider, err := s.resolveProvider(ctx, project)
+	resolved, err := s.llmResolver.ResolveByProject(ctx, project)
 	if err != nil {
 		return nil, err
 	}
@@ -90,22 +91,21 @@ func (s *vsCharacterExtractService) ExtractCharacters(ctx context.Context, proje
 
 	start := time.Now()
 	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
-		BaseURL: provider.APIBaseURL,
-		APIKey:  provider.APIKey,
-		Model:   provider.DefaultModel,
+		BaseURL: resolved.BaseURL,
+		APIKey:  resolved.APIKey,
+		Model:   resolved.ModelName,
 		Messages: []llm.Message{
 			{Role: "user", Content: prompt},
 		},
 		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
-		CustomParams:   provider.CustomParams,
 	})
 	costTime := time.Since(start).Milliseconds()
 
 	logEntry := &model.VsLLMLog{
 		ProjectID:  &projectID,
-		ProviderID: provider.ProviderID,
+		ProviderID: resolved.ProviderID,
 		TemplateID: templateID,
-		ModelName:  provider.DefaultModel,
+		ModelName:  resolved.ModelName,
 		CostTime:   costTime,
 		Status:     0,
 		BaseModel: model.BaseModel{
@@ -147,7 +147,7 @@ func (s *vsCharacterExtractService) ExtractFromText(ctx context.Context, req *v1
 		return nil, fmt.Errorf("项目不存在")
 	}
 
-	provider, err := s.resolveProvider(ctx, project)
+	resolved, err := s.llmResolver.ResolveByProject(ctx, project)
 	if err != nil {
 		return nil, err
 	}
@@ -161,22 +161,21 @@ func (s *vsCharacterExtractService) ExtractFromText(ctx context.Context, req *v1
 
 	start := time.Now()
 	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
-		BaseURL: provider.APIBaseURL,
-		APIKey:  provider.APIKey,
-		Model:   provider.DefaultModel,
+		BaseURL: resolved.BaseURL,
+		APIKey:  resolved.APIKey,
+		Model:   resolved.ModelName,
 		Messages: []llm.Message{
 			{Role: "user", Content: prompt},
 		},
 		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
-		CustomParams:   provider.CustomParams,
 	})
 	costTime := time.Since(start).Milliseconds()
 
 	logEntry := &model.VsLLMLog{
 		ProjectID:  &req.ProjectID,
-		ProviderID: provider.ProviderID,
+		ProviderID: resolved.ProviderID,
 		TemplateID: templateID,
-		ModelName:  provider.DefaultModel,
+		ModelName:  resolved.ModelName,
 		CostTime:   costTime,
 		Status:     0,
 		BaseModel: model.BaseModel{
@@ -340,20 +339,6 @@ func (s *vsCharacterExtractService) buildSampleText(ctx context.Context, project
 		return "", fmt.Errorf("章节内容为空")
 	}
 	return sb.String(), nil
-}
-
-func (s *vsCharacterExtractService) resolveProvider(ctx context.Context, project *model.VsProject) (*model.VsLLMProvider, error) {
-	if project.LLMProviderID == nil || *project.LLMProviderID == 0 {
-		return nil, fmt.Errorf("项目未配置 LLM 提供商，请先在项目设置中绑定")
-	}
-	provider, err := s.providerRepo.FindByID(ctx, *project.LLMProviderID)
-	if err != nil {
-		return nil, fmt.Errorf("LLM 提供商不存在")
-	}
-	if provider.Status != "0" {
-		return nil, fmt.Errorf("LLM 提供商已停用")
-	}
-	return provider, nil
 }
 
 func (s *vsCharacterExtractService) resolvePrompt(ctx context.Context, project *model.VsProject) (string, *uint64, error) {

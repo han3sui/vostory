@@ -19,9 +19,9 @@ type VsLLMProviderService interface {
 	Create(ctx context.Context, request *v1.VsLLMProviderCreateRequest) error
 	Update(ctx context.Context, request *v1.VsLLMProviderUpdateRequest) error
 	Delete(ctx context.Context, id uint64) error
+	DeleteByIDs(ctx context.Context, ids []uint64) error
 	FindByID(ctx context.Context, id uint64) (*v1.VsLLMProviderDetailResponse, error)
 	FindWithPagination(ctx context.Context, query *v1.VsLLMProviderListQuery) ([]*v1.VsLLMProviderDetailResponse, int64, error)
-	FindAllEnabled(ctx context.Context) ([]*v1.VsLLMProviderOptionResponse, error)
 	Enable(ctx context.Context, id uint64) error
 	Disable(ctx context.Context, id uint64) error
 	TestConnection(ctx context.Context, request *v1.VsLLMProviderTestRequest) *v1.VsLLMProviderTestResponse
@@ -30,61 +30,81 @@ type VsLLMProviderService interface {
 func NewVsLLMProviderService(
 	service *Service,
 	repo repository.VsLLMProviderRepository,
+	modelRepo repository.VsLLMModelRepository,
 ) VsLLMProviderService {
 	return &vsLLMProviderService{
-		Service: service,
-		repo:    repo,
+		Service:   service,
+		repo:      repo,
+		modelRepo: modelRepo,
 	}
 }
 
 type vsLLMProviderService struct {
 	*Service
-	repo repository.VsLLMProviderRepository
+	repo      repository.VsLLMProviderRepository
+	modelRepo repository.VsLLMModelRepository
 }
 
 func (s *vsLLMProviderService) Create(ctx context.Context, request *v1.VsLLMProviderCreateRequest) error {
+	createdBy, _ := ctx.Value("login_name").(string)
 	provider := &model.VsLLMProvider{
-		Name:           request.Name,
-		ProviderType:   request.ProviderType,
-		APIBaseURL:     request.APIBaseURL,
-		APIKey:         request.APIKey,
-		ModelList:      request.ModelList,
-		DefaultModel:   request.DefaultModel,
-		CustomParams:   request.CustomParams,
+		Name:           strings.TrimSpace(request.Name),
+		APIBaseURL:     strings.TrimSpace(request.APIBaseURL),
+		APIKey:         strings.TrimSpace(request.APIKey),
 		MaxConcurrency: request.MaxConcurrency,
 		SortOrder:      request.SortOrder,
 		Status:         request.Status,
+		Remark:         request.Remark,
 		BaseModel: model.BaseModel{
-			CreatedBy: ctx.Value("login_name").(string),
+			CreatedBy: createdBy,
 		},
 	}
-
+	if provider.MaxConcurrency <= 0 {
+		provider.MaxConcurrency = 1
+	}
 	return s.repo.Create(ctx, provider)
 }
 
 func (s *vsLLMProviderService) Update(ctx context.Context, request *v1.VsLLMProviderUpdateRequest) error {
-	existing, err := s.repo.FindByID(ctx, request.ID)
-	if err != nil {
-		return fmt.Errorf("提供商不存在")
+	updatedBy, _ := ctx.Value("login_name").(string)
+	fields := map[string]interface{}{
+		"name":            strings.TrimSpace(request.Name),
+		"api_base_url":    strings.TrimSpace(request.APIBaseURL),
+		"max_concurrency": request.MaxConcurrency,
+		"sort_order":      request.SortOrder,
+		"status":          request.Status,
+		"remark":          request.Remark,
+		"updated_by":      updatedBy,
 	}
-
-	existing.Name = request.Name
-	existing.ProviderType = request.ProviderType
-	existing.APIBaseURL = request.APIBaseURL
-	existing.APIKey = request.APIKey
-	existing.ModelList = request.ModelList
-	existing.DefaultModel = request.DefaultModel
-	existing.CustomParams = request.CustomParams
-	existing.MaxConcurrency = request.MaxConcurrency
-	existing.SortOrder = request.SortOrder
-	existing.Status = request.Status
-	existing.UpdatedBy = ctx.Value("login_name").(string)
-
-	return s.repo.Update(ctx, existing)
+	if request.MaxConcurrency <= 0 {
+		fields["max_concurrency"] = 1
+	}
+	// API Key 仅在传入非脱敏值时更新
+	apiKey := strings.TrimSpace(request.APIKey)
+	if apiKey != "" && !strings.Contains(apiKey, "****") {
+		fields["api_key"] = apiKey
+	}
+	return s.repo.UpdateFields(ctx, request.ID, fields)
 }
 
 func (s *vsLLMProviderService) Delete(ctx context.Context, id uint64) error {
+	count, err := s.modelRepo.CountByProviderID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("该厂家下仍有 %d 个模型，请先删除模型", count)
+	}
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *vsLLMProviderService) DeleteByIDs(ctx context.Context, ids []uint64) error {
+	for _, id := range ids {
+		if err := s.Delete(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *vsLLMProviderService) FindByID(ctx context.Context, id uint64) (*v1.VsLLMProviderDetailResponse, error) {
@@ -101,30 +121,11 @@ func (s *vsLLMProviderService) FindWithPagination(ctx context.Context, query *v1
 		return nil, 0, err
 	}
 
-	var responses []*v1.VsLLMProviderDetailResponse
+	responses := make([]*v1.VsLLMProviderDetailResponse, 0, len(providers))
 	for _, p := range providers {
 		responses = append(responses, s.convertToDetailResponse(p))
 	}
 	return responses, total, nil
-}
-
-func (s *vsLLMProviderService) FindAllEnabled(ctx context.Context) ([]*v1.VsLLMProviderOptionResponse, error) {
-	providers, err := s.repo.FindAllEnabled(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var responses []*v1.VsLLMProviderOptionResponse
-	for _, p := range providers {
-		responses = append(responses, &v1.VsLLMProviderOptionResponse{
-			ID:           p.ProviderID,
-			Name:         p.Name,
-			ProviderType: p.ProviderType,
-			ModelList:    p.ModelList,
-			DefaultModel: p.DefaultModel,
-		})
-	}
-	return responses, nil
 }
 
 func (s *vsLLMProviderService) Enable(ctx context.Context, id uint64) error {
@@ -135,21 +136,38 @@ func (s *vsLLMProviderService) Disable(ctx context.Context, id uint64) error {
 	return s.repo.Disable(ctx, id)
 }
 
-// TestConnection 通过发送一次最小的 Chat Completions 请求来测试连通性。
-// 所有厂商（包括小米 MiMo、DeepSeek、通义千问等）都兼容 OpenAI Chat Completions 协议，
-// 而 /v1/models 端点并非所有厂商都支持，因此用真实对话请求更可靠。
-func (s *vsLLMProviderService) TestConnection(_ context.Context, request *v1.VsLLMProviderTestRequest) *v1.VsLLMProviderTestResponse {
+// TestConnection 通过一次最小的 Chat Completions 请求测试厂家连通性
+func (s *vsLLMProviderService) TestConnection(ctx context.Context, request *v1.VsLLMProviderTestRequest) *v1.VsLLMProviderTestResponse {
 	start := time.Now()
 
-	baseURL := strings.TrimRight(request.APIBaseURL, "/")
+	baseURL := strings.TrimSpace(request.APIBaseURL)
+	apiKey := strings.TrimSpace(request.APIKey)
+	modelName := strings.TrimSpace(request.Model)
+	if baseURL == "" || modelName == "" {
+		return &v1.VsLLMProviderTestResponse{
+			Success:  false,
+			Message:  "API地址和测试模型不能为空",
+			Duration: time.Since(start).Milliseconds(),
+		}
+	}
+
+	// 脱敏或留空时回查已保存的原始 Key
+	if request.ID > 0 && (apiKey == "" || strings.Contains(apiKey, "****")) {
+		existing, err := s.repo.FindByID(ctx, request.ID)
+		if err != nil {
+			return &v1.VsLLMProviderTestResponse{
+				Success:  false,
+				Message:  fmt.Sprintf("获取已保存的 API Key 失败: %v", err),
+				Duration: time.Since(start).Milliseconds(),
+			}
+		}
+		apiKey = existing.APIKey
+	}
+
+	baseURL = strings.TrimRight(baseURL, "/")
 	chatURL := baseURL + "/chat/completions"
 	if !strings.Contains(baseURL, "/v1") {
 		chatURL = baseURL + "/v1/chat/completions"
-	}
-
-	modelName := request.Model
-	if modelName == "" {
-		modelName = "gpt-3.5-turbo"
 	}
 
 	reqBody := map[string]interface{}{
@@ -159,12 +177,6 @@ func (s *vsLLMProviderService) TestConnection(_ context.Context, request *v1.VsL
 		},
 		"max_tokens": 1,
 		"stream":     false,
-	}
-
-	for k, v := range request.CustomParams {
-		if k != "model" && k != "messages" && k != "stream" {
-			reqBody[k] = v
-		}
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)
@@ -186,8 +198,8 @@ func (s *vsLLMProviderService) TestConnection(_ context.Context, request *v1.VsL
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	if request.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+request.APIKey)
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -228,19 +240,26 @@ func (s *vsLLMProviderService) TestConnection(_ context.Context, request *v1.VsL
 	}
 }
 
+func maskAPIKey(key string) string {
+	if key == "" {
+		return ""
+	}
+	if len(key) <= 8 {
+		return "****"
+	}
+	return key[:4] + "****" + key[len(key)-4:]
+}
+
 func (s *vsLLMProviderService) convertToDetailResponse(p *model.VsLLMProvider) *v1.VsLLMProviderDetailResponse {
 	return &v1.VsLLMProviderDetailResponse{
 		ID:             p.ProviderID,
 		Name:           p.Name,
-		ProviderType:   p.ProviderType,
 		APIBaseURL:     p.APIBaseURL,
-		APIKey:         p.APIKey,
-		ModelList:      p.ModelList,
-		DefaultModel:   p.DefaultModel,
-		CustomParams:   p.CustomParams,
+		APIKey:         maskAPIKey(p.APIKey),
 		MaxConcurrency: p.MaxConcurrency,
 		SortOrder:      p.SortOrder,
 		Status:         p.Status,
+		Remark:         p.Remark,
 		CreatedAt:      p.CreatedAt,
 		UpdatedAt:      p.UpdatedAt,
 	}

@@ -12,7 +12,8 @@ export type ProjectDetailType = {
     source_type: string;
     source_file_url: string;
     status: string;
-    llm_provider_id: number | null;
+    llm_model_id: number | null;
+    llm_model_name: string;
     llm_provider_name: string;
     tts_provider_id: number | null;
     tts_provider_name: string;
@@ -44,7 +45,7 @@ export type ProjectCreateParams = {
     name: string;
     description?: string;
     cover_url?: string;
-    llm_provider_id?: number | null;
+    llm_model_id?: number | null;
     tts_provider_id?: number | null;
     prompt_template_ids?: Record<string, number>;
     remark?: string;
@@ -55,7 +56,7 @@ export type ProjectUpdateParams = {
     name: string;
     description?: string;
     cover_url?: string;
-    llm_provider_id?: number | null;
+    llm_model_id?: number | null;
     tts_provider_id?: number | null;
     prompt_template_ids?: Record<string, number>;
     remark?: string;

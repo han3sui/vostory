@@ -24,6 +24,4320 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/ai/llm-log/list": {
+            "get": {
+                "description": "分页获取LLM调用日志列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM调用日志"
+                ],
+                "summary": "获取LLM调用日志列表",
+                "operationId": "ai:llm-log:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "提供商ID",
+                        "name": "provider_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "模型名称",
+                        "name": "model_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "状态（0成功 1失败, -1全部）",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/llm-log/{id}": {
+            "get": {
+                "description": "根据ID获取LLM调用日志详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM调用日志"
+                ],
+                "summary": "获取LLM调用日志详情",
+                "operationId": "ai:llm-log:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "日志ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定LLM调用日志",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM调用日志"
+                ],
+                "summary": "删除LLM调用日志",
+                "operationId": "ai:llm-log:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "日志ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/model": {
+            "post": {
+                "description": "创建新的LLM模型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型管理"
+                ],
+                "summary": "创建LLM模型",
+                "operationId": "ai:model:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsLLMModelCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "批量删除LLM模型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型管理"
+                ],
+                "summary": "批量删除LLM模型",
+                "operationId": "ai:model:remove",
+                "parameters": [
+                    {
+                        "description": "删除请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsLLMModelDeleteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/model/list": {
+            "get": {
+                "description": "分页获取LLM模型列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型管理"
+                ],
+                "summary": "获取LLM模型列表",
+                "operationId": "ai:model:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "厂家ID",
+                        "name": "provider_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "模型标识",
+                        "name": "model_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/model/{id}": {
+            "get": {
+                "description": "根据ID获取LLM模型详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型管理"
+                ],
+                "summary": "获取LLM模型详情",
+                "operationId": "ai:model:view",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新LLM模型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型管理"
+                ],
+                "summary": "更新LLM模型",
+                "operationId": "ai:model:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsLLMModelUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定LLM模型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型管理"
+                ],
+                "summary": "删除LLM模型",
+                "operationId": "ai:model:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/model/{id}/disable": {
+            "put": {
+                "description": "禁用指定LLM模型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型管理"
+                ],
+                "summary": "禁用LLM模型",
+                "operationId": "ai:model:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/model/{id}/enable": {
+            "put": {
+                "description": "启用指定LLM模型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型管理"
+                ],
+                "summary": "启用LLM模型",
+                "operationId": "ai:model:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/prompt-template": {
+            "post": {
+                "description": "创建新的Prompt模板",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompt模板管理"
+                ],
+                "summary": "创建Prompt模板",
+                "operationId": "ai:prompt-template:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsPromptTemplateCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/prompt-template/list": {
+            "get": {
+                "description": "分页获取Prompt模板列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompt模板管理"
+                ],
+                "summary": "获取Prompt模板列表",
+                "operationId": "ai:prompt-template:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "模板名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "模板类型",
+                        "name": "template_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "是否系统内置",
+                        "name": "is_system",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/prompt-template/{id}": {
+            "get": {
+                "description": "根据ID获取Prompt模板详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompt模板管理"
+                ],
+                "summary": "获取Prompt模板详情",
+                "operationId": "ai:prompt-template:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新Prompt模板",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompt模板管理"
+                ],
+                "summary": "更新Prompt模板",
+                "operationId": "ai:prompt-template:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsPromptTemplateUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定Prompt模板（系统内置模板不允许删除）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompt模板管理"
+                ],
+                "summary": "删除Prompt模板",
+                "operationId": "ai:prompt-template:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/prompt-template/{id}/disable": {
+            "put": {
+                "description": "禁用指定Prompt模板",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompt模板管理"
+                ],
+                "summary": "禁用Prompt模板",
+                "operationId": "ai:prompt-template:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/prompt-template/{id}/enable": {
+            "put": {
+                "description": "启用指定Prompt模板",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompt模板管理"
+                ],
+                "summary": "启用Prompt模板",
+                "operationId": "ai:prompt-template:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/provider": {
+            "post": {
+                "description": "创建新的LLM厂家配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "创建LLM厂家",
+                "operationId": "ai:provider:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsLLMProviderCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "批量删除LLM厂家",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "批量删除LLM厂家",
+                "operationId": "ai:provider:remove",
+                "parameters": [
+                    {
+                        "description": "删除请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsLLMProviderDeleteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/provider/list": {
+            "get": {
+                "description": "分页获取LLM厂家列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "获取LLM厂家列表",
+                "operationId": "ai:provider:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/provider/test": {
+            "post": {
+                "description": "测试LLM厂家API连通性",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "测试LLM厂家连通性",
+                "operationId": "ai:provider:test",
+                "parameters": [
+                    {
+                        "description": "测试请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsLLMProviderTestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/provider/{id}": {
+            "get": {
+                "description": "根据ID获取LLM厂家详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "获取LLM厂家详情",
+                "operationId": "ai:provider:view",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "厂家ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新LLM厂家配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "更新LLM厂家",
+                "operationId": "ai:provider:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "厂家ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsLLMProviderUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定LLM厂家",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "删除LLM厂家",
+                "operationId": "ai:provider:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "厂家ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/provider/{id}/disable": {
+            "put": {
+                "description": "禁用指定LLM厂家",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "禁用LLM厂家",
+                "operationId": "ai:provider:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "厂家ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/provider/{id}/enable": {
+            "put": {
+                "description": "启用指定LLM厂家",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM厂家配置"
+                ],
+                "summary": "启用LLM厂家",
+                "operationId": "ai:provider:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "厂家ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/tts-provider": {
+            "post": {
+                "description": "创建新的TTS提供商配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "创建TTS提供商",
+                "operationId": "ai:tts-provider:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsTTSProviderCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/tts-provider/list": {
+            "get": {
+                "description": "分页获取TTS提供商列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "获取TTS提供商列表",
+                "operationId": "ai:tts-provider:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "提供商类型",
+                        "name": "provider_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/tts-provider/test": {
+            "post": {
+                "description": "测试TTS提供商API连通性",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "测试TTS连通性",
+                "operationId": "ai:tts-provider:test",
+                "parameters": [
+                    {
+                        "description": "测试请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsTTSProviderTestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/tts-provider/{id}": {
+            "get": {
+                "description": "根据ID获取TTS提供商详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "获取TTS提供商详情",
+                "operationId": "ai:tts-provider:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "提供商ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新TTS提供商配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "更新TTS提供商",
+                "operationId": "ai:tts-provider:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "提供商ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsTTSProviderUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定TTS提供商",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "删除TTS提供商",
+                "operationId": "ai:tts-provider:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "提供商ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/tts-provider/{id}/disable": {
+            "put": {
+                "description": "禁用指定TTS提供商",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "禁用TTS提供商",
+                "operationId": "ai:tts-provider:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "提供商ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/tts-provider/{id}/enable": {
+            "put": {
+                "description": "启用指定TTS提供商",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "启用TTS提供商",
+                "operationId": "ai:tts-provider:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "提供商ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/tts-provider/{id}/status": {
+            "get": {
+                "description": "获取TTS提供商的GPU/CPU/内存负载信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS提供商管理"
+                ],
+                "summary": "获取TTS提供商系统状态",
+                "operationId": "ai:tts-provider:status",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "提供商ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chapter": {
+            "post": {
+                "description": "在指定项目下创建新章节",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "创建章节",
+                "operationId": "chapter:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsChapterCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chapter/batch-split": {
+            "post": {
+                "description": "将多个章节加入切割队列，后台异步依次执行",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "批量 LLM 智能切割",
+                "operationId": "chapter:batch-split",
+                "parameters": [
+                    {
+                        "description": "批量切割请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.BatchSplitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chapter/list": {
+            "get": {
+                "description": "分页获取章节列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "获取章节列表",
+                "operationId": "chapter:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "章节标题",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chapter/{chapter_id}/align": {
+            "post": {
+                "description": "将章节下所有脚本片段的文本对齐回章节原文，确保不丢字不加字",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "精准填充"
+                ],
+                "summary": "精准填充对齐",
+                "operationId": "chapter:align",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chapter/{chapter_id}/split": {
+            "post": {
+                "description": "调用 LLM 将章节内容切割为场景和脚本片段",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "LLM 智能切割章节",
+                "operationId": "chapter:split",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chapter/{id}": {
+            "get": {
+                "description": "根据ID获取章节详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "获取章节详情",
+                "operationId": "chapter:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新章节信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "更新章节",
+                "operationId": "chapter:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsChapterUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定章节",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "删除章节",
+                "operationId": "chapter:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character": {
+            "post": {
+                "description": "在指定项目下创建角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "创建角色",
+                "operationId": "character:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsCharacterCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/extract-from-text": {
+            "post": {
+                "description": "用户提供一段文字描述，调用 LLM 提取角色信息并录入角色库",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "LLM 智能录入角色",
+                "operationId": "character:extract_from_text",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.CharacterExtractFromTextRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/extract/{project_id}": {
+            "post": {
+                "description": "调用 LLM 从全书文本中自动提取角色信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "LLM 智能提取角色",
+                "operationId": "character:extract",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/list": {
+            "get": {
+                "description": "分页获取角色列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "获取角色列表",
+                "operationId": "character:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "角色名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "性别",
+                        "name": "gender",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "角色层级",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/merge": {
+            "post": {
+                "description": "将多个重复角色合并到目标角色：迁移片段归属、合并别名，被合并角色标记为已合并并停用",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "合并角色",
+                "operationId": "character:merge",
+                "parameters": [
+                    {
+                        "description": "合并请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsCharacterMergeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/merge-generic/{project_id}": {
+            "post": {
+                "description": "将项目中\"老者\"\"店小二\"\"众人\"等泛称角色按性别与年龄段合并到路人池角色，dry_run 为 true 时仅预览",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "泛称角色归入路人池",
+                "operationId": "character:merge_generic",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsCharacterMergeGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/voice-match/{project_id}": {
+            "post": {
+                "description": "调用 LLM 根据角色描述和声音描述自动匹配，已绑定声音的角色自动跳过",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "LLM 自动匹配角色声音",
+                "operationId": "character:voice_match",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/{id}": {
+            "get": {
+                "description": "根据ID获取角色详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "获取角色详情",
+                "operationId": "character:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新角色信息（编辑别名、绑定声音配置等）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "更新角色",
+                "operationId": "character:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsCharacterUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "删除角色",
+                "operationId": "character:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/{id}/disable": {
+            "put": {
+                "description": "禁用指定角色",
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "禁用角色",
+                "operationId": "character:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/{id}/enable": {
+            "put": {
+                "description": "启用指定角色",
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "启用角色",
+                "operationId": "character:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/{id}/voice-design/apply": {
+            "post": {
+                "description": "将试听音频保存为声音配置（参考音频 + 参考台词 + 种子），并绑定到角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "保存音色设计",
+                "operationId": "character:voice_design_apply",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "保存请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VoiceDesignApplyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/{id}/voice-design/auto": {
+            "post": {
+                "description": "LLM 生成音色描述 → Voice Design 生成参考音频 → 保存为声音配置并绑定角色",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "一键自动生成音色",
+                "operationId": "character:voice_design_auto",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/{id}/voice-design/preview": {
+            "post": {
+                "description": "按音色描述调用 Breeze-TTS-2 Voice Design 生成试听音频，未传 seed 时随机生成",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "音色设计试听",
+                "operationId": "character:voice_design_preview",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "试听请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VoiceDesignPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/{id}/voice-design/suggest": {
+            "post": {
+                "description": "根据角色信息与台词，调用 LLM 生成音色描述（instruction）与参考台词（sample_text）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "LLM 生成音色描述",
+                "operationId": "character:voice_design",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/chapter/project/{project_id}": {
+            "get": {
+                "description": "获取指定项目的全部章节列表（不分页）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "获取项目下所有章节",
+                "operationId": "common:chapter:project",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/character/project/{project_id}": {
+            "get": {
+                "description": "获取指定项目下启用的角色列表（下拉选择用）",
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "获取项目下的角色选项",
+                "operationId": "common:character:project",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/dept/options": {
+            "get": {
+                "description": "获取简化的部门树形结构，用于下拉选择（指定部门等场景）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "通用接口"
+                ],
+                "summary": "获取部门选项树",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/project/workspace/{workspace_id}": {
+            "get": {
+                "description": "获取指定工作空间下的项目列表（下拉选择用）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "获取工作空间下的项目选项",
+                "operationId": "common:project:workspace",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工作空间ID",
+                        "name": "workspace_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/prompt-template/type/{type}": {
+            "get": {
+                "description": "按模板类型获取启用的Prompt模板列表（下拉选择用）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Prompt模板管理"
+                ],
+                "summary": "按类型获取Prompt模板选项",
+                "operationId": "common:prompt-template:type",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "模板类型",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/reference-audio/stream": {
+            "get": {
+                "description": "根据来源类型和ID以流的方式返回参考音频文件",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "通用上传"
+                ],
+                "summary": "流式获取参考音频",
+                "operationId": "common:referenceAudio:stream",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "来源类型（voice-asset/voice-profile/voice-emotion）",
+                        "name": "source",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "资源ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/role/options": {
+            "get": {
+                "description": "获取简化的角色列表，用于下拉选择（指定审批人角色等场景）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "通用接口"
+                ],
+                "summary": "获取角色选项列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "搜索关键词（角色名称）",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "返回数量限制",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/script-segment/chapter/{chapter_id}": {
+            "get": {
+                "description": "获取指定章节的全部脚本片段（不分页，按序号排列）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "脚本片段管理"
+                ],
+                "summary": "获取章节下所有脚本片段",
+                "operationId": "common:script-segment:chapter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/upload/reference-audio": {
+            "post": {
+                "description": "上传参考音频文件（mp3/wav/flac/ogg），返回存储路径和原始文件名",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "通用上传"
+                ],
+                "summary": "上传参考音频",
+                "operationId": "common:upload:referenceAudio",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "音频文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/user/options": {
+            "get": {
+                "description": "获取简化的用户列表，用于下拉选择（转办、指定审批人等场景）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "通用接口"
+                ],
+                "summary": "获取用户选项列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "搜索关键词（用户名/登录名）",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "部门ID",
+                        "name": "dept_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "返回数量限制",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/voice-asset/options": {
+            "get": {
+                "tags": [
+                    "声音资产"
+                ],
+                "summary": "获取所有启用的声音资产（下拉选择用）",
+                "operationId": "common:voice-asset:options",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/voice-emotion/asset/{voice_asset_id}": {
+            "get": {
+                "tags": [
+                    "情绪音频"
+                ],
+                "summary": "获取音色资产下的情绪音频列表",
+                "operationId": "common:voice-emotion:asset",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "音色资产ID",
+                        "name": "voice_asset_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/voice-emotion/profile/{voice_profile_id}": {
+            "get": {
+                "tags": [
+                    "情绪音频"
+                ],
+                "summary": "获取声音配置下的情绪音频列表",
+                "operationId": "common:voice-emotion:profile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音配置ID",
+                        "name": "voice_profile_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/voice-profile/project/{project_id}": {
+            "get": {
+                "description": "获取指定项目下启用的声音配置列表（下拉选择用）",
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "获取项目下的声音配置选项",
+                "operationId": "common:voice-profile:project",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/common/workspace/options": {
+            "get": {
+                "description": "获取启用的工作空间列表（下拉选择用）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "工作空间管理"
+                ],
+                "summary": "获取工作空间选项列表",
+                "operationId": "common:workspace:options",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/project": {
+            "post": {
+                "description": "在指定工作空间下创建新项目",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "创建项目",
+                "operationId": "project:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsProjectCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/project/import/upload": {
+            "post": {
+                "description": "为项目上传 txt/docx/epub 源文件",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "文件导入"
+                ],
+                "summary": "上传源文件",
+                "operationId": "project:import:upload",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "源文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/project/list": {
+            "get": {
+                "description": "分页获取项目列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "获取项目列表",
+                "operationId": "project:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "工作空间ID",
+                        "name": "workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "项目名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "项目状态",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "导入来源",
+                        "name": "source_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/project/{id}": {
+            "get": {
+                "description": "根据ID获取项目详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "获取项目详情",
+                "operationId": "project:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新项目信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "更新项目",
+                "operationId": "project:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsProjectUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定项目",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "项目管理"
+                ],
+                "summary": "删除项目",
+                "operationId": "project:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/pronunciation-dict": {
+            "post": {
+                "description": "创建新的发音词典条目",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "发音词典"
+                ],
+                "summary": "创建发音词典条目",
+                "operationId": "pronunciation-dict:add",
+                "parameters": [
+                    {
+                        "description": "词典条目信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsPronunciationDictCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/pronunciation-dict/list": {
+            "get": {
+                "description": "分页获取发音词典列表",
+                "tags": [
+                    "发音词典"
+                ],
+                "summary": "获取发音词典列表",
+                "operationId": "pronunciation-dict:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "原始词",
+                        "name": "word",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/pronunciation-dict/{id}": {
+            "get": {
+                "description": "根据ID获取发音词典条目详情",
+                "tags": [
+                    "发音词典"
+                ],
+                "summary": "获取发音词典条目详情",
+                "operationId": "pronunciation-dict:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "词典条目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新发音词典条目信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "发音词典"
+                ],
+                "summary": "更新发音词典条目",
+                "operationId": "pronunciation-dict:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "词典条目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "词典条目信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsPronunciationDictUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定发音词典条目",
+                "tags": [
+                    "发音词典"
+                ],
+                "summary": "删除发音词典条目",
+                "operationId": "pronunciation-dict:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "词典条目ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/script-segment": {
+            "post": {
+                "description": "创建新的脚本片段",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "脚本片段管理"
+                ],
+                "summary": "创建脚本片段",
+                "operationId": "script-segment:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsScriptSegmentCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/script-segment/insert-after/{id}": {
+            "post": {
+                "description": "在指定片段之后插入一个新的空白片段，自动重排序号",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "脚本片段管理"
+                ],
+                "summary": "在指定片段之后插入新片段",
+                "operationId": "script-segment:insertAfter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "目标片段ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "插入请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsScriptSegmentInsertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/script-segment/list": {
+            "get": {
+                "description": "分页获取脚本片段列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "脚本片段管理"
+                ],
+                "summary": "获取脚本片段列表",
+                "operationId": "script-segment:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "场景ID",
+                        "name": "scene_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "片段类型",
+                        "name": "segment_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "说话人ID",
+                        "name": "character_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/script-segment/{id}": {
+            "get": {
+                "description": "根据ID获取脚本片段详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "脚本片段管理"
+                ],
+                "summary": "获取脚本片段详情",
+                "operationId": "script-segment:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "片段ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新脚本片段信息（修正说话人、调整类型/情绪/强度等）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "脚本片段管理"
+                ],
+                "summary": "更新脚本片段",
+                "operationId": "script-segment:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "片段ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsScriptSegmentUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定脚本片段",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "脚本片段管理"
+                ],
+                "summary": "删除脚本片段",
+                "operationId": "script-segment:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "片段ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/system/api/list": {
             "get": {
                 "description": "分页获取系统API列表",
@@ -117,6 +4431,7 @@ const docTemplate = `{
                     "API管理"
                 ],
                 "summary": "获取API标签列表",
+                "operationId": "system:api:tag:list",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -501,6 +4816,741 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "部门ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/data": {
+            "post": {
+                "description": "创建新的字典数据",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典数据"
+                ],
+                "summary": "创建字典数据",
+                "operationId": "system:dict:data:add",
+                "parameters": [
+                    {
+                        "description": "创建字典数据请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.SysDictDataCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/data/list": {
+            "get": {
+                "description": "分页获取字典数据列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典数据"
+                ],
+                "summary": "获取字典数据列表",
+                "operationId": "system:dict:data:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "字典类型",
+                        "name": "dict_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "字典标签",
+                        "name": "dict_label",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/data/type/{dictType}": {
+            "get": {
+                "description": "根据字典类型获取所有启用的字典数据",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典数据"
+                ],
+                "summary": "根据字典类型获取字典数据",
+                "operationId": "system:dict:data:type",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "字典类型",
+                        "name": "dictType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/data/{id}": {
+            "get": {
+                "description": "根据ID获取字典数据详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典数据"
+                ],
+                "summary": "获取字典数据详情",
+                "operationId": "system:dict:data:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典数据ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新字典数据信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典数据"
+                ],
+                "summary": "更新字典数据",
+                "operationId": "system:dict:data:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典数据ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字典数据请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.SysDictDataUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定字典数据",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典数据"
+                ],
+                "summary": "删除字典数据",
+                "operationId": "system:dict:data:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典数据ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/data/{id}/disable": {
+            "put": {
+                "description": "禁用指定字典数据",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典数据"
+                ],
+                "summary": "禁用字典数据",
+                "operationId": "system:dict:data:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典数据ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/data/{id}/enable": {
+            "put": {
+                "description": "启用指定字典数据",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典数据"
+                ],
+                "summary": "启用字典数据",
+                "operationId": "system:dict:data:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典数据ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/type": {
+            "post": {
+                "description": "创建新的字典类型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典管理"
+                ],
+                "summary": "创建字典类型",
+                "operationId": "system:dict:add",
+                "parameters": [
+                    {
+                        "description": "创建字典类型请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.SysDictTypeCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/type/list": {
+            "get": {
+                "description": "分页获取字典类型列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典管理"
+                ],
+                "summary": "获取字典类型列表",
+                "operationId": "system:dict:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "字典名称",
+                        "name": "dict_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "字典类型",
+                        "name": "dict_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/type/{id}": {
+            "get": {
+                "description": "根据ID获取字典类型详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典管理"
+                ],
+                "summary": "获取字典类型详情",
+                "operationId": "system:dict:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新字典类型信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典管理"
+                ],
+                "summary": "更新字典类型",
+                "operationId": "system:dict:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字典类型请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.SysDictTypeUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定字典类型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典管理"
+                ],
+                "summary": "删除字典类型",
+                "operationId": "system:dict:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/type/{id}/disable": {
+            "put": {
+                "description": "禁用指定字典类型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典管理"
+                ],
+                "summary": "禁用字典类型",
+                "operationId": "system:dict:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/dict/type/{id}/enable": {
+            "put": {
+                "description": "启用指定字典类型",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "字典管理"
+                ],
+                "summary": "启用字典类型",
+                "operationId": "system:dict:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字典类型ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1032,6 +6082,210 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "菜单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/operlog/clean": {
+            "delete": {
+                "description": "清空所有操作日志",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "操作日志"
+                ],
+                "summary": "清空操作日志",
+                "operationId": "system:operlog:clean",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/operlog/list": {
+            "get": {
+                "description": "分页获取操作日志列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "操作日志"
+                ],
+                "summary": "获取操作日志列表",
+                "operationId": "system:operlog:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "模块标题",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "业务类型",
+                        "name": "business_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "操作人员",
+                        "name": "oper_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "操作状态",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始时间",
+                        "name": "begin_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间",
+                        "name": "end_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/operlog/{id}": {
+            "get": {
+                "description": "根据ID获取操作日志详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "操作日志"
+                ],
+                "summary": "获取操作日志详情",
+                "operationId": "system:operlog:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "操作日志ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定操作日志",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "操作日志"
+                ],
+                "summary": "删除操作日志",
+                "operationId": "system:operlog:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "操作日志ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1893,6 +7147,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/system/user/import": {
+            "post": {
+                "description": "通过Excel文件批量导入用户",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "导入用户",
+                "operationId": "system:user:import",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Excel文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/user/import/template": {
+            "get": {
+                "description": "下载用户导入Excel模板",
+                "produces": [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "下载用户导入模板",
+                "operationId": "system:user:import:template",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/system/user/list": {
             "get": {
                 "description": "分页获取用户列表",
@@ -2371,6 +7697,668 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/tts/audio/{segment_id}": {
+            "get": {
+                "description": "获取指定片段的当前版本音频信息",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "获取片段最新音频",
+                "operationId": "tts:audio",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "片段ID",
+                        "name": "segment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/batch-generate": {
+            "post": {
+                "description": "异步批量生成指定章节所有可生成片段的语音",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "批量生成章节语音",
+                "operationId": "tts:batchGenerate",
+                "parameters": [
+                    {
+                        "description": "批量生成请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.BatchGenerateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/chapter/{chapter_id}/active-task": {
+            "get": {
+                "description": "查询指定章节当前正在运行或等待中的生成任务",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "查询章节活跃任务",
+                "operationId": "tts:activeTask",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/chapter/{chapter_id}/cancel": {
+            "post": {
+                "description": "取消指定章节下所有排队中的片段",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "取消章节生成队列",
+                "operationId": "tts:cancelChapter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/chapter/{chapter_id}/export": {
+            "post": {
+                "description": "将章节下所有已生成的音频片段合并为一个文件",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "导出"
+                ],
+                "summary": "导出章节音频",
+                "operationId": "tts:exportChapter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "导出请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.ExportChapterAudioRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/chapter/{chapter_id}/lock": {
+            "put": {
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "批量锁定章节下所有已生成片段",
+                "operationId": "tts:batchLock",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/chapter/{chapter_id}/unlock": {
+            "put": {
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "批量解锁章节下所有已锁定片段",
+                "operationId": "tts:batchUnlock",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "章节ID",
+                        "name": "chapter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/character/{character_id}/regenerate": {
+            "post": {
+                "description": "重新生成整个项目中指定角色的所有片段配音（已锁定的片段除外）",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "按角色重新生成所有配音",
+                "operationId": "tts:regenerateByCharacter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "角色ID",
+                        "name": "character_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/export/{export_job_id}": {
+            "get": {
+                "tags": [
+                    "导出"
+                ],
+                "summary": "查询导出任务状态",
+                "operationId": "tts:getExportJob",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "导出任务ID",
+                        "name": "export_job_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/export/{export_job_id}/download": {
+            "get": {
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "导出"
+                ],
+                "summary": "下载导出文件",
+                "operationId": "tts:downloadExport",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "导出任务ID",
+                        "name": "export_job_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/project/{project_id}/active-tasks": {
+            "get": {
+                "description": "查询指定项目下所有正在运行或等待中的生成任务",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "查询项目活跃任务列表",
+                "operationId": "tts:projectActiveTasks",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/project/{project_id}/cancel": {
+            "post": {
+                "description": "取消指定项目下所有排队中的片段",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "取消项目生成队列",
+                "operationId": "tts:cancelProject",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/project/{project_id}/events": {
+            "get": {
+                "description": "通过 Server-Sent Events 实时推送整个项目的 TTS 生成事件（包含所有章节）",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "SSE 实时推送项目级 TTS 进度",
+                "operationId": "tts:projectEvents",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/segment/{segment_id}/lock": {
+            "put": {
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "锁定片段",
+                "operationId": "tts:lockSegment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "片段ID",
+                        "name": "segment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/segment/{segment_id}/unlock": {
+            "put": {
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "解锁片段",
+                "operationId": "tts:unlockSegment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "片段ID",
+                        "name": "segment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/stream/{clip_id}": {
+            "get": {
+                "description": "根据音频片段ID以流的方式返回音频数据",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "流式获取音频",
+                "operationId": "tts:streamAudio",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "音频片段ID",
+                        "name": "clip_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/synthesize/{segment_id}": {
+            "post": {
+                "description": "将单个片段加入TTS生成队列，返回任务ID用于轮询进度",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "合成单个片段语音（异步队列）",
+                "operationId": "tts:synthesize",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "片段ID",
+                        "name": "segment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/task/{task_id}": {
+            "get": {
+                "description": "查询异步生成任务的当前进度",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "查询任务进度",
+                "operationId": "tts:taskProgress",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "任务ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tts/voice-profile/{voice_profile_id}/regenerate": {
+            "post": {
+                "description": "重新生成整个项目中使用指定声音配置的所有片段配音（已锁定的片段除外）",
+                "tags": [
+                    "TTS合成"
+                ],
+                "summary": "按声音配置重新生成配音",
+                "operationId": "tts:regenerateByVoiceProfile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音配置ID",
+                        "name": "voice_profile_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user/info": {
             "get": {
                 "description": "获取当前登录用户的详细信息和权限",
@@ -2487,9 +8475,1157 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/user/update-password": {
+            "put": {
+                "description": "当前登录用户修改自己的密码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "修改当前用户密码",
+                "parameters": [
+                    {
+                        "description": "修改密码请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.SysUserUpdateCurrentPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-asset": {
+            "post": {
+                "tags": [
+                    "声音资产"
+                ],
+                "summary": "创建声音资产",
+                "operationId": "voice-asset:add",
+                "parameters": [
+                    {
+                        "description": "声音资产信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceAssetCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-asset/list": {
+            "get": {
+                "tags": [
+                    "声音资产"
+                ],
+                "summary": "获取声音资产列表",
+                "operationId": "voice-asset:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "性别",
+                        "name": "gender",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-asset/{id}": {
+            "get": {
+                "tags": [
+                    "声音资产"
+                ],
+                "summary": "获取声音资产详情",
+                "operationId": "voice-asset:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音资产ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "声音资产"
+                ],
+                "summary": "更新声音资产",
+                "operationId": "voice-asset:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音资产ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "声音资产信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceAssetUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "声音资产"
+                ],
+                "summary": "删除声音资产",
+                "operationId": "voice-asset:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音资产ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-asset/{id}/disable": {
+            "put": {
+                "tags": [
+                    "声音资产"
+                ],
+                "summary": "停用声音资产",
+                "operationId": "voice-asset:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音资产ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-asset/{id}/enable": {
+            "put": {
+                "tags": [
+                    "声音资产"
+                ],
+                "summary": "启用声音资产",
+                "operationId": "voice-asset:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音资产ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-emotion": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "情绪音频"
+                ],
+                "summary": "创建情绪音频",
+                "operationId": "voice-emotion:add",
+                "parameters": [
+                    {
+                        "description": "情绪音频信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceEmotionCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-emotion/list": {
+            "get": {
+                "tags": [
+                    "情绪音频"
+                ],
+                "summary": "获取情绪音频列表",
+                "operationId": "voice-emotion:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "声音配置ID",
+                        "name": "voice_profile_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "情绪类型",
+                        "name": "emotion_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "情绪强度",
+                        "name": "emotion_strength",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-emotion/{id}": {
+            "get": {
+                "tags": [
+                    "情绪音频"
+                ],
+                "summary": "获取情绪音频详情",
+                "operationId": "voice-emotion:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "情绪音频ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "情绪音频"
+                ],
+                "summary": "更新情绪音频",
+                "operationId": "voice-emotion:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "情绪音频ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "情绪音频信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceEmotionUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "情绪音频"
+                ],
+                "summary": "删除情绪音频",
+                "operationId": "voice-emotion:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "情绪音频ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-profile": {
+            "post": {
+                "description": "创建新的声音配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "创建声音配置",
+                "operationId": "voice-profile:add",
+                "parameters": [
+                    {
+                        "description": "声音配置信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceProfileCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-profile/import": {
+            "post": {
+                "description": "根据音色资产ID列表批量创建声音配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "从音色库批量导入声音配置",
+                "operationId": "voice-profile:import",
+                "parameters": [
+                    {
+                        "description": "导入请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceProfileImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-profile/list": {
+            "get": {
+                "description": "分页获取声音配置列表",
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "获取声音配置列表",
+                "operationId": "voice-profile:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "配置名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-profile/{id}": {
+            "get": {
+                "description": "根据ID获取声音配置详情",
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "获取声音配置详情",
+                "operationId": "voice-profile:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音配置ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新声音配置信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "更新声音配置",
+                "operationId": "voice-profile:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音配置ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "声音配置信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceProfileUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定声音配置",
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "删除声音配置",
+                "operationId": "voice-profile:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音配置ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-profile/{id}/disable": {
+            "put": {
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "停用声音配置",
+                "operationId": "voice-profile:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音配置ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/voice-profile/{id}/enable": {
+            "put": {
+                "tags": [
+                    "声音配置"
+                ],
+                "summary": "启用声音配置",
+                "operationId": "voice-profile:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "声音配置ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workspace": {
+            "post": {
+                "description": "创建新的工作空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "工作空间管理"
+                ],
+                "summary": "创建工作空间",
+                "operationId": "workspace:add",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsWorkspaceCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workspace/list": {
+            "get": {
+                "description": "分页获取工作空间列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "工作空间管理"
+                ],
+                "summary": "获取工作空间列表",
+                "operationId": "workspace:list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "当前页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "空间名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workspace/{id}": {
+            "get": {
+                "description": "根据ID获取工作空间详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "工作空间管理"
+                ],
+                "summary": "获取工作空间详情",
+                "operationId": "workspace:detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工作空间ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新工作空间信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "工作空间管理"
+                ],
+                "summary": "更新工作空间",
+                "operationId": "workspace:edit",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工作空间ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VsWorkspaceUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定工作空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "工作空间管理"
+                ],
+                "summary": "删除工作空间",
+                "operationId": "workspace:remove",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工作空间ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workspace/{id}/disable": {
+            "put": {
+                "description": "禁用指定工作空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "工作空间管理"
+                ],
+                "summary": "禁用工作空间",
+                "operationId": "workspace:disable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工作空间ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workspace/{id}/enable": {
+            "put": {
+                "description": "启用指定工作空间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "工作空间管理"
+                ],
+                "summary": "启用工作空间",
+                "operationId": "workspace:enable",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "工作空间ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "iot-alert-center_api_v1.BatchGenerateRequest": {
+            "type": "object",
+            "required": [
+                "chapter_id"
+            ],
+            "properties": {
+                "chapter_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.BatchSplitRequest": {
+            "type": "object",
+            "required": [
+                "chapter_ids",
+                "project_id"
+            ],
+            "properties": {
+                "chapter_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "project_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.CharacterExtractFromTextRequest": {
+            "type": "object",
+            "required": [
+                "project_id",
+                "text"
+            ],
+            "properties": {
+                "project_id": {
+                    "type": "integer"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.ExportChapterAudioRequest": {
+            "type": "object",
+            "required": [
+                "format"
+            ],
+            "properties": {
+                "format": {
+                    "description": "导出格式",
+                    "type": "string",
+                    "enum": [
+                        "wav",
+                        "mp3"
+                    ]
+                }
+            }
+        },
         "iot-alert-center_api_v1.MenuPerms": {
             "type": "object",
             "properties": {
@@ -2537,8 +9673,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "leader": {
-                    "description": "负责人",
+                    "description": "负责人姓名（冗余字段）",
                     "type": "string"
+                },
+                "leader_id": {
+                    "description": "负责人ID",
+                    "type": "integer"
                 },
                 "order_num": {
                     "description": "显示顺序",
@@ -2584,8 +9724,12 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "leader": {
-                    "description": "负责人",
+                    "description": "负责人姓名（冗余字段）",
                     "type": "string"
+                },
+                "leader_id": {
+                    "description": "负责人ID",
+                    "type": "integer"
                 },
                 "order_num": {
                     "description": "显示顺序",
@@ -2605,6 +9749,160 @@ const docTemplate = `{
                 },
                 "status": {
                     "description": "部门状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.SysDictDataCreateRequest": {
+            "type": "object",
+            "required": [
+                "dict_label",
+                "dict_type",
+                "dict_value",
+                "status"
+            ],
+            "properties": {
+                "css_class": {
+                    "description": "样式属性",
+                    "type": "string"
+                },
+                "dict_label": {
+                    "description": "字典标签",
+                    "type": "string"
+                },
+                "dict_sort": {
+                    "description": "字典排序",
+                    "type": "integer"
+                },
+                "dict_type": {
+                    "description": "字典类型",
+                    "type": "string"
+                },
+                "dict_value": {
+                    "description": "字典键值",
+                    "type": "string"
+                },
+                "is_default": {
+                    "description": "是否默认（Y是 N否）",
+                    "type": "string"
+                },
+                "list_class": {
+                    "description": "表格回显样式",
+                    "type": "string"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.SysDictDataUpdateRequest": {
+            "type": "object",
+            "required": [
+                "dict_label",
+                "dict_type",
+                "dict_value",
+                "id",
+                "status"
+            ],
+            "properties": {
+                "css_class": {
+                    "description": "样式属性",
+                    "type": "string"
+                },
+                "dict_label": {
+                    "description": "字典标签",
+                    "type": "string"
+                },
+                "dict_sort": {
+                    "description": "字典排序",
+                    "type": "integer"
+                },
+                "dict_type": {
+                    "description": "字典类型",
+                    "type": "string"
+                },
+                "dict_value": {
+                    "description": "字典键值",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_default": {
+                    "description": "是否默认（Y是 N否）",
+                    "type": "string"
+                },
+                "list_class": {
+                    "description": "表格回显样式",
+                    "type": "string"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.SysDictTypeCreateRequest": {
+            "type": "object",
+            "required": [
+                "dict_name",
+                "dict_type",
+                "status"
+            ],
+            "properties": {
+                "dict_name": {
+                    "description": "字典名称",
+                    "type": "string"
+                },
+                "dict_type": {
+                    "description": "字典类型",
+                    "type": "string"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.SysDictTypeUpdateRequest": {
+            "type": "object",
+            "required": [
+                "dict_name",
+                "dict_type",
+                "id",
+                "status"
+            ],
+            "properties": {
+                "dict_name": {
+                    "description": "字典名称",
+                    "type": "string"
+                },
+                "dict_type": {
+                    "description": "字典类型",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
                     "type": "string"
                 }
             }
@@ -2922,6 +10220,10 @@ const docTemplate = `{
                     "description": "账号状态",
                     "type": "string"
                 },
+                "superior_id": {
+                    "description": "直属上级ID",
+                    "type": "integer"
+                },
                 "user_name": {
                     "description": "用户昵称",
                     "type": "string"
@@ -2962,6 +10264,21 @@ const docTemplate = `{
                 }
             }
         },
+        "iot-alert-center_api_v1.SysUserUpdateCurrentPasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "old_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string"
+                },
+                "old_password": {
+                    "type": "string"
+                }
+            }
+        },
         "iot-alert-center_api_v1.SysUserUpdatePasswordRequest": {
             "type": "object",
             "required": [
@@ -2969,6 +10286,1172 @@ const docTemplate = `{
             ],
             "properties": {
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VoiceDesignApplyRequest": {
+            "type": "object",
+            "required": [
+                "instruction",
+                "preview_path",
+                "sample_text"
+            ],
+            "properties": {
+                "instruction": {
+                    "type": "string"
+                },
+                "name": {
+                    "description": "声音配置名称，默认使用角色名",
+                    "type": "string"
+                },
+                "preview_path": {
+                    "type": "string"
+                },
+                "sample_text": {
+                    "type": "string"
+                },
+                "seed": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VoiceDesignPreviewRequest": {
+            "type": "object",
+            "required": [
+                "instruction",
+                "sample_text"
+            ],
+            "properties": {
+                "instruction": {
+                    "description": "音色描述",
+                    "type": "string"
+                },
+                "sample_text": {
+                    "description": "参考台词（同时作为参考音频的转写文本）",
+                    "type": "string"
+                },
+                "seed": {
+                    "description": "随机种子，为空时随机生成",
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsChapterCreateRequest": {
+            "type": "object",
+            "required": [
+                "chapter_num",
+                "project_id"
+            ],
+            "properties": {
+                "chapter_num": {
+                    "description": "章节序号",
+                    "type": "integer"
+                },
+                "content": {
+                    "description": "章节原文",
+                    "type": "string"
+                },
+                "project_id": {
+                    "description": "所属项目",
+                    "type": "integer"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "章节标题",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsChapterUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "chapter_num": {
+                    "description": "章节序号",
+                    "type": "integer"
+                },
+                "content": {
+                    "description": "章节原文",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "章节状态",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "章节标题",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsCharacterCreateRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "project_id",
+                "status"
+            ],
+            "properties": {
+                "aliases": {
+                    "description": "别名列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "description": "角色描述",
+                    "type": "string"
+                },
+                "gender": {
+                    "description": "性别",
+                    "type": "string"
+                },
+                "level": {
+                    "description": "角色层级",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "角色名称",
+                    "type": "string"
+                },
+                "project_id": {
+                    "description": "所属项目",
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态",
+                    "type": "string"
+                },
+                "voice_profile_id": {
+                    "description": "绑定声音配置",
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsCharacterMergeGenericRequest": {
+            "type": "object",
+            "properties": {
+                "dry_run": {
+                    "description": "仅预览，不实际合并",
+                    "type": "boolean"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsCharacterMergeRequest": {
+            "type": "object",
+            "required": [
+                "source_ids",
+                "target_id"
+            ],
+            "properties": {
+                "source_ids": {
+                    "description": "被合并的角色",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "target_id": {
+                    "description": "合并目标角色",
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsCharacterUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "name",
+                "project_id",
+                "status"
+            ],
+            "properties": {
+                "aliases": {
+                    "description": "别名列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "description": "角色描述",
+                    "type": "string"
+                },
+                "gender": {
+                    "description": "性别",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "level": {
+                    "description": "角色层级",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "角色名称",
+                    "type": "string"
+                },
+                "project_id": {
+                    "description": "所属项目",
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态",
+                    "type": "string"
+                },
+                "voice_profile_id": {
+                    "description": "绑定声音配置",
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsLLMModelCreateRequest": {
+            "type": "object",
+            "required": [
+                "model_name",
+                "provider_id",
+                "status"
+            ],
+            "properties": {
+                "model_name": {
+                    "description": "模型标识",
+                    "type": "string"
+                },
+                "provider_id": {
+                    "description": "所属厂家ID",
+                    "type": "integer"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsLLMModelDeleteRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsLLMModelUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "model_name",
+                "provider_id",
+                "status"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "model_name": {
+                    "description": "模型标识",
+                    "type": "string"
+                },
+                "provider_id": {
+                    "description": "所属厂家ID",
+                    "type": "integer"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsLLMProviderCreateRequest": {
+            "type": "object",
+            "required": [
+                "api_base_url",
+                "name",
+                "status"
+            ],
+            "properties": {
+                "api_base_url": {
+                    "description": "API地址",
+                    "type": "string"
+                },
+                "api_key": {
+                    "description": "API密钥",
+                    "type": "string"
+                },
+                "max_concurrency": {
+                    "description": "最大并发数",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "厂家名称",
+                    "type": "string"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsLLMProviderDeleteRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsLLMProviderTestRequest": {
+            "type": "object",
+            "required": [
+                "api_base_url",
+                "model"
+            ],
+            "properties": {
+                "api_base_url": {
+                    "description": "API地址",
+                    "type": "string"
+                },
+                "api_key": {
+                    "description": "API密钥",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "已保存厂家 ID（api_key 脱敏时据此回查）",
+                    "type": "integer"
+                },
+                "model": {
+                    "description": "用于测试的模型标识",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsLLMProviderUpdateRequest": {
+            "type": "object",
+            "required": [
+                "api_base_url",
+                "id",
+                "name",
+                "status"
+            ],
+            "properties": {
+                "api_base_url": {
+                    "description": "API地址",
+                    "type": "string"
+                },
+                "api_key": {
+                    "description": "API密钥",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "max_concurrency": {
+                    "description": "最大并发数",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "厂家名称",
+                    "type": "string"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsProjectCreateRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "workspace_id"
+            ],
+            "properties": {
+                "cover_url": {
+                    "description": "封面图",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "项目描述",
+                    "type": "string"
+                },
+                "llm_model_id": {
+                    "description": "LLM模型ID",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "项目名称",
+                    "type": "string"
+                },
+                "prompt_template_ids": {
+                    "description": "Prompt模板ID映射",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "tts_provider_id": {
+                    "description": "TTS提供商ID",
+                    "type": "integer"
+                },
+                "workspace_id": {
+                    "description": "所属工作空间",
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsProjectUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "name"
+            ],
+            "properties": {
+                "cover_url": {
+                    "description": "封面图",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "项目描述",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "llm_model_id": {
+                    "description": "LLM模型ID",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "项目名称",
+                    "type": "string"
+                },
+                "prompt_template_ids": {
+                    "description": "Prompt模板ID映射",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "tts_provider_id": {
+                    "description": "TTS提供商ID",
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsPromptTemplateCreateRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "name",
+                "status",
+                "template_type"
+            ],
+            "properties": {
+                "content": {
+                    "description": "Prompt内容",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "模板描述",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "模板名称",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                },
+                "template_type": {
+                    "description": "模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsPromptTemplateUpdateRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "id",
+                "name",
+                "status",
+                "template_type"
+            ],
+            "properties": {
+                "content": {
+                    "description": "Prompt内容",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "模板描述",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "模板名称",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                },
+                "template_type": {
+                    "description": "模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsPronunciationDictCreateRequest": {
+            "type": "object",
+            "required": [
+                "phoneme",
+                "project_id",
+                "word"
+            ],
+            "properties": {
+                "phoneme": {
+                    "description": "发音标注",
+                    "type": "string"
+                },
+                "project_id": {
+                    "description": "所属项目",
+                    "type": "integer"
+                },
+                "remark": {
+                    "description": "备注",
+                    "type": "string"
+                },
+                "word": {
+                    "description": "原始词",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsPronunciationDictUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "phoneme",
+                "word"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "phoneme": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "word": {
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsScriptSegmentCreateRequest": {
+            "type": "object",
+            "required": [
+                "chapter_id",
+                "content",
+                "project_id",
+                "scene_id",
+                "segment_num",
+                "segment_type"
+            ],
+            "properties": {
+                "chapter_id": {
+                    "description": "所属章节",
+                    "type": "integer"
+                },
+                "character_id": {
+                    "description": "说话人角色ID",
+                    "type": "integer"
+                },
+                "content": {
+                    "description": "片段文本",
+                    "type": "string"
+                },
+                "emotion_strength": {
+                    "description": "情绪强度",
+                    "type": "string"
+                },
+                "emotion_type": {
+                    "description": "情绪类型",
+                    "type": "string"
+                },
+                "instruction": {
+                    "description": "演绎指令",
+                    "type": "string"
+                },
+                "original_content": {
+                    "description": "原始文本",
+                    "type": "string"
+                },
+                "project_id": {
+                    "description": "所属项目",
+                    "type": "integer"
+                },
+                "scene_id": {
+                    "description": "所属场景",
+                    "type": "integer"
+                },
+                "segment_num": {
+                    "description": "片段序号",
+                    "type": "integer"
+                },
+                "segment_type": {
+                    "description": "片段类型",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsScriptSegmentInsertRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "片段文本",
+                    "type": "string"
+                },
+                "segment_type": {
+                    "description": "片段类型（默认 narration）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsScriptSegmentUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "character_id": {
+                    "description": "说话人角色ID",
+                    "type": "integer"
+                },
+                "content": {
+                    "description": "片段文本",
+                    "type": "string"
+                },
+                "emotion_strength": {
+                    "description": "情绪强度",
+                    "type": "string"
+                },
+                "emotion_type": {
+                    "description": "情绪类型",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "instruction": {
+                    "description": "演绎指令（nil 表示不修改）",
+                    "type": "string"
+                },
+                "segment_num": {
+                    "description": "片段序号",
+                    "type": "integer"
+                },
+                "segment_type": {
+                    "description": "片段类型",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "片段状态",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsTTSProviderCreateRequest": {
+            "type": "object",
+            "required": [
+                "api_base_url",
+                "name",
+                "provider_type",
+                "status"
+            ],
+            "properties": {
+                "api_base_url": {
+                    "description": "API地址",
+                    "type": "string"
+                },
+                "api_key": {
+                    "description": "API密钥",
+                    "type": "string"
+                },
+                "custom_params": {
+                    "description": "自定义参数",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "max_concurrency": {
+                    "description": "最大并发数",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "显示名称",
+                    "type": "string"
+                },
+                "provider_type": {
+                    "description": "提供商类型（local/online/custom）",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                },
+                "supported_features": {
+                    "description": "支持的能力（emotion/clone/multi_speaker等）",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsTTSProviderTestRequest": {
+            "type": "object",
+            "required": [
+                "api_base_url",
+                "provider_type"
+            ],
+            "properties": {
+                "api_base_url": {
+                    "type": "string"
+                },
+                "api_key": {
+                    "type": "string"
+                },
+                "custom_params": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "provider_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsTTSProviderUpdateRequest": {
+            "type": "object",
+            "required": [
+                "api_base_url",
+                "id",
+                "name",
+                "provider_type",
+                "status"
+            ],
+            "properties": {
+                "api_base_url": {
+                    "description": "API地址",
+                    "type": "string"
+                },
+                "api_key": {
+                    "description": "API密钥",
+                    "type": "string"
+                },
+                "custom_params": {
+                    "description": "自定义参数",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "max_concurrency": {
+                    "description": "最大并发数",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "显示名称",
+                    "type": "string"
+                },
+                "provider_type": {
+                    "description": "提供商类型（local/online/custom）",
+                    "type": "string"
+                },
+                "sort_order": {
+                    "description": "排序",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                },
+                "supported_features": {
+                    "description": "支持的能力（emotion/clone/multi_speaker等）",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsVoiceAssetCreateRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "reference_audio_url": {
+                    "type": "string"
+                },
+                "reference_text": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tts_provider_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsVoiceAssetUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "reference_audio_url": {
+                    "type": "string"
+                },
+                "reference_text": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tts_provider_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsVoiceEmotionCreateRequest": {
+            "type": "object",
+            "required": [
+                "emotion_strength",
+                "emotion_type",
+                "reference_audio_url"
+            ],
+            "properties": {
+                "emotion_strength": {
+                    "type": "string"
+                },
+                "emotion_type": {
+                    "type": "string"
+                },
+                "reference_audio_url": {
+                    "type": "string"
+                },
+                "reference_text": {
+                    "type": "string"
+                },
+                "voice_asset_id": {
+                    "type": "integer"
+                },
+                "voice_profile_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsVoiceEmotionUpdateRequest": {
+            "type": "object",
+            "required": [
+                "emotion_strength",
+                "emotion_type",
+                "id",
+                "reference_audio_url"
+            ],
+            "properties": {
+                "emotion_strength": {
+                    "type": "string"
+                },
+                "emotion_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "reference_audio_url": {
+                    "type": "string"
+                },
+                "reference_text": {
+                    "type": "string"
+                },
+                "voice_asset_id": {
+                    "type": "integer"
+                },
+                "voice_profile_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsVoiceProfileCreateRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "project_id"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "reference_audio_url": {
+                    "type": "string"
+                },
+                "reference_text": {
+                    "type": "string"
+                },
+                "tts_params": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "tts_provider_id": {
+                    "type": "integer"
+                },
+                "voice_asset_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsVoiceProfileImportRequest": {
+            "type": "object",
+            "required": [
+                "project_id",
+                "voice_asset_ids"
+            ],
+            "properties": {
+                "project_id": {
+                    "description": "目标项目",
+                    "type": "integer"
+                },
+                "voice_asset_ids": {
+                    "description": "音色资产ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsVoiceProfileUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "name",
+                "project_id"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "reference_audio_url": {
+                    "type": "string"
+                },
+                "reference_text": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tts_params": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "tts_provider_id": {
+                    "type": "integer"
+                },
+                "voice_asset_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsWorkspaceCreateRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "status"
+            ],
+            "properties": {
+                "description": {
+                    "description": "描述",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "空间名称",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.VsWorkspaceUpdateRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "name",
+                "status"
+            ],
+            "properties": {
+                "description": {
+                    "description": "描述",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "空间名称",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态（0正常 1停用）",
                     "type": "string"
                 }
             }

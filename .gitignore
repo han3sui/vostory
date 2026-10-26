@@ -1,0 +1,2 @@
+# MCP 配置含数据库凭据，勿提交
+.cursor/mcp.json

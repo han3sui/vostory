@@ -10,6 +10,7 @@ import (
 	"iot-alert-center/internal/client/resty"
 	"iot-alert-center/internal/handler"
 	"iot-alert-center/internal/job"
+	"iot-alert-center/internal/llmconfig"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/server"
 	"iot-alert-center/internal/service"
@@ -45,6 +46,7 @@ var repositorySet = wire.NewSet(
 	repository.NewSysDictDataRepository,
 	repository.NewSysOperLogRepository,
 	repository.NewVsLLMProviderRepository,
+	repository.NewVsLLMModelRepository,
 	repository.NewVsTTSProviderRepository,
 	repository.NewVsPromptTemplateRepository,
 	repository.NewVsWorkspaceRepository,
@@ -76,6 +78,8 @@ var serviceSet = wire.NewSet(
 	service.NewSysDictDataService,
 	service.NewSysOperLogService,
 	service.NewVsLLMProviderService,
+	service.NewVsLLMModelService,
+	llmconfig.NewResolver,
 	service.NewVsTTSProviderService,
 	service.NewVsPromptTemplateService,
 	service.NewVsWorkspaceService,
@@ -115,6 +119,7 @@ var handlerSet = wire.NewSet(
 	handler.NewSysDictDataHandler,
 	handler.NewSysOperLogHandler,
 	handler.NewVsLLMProviderHandler,
+	handler.NewVsLLMModelHandler,
 	handler.NewVsTTSProviderHandler,
 	handler.NewVsPromptTemplateHandler,
 	handler.NewVsWorkspaceHandler,

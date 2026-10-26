@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"iot-alert-center/internal/llmconfig"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/service"
 	"iot-alert-center/pkg/log"
@@ -25,6 +26,7 @@ type LLMWorker struct {
 	splitSvc     service.VsChapterSplitService
 	providerRepo repository.VsLLMProviderRepository
 	projectRepo  repository.VsProjectRepository
+	llmResolver  llmconfig.Resolver
 	cancel       context.CancelFunc
 	wg           sync.WaitGroup
 
@@ -41,6 +43,7 @@ func NewLLMWorker(
 	splitSvc service.VsChapterSplitService,
 	providerRepo repository.VsLLMProviderRepository,
 	projectRepo repository.VsProjectRepository,
+	llmResolver llmconfig.Resolver,
 ) *LLMWorker {
 	return &LLMWorker{
 		rdb:          rdb,
@@ -50,6 +53,7 @@ func NewLLMWorker(
 		splitSvc:     splitSvc,
 		providerRepo: providerRepo,
 		projectRepo:  projectRepo,
+		llmResolver:  llmResolver,
 		providerSems: make(map[uint64]chan struct{}),
 		defaultSem:   make(chan struct{}, 1),
 	}
@@ -182,10 +186,11 @@ func (w *LLMWorker) resolveProviderID(ctx context.Context, taskID uint64) uint64
 	if err != nil {
 		return 0
 	}
-	if project.LLMProviderID != nil {
-		return *project.LLMProviderID
+	resolved, err := w.llmResolver.ResolveByProject(ctx, project)
+	if err != nil {
+		return 0
 	}
-	return 0
+	return resolved.ProviderID
 }
 
 func (w *LLMWorker) consumeLoop(ctx context.Context) {

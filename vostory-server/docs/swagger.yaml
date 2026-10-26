@@ -1,4 +1,45 @@
 definitions:
+  iot-alert-center_api_v1.BatchGenerateRequest:
+    properties:
+      chapter_id:
+        type: integer
+    required:
+    - chapter_id
+    type: object
+  iot-alert-center_api_v1.BatchSplitRequest:
+    properties:
+      chapter_ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+      project_id:
+        type: integer
+    required:
+    - chapter_ids
+    - project_id
+    type: object
+  iot-alert-center_api_v1.CharacterExtractFromTextRequest:
+    properties:
+      project_id:
+        type: integer
+      text:
+        type: string
+    required:
+    - project_id
+    - text
+    type: object
+  iot-alert-center_api_v1.ExportChapterAudioRequest:
+    properties:
+      format:
+        description: 导出格式
+        enum:
+        - wav
+        - mp3
+        type: string
+    required:
+    - format
+    type: object
   iot-alert-center_api_v1.MenuPerms:
     properties:
       menu_name:
@@ -28,8 +69,11 @@ definitions:
         description: 邮箱
         type: string
       leader:
-        description: 负责人
+        description: 负责人姓名（冗余字段）
         type: string
+      leader_id:
+        description: 负责人ID
+        type: integer
       order_num:
         description: 显示顺序
         type: integer
@@ -62,8 +106,11 @@ definitions:
       id:
         type: integer
       leader:
-        description: 负责人
+        description: 负责人姓名（冗余字段）
         type: string
+      leader_id:
+        description: 负责人ID
+        type: integer
       order_num:
         description: 显示顺序
         type: integer
@@ -84,6 +131,120 @@ definitions:
     - id
     - order_num
     - parent_id
+    - status
+    type: object
+  iot-alert-center_api_v1.SysDictDataCreateRequest:
+    properties:
+      css_class:
+        description: 样式属性
+        type: string
+      dict_label:
+        description: 字典标签
+        type: string
+      dict_sort:
+        description: 字典排序
+        type: integer
+      dict_type:
+        description: 字典类型
+        type: string
+      dict_value:
+        description: 字典键值
+        type: string
+      is_default:
+        description: 是否默认（Y是 N否）
+        type: string
+      list_class:
+        description: 表格回显样式
+        type: string
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - dict_label
+    - dict_type
+    - dict_value
+    - status
+    type: object
+  iot-alert-center_api_v1.SysDictDataUpdateRequest:
+    properties:
+      css_class:
+        description: 样式属性
+        type: string
+      dict_label:
+        description: 字典标签
+        type: string
+      dict_sort:
+        description: 字典排序
+        type: integer
+      dict_type:
+        description: 字典类型
+        type: string
+      dict_value:
+        description: 字典键值
+        type: string
+      id:
+        type: integer
+      is_default:
+        description: 是否默认（Y是 N否）
+        type: string
+      list_class:
+        description: 表格回显样式
+        type: string
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - dict_label
+    - dict_type
+    - dict_value
+    - id
+    - status
+    type: object
+  iot-alert-center_api_v1.SysDictTypeCreateRequest:
+    properties:
+      dict_name:
+        description: 字典名称
+        type: string
+      dict_type:
+        description: 字典类型
+        type: string
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - dict_name
+    - dict_type
+    - status
+    type: object
+  iot-alert-center_api_v1.SysDictTypeUpdateRequest:
+    properties:
+      dict_name:
+        description: 字典名称
+        type: string
+      dict_type:
+        description: 字典类型
+        type: string
+      id:
+        type: integer
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - dict_name
+    - dict_type
+    - id
     - status
     type: object
   iot-alert-center_api_v1.SysMenuCreateRequest:
@@ -311,6 +472,9 @@ definitions:
       status:
         description: 账号状态
         type: string
+      superior_id:
+        description: 直属上级ID
+        type: integer
       user_name:
         description: 用户昵称
         type: string
@@ -343,12 +507,857 @@ definitions:
     - new_password
     - user_id
     type: object
+  iot-alert-center_api_v1.SysUserUpdateCurrentPasswordRequest:
+    properties:
+      new_password:
+        type: string
+      old_password:
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
   iot-alert-center_api_v1.SysUserUpdatePasswordRequest:
     properties:
       password:
         type: string
     required:
     - password
+    type: object
+  iot-alert-center_api_v1.VoiceDesignApplyRequest:
+    properties:
+      instruction:
+        type: string
+      name:
+        description: 声音配置名称，默认使用角色名
+        type: string
+      preview_path:
+        type: string
+      sample_text:
+        type: string
+      seed:
+        type: integer
+    required:
+    - instruction
+    - preview_path
+    - sample_text
+    type: object
+  iot-alert-center_api_v1.VoiceDesignPreviewRequest:
+    properties:
+      instruction:
+        description: 音色描述
+        type: string
+      sample_text:
+        description: 参考台词（同时作为参考音频的转写文本）
+        type: string
+      seed:
+        description: 随机种子，为空时随机生成
+        type: integer
+    required:
+    - instruction
+    - sample_text
+    type: object
+  iot-alert-center_api_v1.VsChapterCreateRequest:
+    properties:
+      chapter_num:
+        description: 章节序号
+        type: integer
+      content:
+        description: 章节原文
+        type: string
+      project_id:
+        description: 所属项目
+        type: integer
+      remark:
+        description: 备注
+        type: string
+      title:
+        description: 章节标题
+        type: string
+    required:
+    - chapter_num
+    - project_id
+    type: object
+  iot-alert-center_api_v1.VsChapterUpdateRequest:
+    properties:
+      chapter_num:
+        description: 章节序号
+        type: integer
+      content:
+        description: 章节原文
+        type: string
+      id:
+        type: integer
+      remark:
+        description: 备注
+        type: string
+      status:
+        description: 章节状态
+        type: string
+      title:
+        description: 章节标题
+        type: string
+    required:
+    - id
+    type: object
+  iot-alert-center_api_v1.VsCharacterCreateRequest:
+    properties:
+      aliases:
+        description: 别名列表
+        items:
+          type: string
+        type: array
+      description:
+        description: 角色描述
+        type: string
+      gender:
+        description: 性别
+        type: string
+      level:
+        description: 角色层级
+        type: string
+      name:
+        description: 角色名称
+        type: string
+      project_id:
+        description: 所属项目
+        type: integer
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态
+        type: string
+      voice_profile_id:
+        description: 绑定声音配置
+        type: integer
+    required:
+    - name
+    - project_id
+    - status
+    type: object
+  iot-alert-center_api_v1.VsCharacterMergeGenericRequest:
+    properties:
+      dry_run:
+        description: 仅预览，不实际合并
+        type: boolean
+    type: object
+  iot-alert-center_api_v1.VsCharacterMergeRequest:
+    properties:
+      source_ids:
+        description: 被合并的角色
+        items:
+          type: integer
+        minItems: 1
+        type: array
+      target_id:
+        description: 合并目标角色
+        type: integer
+    required:
+    - source_ids
+    - target_id
+    type: object
+  iot-alert-center_api_v1.VsCharacterUpdateRequest:
+    properties:
+      aliases:
+        description: 别名列表
+        items:
+          type: string
+        type: array
+      description:
+        description: 角色描述
+        type: string
+      gender:
+        description: 性别
+        type: string
+      id:
+        type: integer
+      level:
+        description: 角色层级
+        type: string
+      name:
+        description: 角色名称
+        type: string
+      project_id:
+        description: 所属项目
+        type: integer
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态
+        type: string
+      voice_profile_id:
+        description: 绑定声音配置
+        type: integer
+    required:
+    - id
+    - name
+    - project_id
+    - status
+    type: object
+  iot-alert-center_api_v1.VsLLMModelCreateRequest:
+    properties:
+      model_name:
+        description: 模型标识
+        type: string
+      provider_id:
+        description: 所属厂家ID
+        type: integer
+      remark:
+        description: 备注
+        type: string
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - model_name
+    - provider_id
+    - status
+    type: object
+  iot-alert-center_api_v1.VsLLMModelDeleteRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  iot-alert-center_api_v1.VsLLMModelUpdateRequest:
+    properties:
+      id:
+        type: integer
+      model_name:
+        description: 模型标识
+        type: string
+      provider_id:
+        description: 所属厂家ID
+        type: integer
+      remark:
+        description: 备注
+        type: string
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - id
+    - model_name
+    - provider_id
+    - status
+    type: object
+  iot-alert-center_api_v1.VsLLMProviderCreateRequest:
+    properties:
+      api_base_url:
+        description: API地址
+        type: string
+      api_key:
+        description: API密钥
+        type: string
+      max_concurrency:
+        description: 最大并发数
+        type: integer
+      name:
+        description: 厂家名称
+        type: string
+      remark:
+        description: 备注
+        type: string
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - api_base_url
+    - name
+    - status
+    type: object
+  iot-alert-center_api_v1.VsLLMProviderDeleteRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  iot-alert-center_api_v1.VsLLMProviderTestRequest:
+    properties:
+      api_base_url:
+        description: API地址
+        type: string
+      api_key:
+        description: API密钥
+        type: string
+      id:
+        description: 已保存厂家 ID（api_key 脱敏时据此回查）
+        type: integer
+      model:
+        description: 用于测试的模型标识
+        type: string
+    required:
+    - api_base_url
+    - model
+    type: object
+  iot-alert-center_api_v1.VsLLMProviderUpdateRequest:
+    properties:
+      api_base_url:
+        description: API地址
+        type: string
+      api_key:
+        description: API密钥
+        type: string
+      id:
+        type: integer
+      max_concurrency:
+        description: 最大并发数
+        type: integer
+      name:
+        description: 厂家名称
+        type: string
+      remark:
+        description: 备注
+        type: string
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - api_base_url
+    - id
+    - name
+    - status
+    type: object
+  iot-alert-center_api_v1.VsProjectCreateRequest:
+    properties:
+      cover_url:
+        description: 封面图
+        type: string
+      description:
+        description: 项目描述
+        type: string
+      llm_model_id:
+        description: LLM模型ID
+        type: integer
+      name:
+        description: 项目名称
+        type: string
+      prompt_template_ids:
+        additionalProperties:
+          type: integer
+        description: Prompt模板ID映射
+        type: object
+      remark:
+        description: 备注
+        type: string
+      tts_provider_id:
+        description: TTS提供商ID
+        type: integer
+      workspace_id:
+        description: 所属工作空间
+        type: integer
+    required:
+    - name
+    - workspace_id
+    type: object
+  iot-alert-center_api_v1.VsProjectUpdateRequest:
+    properties:
+      cover_url:
+        description: 封面图
+        type: string
+      description:
+        description: 项目描述
+        type: string
+      id:
+        type: integer
+      llm_model_id:
+        description: LLM模型ID
+        type: integer
+      name:
+        description: 项目名称
+        type: string
+      prompt_template_ids:
+        additionalProperties:
+          type: integer
+        description: Prompt模板ID映射
+        type: object
+      remark:
+        description: 备注
+        type: string
+      tts_provider_id:
+        description: TTS提供商ID
+        type: integer
+    required:
+    - id
+    - name
+    type: object
+  iot-alert-center_api_v1.VsPromptTemplateCreateRequest:
+    properties:
+      content:
+        description: Prompt内容
+        type: string
+      description:
+        description: 模板描述
+        type: string
+      name:
+        description: 模板名称
+        type: string
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+      template_type:
+        description: 模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）
+        type: string
+    required:
+    - content
+    - name
+    - status
+    - template_type
+    type: object
+  iot-alert-center_api_v1.VsPromptTemplateUpdateRequest:
+    properties:
+      content:
+        description: Prompt内容
+        type: string
+      description:
+        description: 模板描述
+        type: string
+      id:
+        type: integer
+      name:
+        description: 模板名称
+        type: string
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+      template_type:
+        description: 模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）
+        type: string
+    required:
+    - content
+    - id
+    - name
+    - status
+    - template_type
+    type: object
+  iot-alert-center_api_v1.VsPronunciationDictCreateRequest:
+    properties:
+      phoneme:
+        description: 发音标注
+        type: string
+      project_id:
+        description: 所属项目
+        type: integer
+      remark:
+        description: 备注
+        type: string
+      word:
+        description: 原始词
+        type: string
+    required:
+    - phoneme
+    - project_id
+    - word
+    type: object
+  iot-alert-center_api_v1.VsPronunciationDictUpdateRequest:
+    properties:
+      id:
+        type: integer
+      phoneme:
+        type: string
+      remark:
+        type: string
+      word:
+        type: string
+    required:
+    - id
+    - phoneme
+    - word
+    type: object
+  iot-alert-center_api_v1.VsScriptSegmentCreateRequest:
+    properties:
+      chapter_id:
+        description: 所属章节
+        type: integer
+      character_id:
+        description: 说话人角色ID
+        type: integer
+      content:
+        description: 片段文本
+        type: string
+      emotion_strength:
+        description: 情绪强度
+        type: string
+      emotion_type:
+        description: 情绪类型
+        type: string
+      instruction:
+        description: 演绎指令
+        type: string
+      original_content:
+        description: 原始文本
+        type: string
+      project_id:
+        description: 所属项目
+        type: integer
+      scene_id:
+        description: 所属场景
+        type: integer
+      segment_num:
+        description: 片段序号
+        type: integer
+      segment_type:
+        description: 片段类型
+        type: string
+    required:
+    - chapter_id
+    - content
+    - project_id
+    - scene_id
+    - segment_num
+    - segment_type
+    type: object
+  iot-alert-center_api_v1.VsScriptSegmentInsertRequest:
+    properties:
+      content:
+        description: 片段文本
+        type: string
+      segment_type:
+        description: 片段类型（默认 narration）
+        type: string
+    type: object
+  iot-alert-center_api_v1.VsScriptSegmentUpdateRequest:
+    properties:
+      character_id:
+        description: 说话人角色ID
+        type: integer
+      content:
+        description: 片段文本
+        type: string
+      emotion_strength:
+        description: 情绪强度
+        type: string
+      emotion_type:
+        description: 情绪类型
+        type: string
+      id:
+        type: integer
+      instruction:
+        description: 演绎指令（nil 表示不修改）
+        type: string
+      segment_num:
+        description: 片段序号
+        type: integer
+      segment_type:
+        description: 片段类型
+        type: string
+      status:
+        description: 片段状态
+        type: string
+    required:
+    - id
+    type: object
+  iot-alert-center_api_v1.VsTTSProviderCreateRequest:
+    properties:
+      api_base_url:
+        description: API地址
+        type: string
+      api_key:
+        description: API密钥
+        type: string
+      custom_params:
+        additionalProperties: true
+        description: 自定义参数
+        type: object
+      max_concurrency:
+        description: 最大并发数
+        type: integer
+      name:
+        description: 显示名称
+        type: string
+      provider_type:
+        description: 提供商类型（local/online/custom）
+        type: string
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+      supported_features:
+        description: 支持的能力（emotion/clone/multi_speaker等）
+        items:
+          type: string
+        type: array
+    required:
+    - api_base_url
+    - name
+    - provider_type
+    - status
+    type: object
+  iot-alert-center_api_v1.VsTTSProviderTestRequest:
+    properties:
+      api_base_url:
+        type: string
+      api_key:
+        type: string
+      custom_params:
+        additionalProperties: true
+        type: object
+      provider_type:
+        type: string
+    required:
+    - api_base_url
+    - provider_type
+    type: object
+  iot-alert-center_api_v1.VsTTSProviderUpdateRequest:
+    properties:
+      api_base_url:
+        description: API地址
+        type: string
+      api_key:
+        description: API密钥
+        type: string
+      custom_params:
+        additionalProperties: true
+        description: 自定义参数
+        type: object
+      id:
+        type: integer
+      max_concurrency:
+        description: 最大并发数
+        type: integer
+      name:
+        description: 显示名称
+        type: string
+      provider_type:
+        description: 提供商类型（local/online/custom）
+        type: string
+      sort_order:
+        description: 排序
+        type: integer
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+      supported_features:
+        description: 支持的能力（emotion/clone/multi_speaker等）
+        items:
+          type: string
+        type: array
+    required:
+    - api_base_url
+    - id
+    - name
+    - provider_type
+    - status
+    type: object
+  iot-alert-center_api_v1.VsVoiceAssetCreateRequest:
+    properties:
+      description:
+        type: string
+      gender:
+        type: string
+      name:
+        type: string
+      reference_audio_url:
+        type: string
+      reference_text:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      tts_provider_id:
+        type: integer
+    required:
+    - name
+    type: object
+  iot-alert-center_api_v1.VsVoiceAssetUpdateRequest:
+    properties:
+      description:
+        type: string
+      gender:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      reference_audio_url:
+        type: string
+      reference_text:
+        type: string
+      status:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      tts_provider_id:
+        type: integer
+    required:
+    - id
+    - name
+    type: object
+  iot-alert-center_api_v1.VsVoiceEmotionCreateRequest:
+    properties:
+      emotion_strength:
+        type: string
+      emotion_type:
+        type: string
+      reference_audio_url:
+        type: string
+      reference_text:
+        type: string
+      voice_asset_id:
+        type: integer
+      voice_profile_id:
+        type: integer
+    required:
+    - emotion_strength
+    - emotion_type
+    - reference_audio_url
+    type: object
+  iot-alert-center_api_v1.VsVoiceEmotionUpdateRequest:
+    properties:
+      emotion_strength:
+        type: string
+      emotion_type:
+        type: string
+      id:
+        type: integer
+      reference_audio_url:
+        type: string
+      reference_text:
+        type: string
+      voice_asset_id:
+        type: integer
+      voice_profile_id:
+        type: integer
+    required:
+    - emotion_strength
+    - emotion_type
+    - id
+    - reference_audio_url
+    type: object
+  iot-alert-center_api_v1.VsVoiceProfileCreateRequest:
+    properties:
+      description:
+        type: string
+      gender:
+        type: string
+      name:
+        type: string
+      project_id:
+        type: integer
+      reference_audio_url:
+        type: string
+      reference_text:
+        type: string
+      tts_params:
+        additionalProperties: true
+        type: object
+      tts_provider_id:
+        type: integer
+      voice_asset_id:
+        type: integer
+    required:
+    - name
+    - project_id
+    type: object
+  iot-alert-center_api_v1.VsVoiceProfileImportRequest:
+    properties:
+      project_id:
+        description: 目标项目
+        type: integer
+      voice_asset_ids:
+        description: 音色资产ID列表
+        items:
+          type: integer
+        type: array
+    required:
+    - project_id
+    - voice_asset_ids
+    type: object
+  iot-alert-center_api_v1.VsVoiceProfileUpdateRequest:
+    properties:
+      description:
+        type: string
+      gender:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      reference_audio_url:
+        type: string
+      reference_text:
+        type: string
+      status:
+        type: string
+      tts_params:
+        additionalProperties: true
+        type: object
+      tts_provider_id:
+        type: integer
+      voice_asset_id:
+        type: integer
+    required:
+    - id
+    - name
+    - project_id
+    type: object
+  iot-alert-center_api_v1.VsWorkspaceCreateRequest:
+    properties:
+      description:
+        description: 描述
+        type: string
+      name:
+        description: 空间名称
+        type: string
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - name
+    - status
+    type: object
+  iot-alert-center_api_v1.VsWorkspaceUpdateRequest:
+    properties:
+      description:
+        description: 描述
+        type: string
+      id:
+        type: integer
+      name:
+        description: 空间名称
+        type: string
+      status:
+        description: 状态（0正常 1停用）
+        type: string
+    required:
+    - id
+    - name
+    - status
     type: object
 host: localhost:8000
 info:
@@ -364,6 +1373,2879 @@ info:
   title: Nunu Example API
   version: 1.0.0
 paths:
+  /api/v1/ai/llm-log/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定LLM调用日志
+      operationId: ai:llm-log:remove
+      parameters:
+      - description: 日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除LLM调用日志
+      tags:
+      - LLM调用日志
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取LLM调用日志详情
+      operationId: ai:llm-log:detail
+      parameters:
+      - description: 日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取LLM调用日志详情
+      tags:
+      - LLM调用日志
+  /api/v1/ai/llm-log/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取LLM调用日志列表
+      operationId: ai:llm-log:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 项目ID
+        in: query
+        name: project_id
+        type: integer
+      - description: 提供商ID
+        in: query
+        name: provider_id
+        type: integer
+      - description: 模型名称
+        in: query
+        name: model_name
+        type: string
+      - description: 状态（0成功 1失败, -1全部）
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取LLM调用日志列表
+      tags:
+      - LLM调用日志
+  /api/v1/ai/model:
+    delete:
+      consumes:
+      - application/json
+      description: 批量删除LLM模型
+      operationId: ai:model:remove
+      parameters:
+      - description: 删除请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsLLMModelDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 批量删除LLM模型
+      tags:
+      - LLM模型管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的LLM模型
+      operationId: ai:model:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsLLMModelCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建LLM模型
+      tags:
+      - LLM模型管理
+  /api/v1/ai/model/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定LLM模型
+      operationId: ai:model:remove
+      parameters:
+      - description: 模型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除LLM模型
+      tags:
+      - LLM模型管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取LLM模型详情
+      operationId: ai:model:view
+      parameters:
+      - description: 模型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取LLM模型详情
+      tags:
+      - LLM模型管理
+    put:
+      consumes:
+      - application/json
+      description: 更新LLM模型
+      operationId: ai:model:edit
+      parameters:
+      - description: 模型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsLLMModelUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新LLM模型
+      tags:
+      - LLM模型管理
+  /api/v1/ai/model/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定LLM模型
+      operationId: ai:model:disable
+      parameters:
+      - description: 模型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用LLM模型
+      tags:
+      - LLM模型管理
+  /api/v1/ai/model/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定LLM模型
+      operationId: ai:model:enable
+      parameters:
+      - description: 模型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用LLM模型
+      tags:
+      - LLM模型管理
+  /api/v1/ai/model/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取LLM模型列表
+      operationId: ai:model:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 厂家ID
+        in: query
+        name: provider_id
+        type: integer
+      - description: 模型标识
+        in: query
+        name: model_name
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取LLM模型列表
+      tags:
+      - LLM模型管理
+  /api/v1/ai/prompt-template:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的Prompt模板
+      operationId: ai:prompt-template:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsPromptTemplateCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建Prompt模板
+      tags:
+      - Prompt模板管理
+  /api/v1/ai/prompt-template/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定Prompt模板（系统内置模板不允许删除）
+      operationId: ai:prompt-template:remove
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除Prompt模板
+      tags:
+      - Prompt模板管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取Prompt模板详情
+      operationId: ai:prompt-template:detail
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取Prompt模板详情
+      tags:
+      - Prompt模板管理
+    put:
+      consumes:
+      - application/json
+      description: 更新Prompt模板
+      operationId: ai:prompt-template:edit
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsPromptTemplateUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新Prompt模板
+      tags:
+      - Prompt模板管理
+  /api/v1/ai/prompt-template/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定Prompt模板
+      operationId: ai:prompt-template:disable
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用Prompt模板
+      tags:
+      - Prompt模板管理
+  /api/v1/ai/prompt-template/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定Prompt模板
+      operationId: ai:prompt-template:enable
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用Prompt模板
+      tags:
+      - Prompt模板管理
+  /api/v1/ai/prompt-template/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取Prompt模板列表
+      operationId: ai:prompt-template:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 模板名称
+        in: query
+        name: name
+        type: string
+      - description: 模板类型
+        in: query
+        name: template_type
+        type: string
+      - description: 是否系统内置
+        in: query
+        name: is_system
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取Prompt模板列表
+      tags:
+      - Prompt模板管理
+  /api/v1/ai/provider:
+    delete:
+      consumes:
+      - application/json
+      description: 批量删除LLM厂家
+      operationId: ai:provider:remove
+      parameters:
+      - description: 删除请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsLLMProviderDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 批量删除LLM厂家
+      tags:
+      - LLM厂家配置
+    post:
+      consumes:
+      - application/json
+      description: 创建新的LLM厂家配置
+      operationId: ai:provider:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsLLMProviderCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建LLM厂家
+      tags:
+      - LLM厂家配置
+  /api/v1/ai/provider/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定LLM厂家
+      operationId: ai:provider:remove
+      parameters:
+      - description: 厂家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除LLM厂家
+      tags:
+      - LLM厂家配置
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取LLM厂家详情
+      operationId: ai:provider:view
+      parameters:
+      - description: 厂家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取LLM厂家详情
+      tags:
+      - LLM厂家配置
+    put:
+      consumes:
+      - application/json
+      description: 更新LLM厂家配置
+      operationId: ai:provider:edit
+      parameters:
+      - description: 厂家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsLLMProviderUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新LLM厂家
+      tags:
+      - LLM厂家配置
+  /api/v1/ai/provider/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定LLM厂家
+      operationId: ai:provider:disable
+      parameters:
+      - description: 厂家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用LLM厂家
+      tags:
+      - LLM厂家配置
+  /api/v1/ai/provider/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定LLM厂家
+      operationId: ai:provider:enable
+      parameters:
+      - description: 厂家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用LLM厂家
+      tags:
+      - LLM厂家配置
+  /api/v1/ai/provider/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取LLM厂家列表
+      operationId: ai:provider:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 名称
+        in: query
+        name: name
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取LLM厂家列表
+      tags:
+      - LLM厂家配置
+  /api/v1/ai/provider/test:
+    post:
+      consumes:
+      - application/json
+      description: 测试LLM厂家API连通性
+      operationId: ai:provider:test
+      parameters:
+      - description: 测试请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsLLMProviderTestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 测试LLM厂家连通性
+      tags:
+      - LLM厂家配置
+  /api/v1/ai/tts-provider:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的TTS提供商配置
+      operationId: ai:tts-provider:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsTTSProviderCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建TTS提供商
+      tags:
+      - TTS提供商管理
+  /api/v1/ai/tts-provider/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定TTS提供商
+      operationId: ai:tts-provider:remove
+      parameters:
+      - description: 提供商ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除TTS提供商
+      tags:
+      - TTS提供商管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取TTS提供商详情
+      operationId: ai:tts-provider:detail
+      parameters:
+      - description: 提供商ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取TTS提供商详情
+      tags:
+      - TTS提供商管理
+    put:
+      consumes:
+      - application/json
+      description: 更新TTS提供商配置
+      operationId: ai:tts-provider:edit
+      parameters:
+      - description: 提供商ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsTTSProviderUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新TTS提供商
+      tags:
+      - TTS提供商管理
+  /api/v1/ai/tts-provider/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定TTS提供商
+      operationId: ai:tts-provider:disable
+      parameters:
+      - description: 提供商ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用TTS提供商
+      tags:
+      - TTS提供商管理
+  /api/v1/ai/tts-provider/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定TTS提供商
+      operationId: ai:tts-provider:enable
+      parameters:
+      - description: 提供商ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用TTS提供商
+      tags:
+      - TTS提供商管理
+  /api/v1/ai/tts-provider/{id}/status:
+    get:
+      consumes:
+      - application/json
+      description: 获取TTS提供商的GPU/CPU/内存负载信息
+      operationId: ai:tts-provider:status
+      parameters:
+      - description: 提供商ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取TTS提供商系统状态
+      tags:
+      - TTS提供商管理
+  /api/v1/ai/tts-provider/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取TTS提供商列表
+      operationId: ai:tts-provider:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 名称
+        in: query
+        name: name
+        type: string
+      - description: 提供商类型
+        in: query
+        name: provider_type
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取TTS提供商列表
+      tags:
+      - TTS提供商管理
+  /api/v1/ai/tts-provider/test:
+    post:
+      consumes:
+      - application/json
+      description: 测试TTS提供商API连通性
+      operationId: ai:tts-provider:test
+      parameters:
+      - description: 测试请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsTTSProviderTestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 测试TTS连通性
+      tags:
+      - TTS提供商管理
+  /api/v1/chapter:
+    post:
+      consumes:
+      - application/json
+      description: 在指定项目下创建新章节
+      operationId: chapter:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsChapterCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建章节
+      tags:
+      - 章节管理
+  /api/v1/chapter/{chapter_id}/align:
+    post:
+      consumes:
+      - application/json
+      description: 将章节下所有脚本片段的文本对齐回章节原文，确保不丢字不加字
+      operationId: chapter:align
+      parameters:
+      - description: 章节ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 精准填充对齐
+      tags:
+      - 精准填充
+  /api/v1/chapter/{chapter_id}/split:
+    post:
+      consumes:
+      - application/json
+      description: 调用 LLM 将章节内容切割为场景和脚本片段
+      operationId: chapter:split
+      parameters:
+      - description: 章节ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: LLM 智能切割章节
+      tags:
+      - 章节管理
+  /api/v1/chapter/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定章节
+      operationId: chapter:remove
+      parameters:
+      - description: 章节ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除章节
+      tags:
+      - 章节管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取章节详情
+      operationId: chapter:detail
+      parameters:
+      - description: 章节ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取章节详情
+      tags:
+      - 章节管理
+    put:
+      consumes:
+      - application/json
+      description: 更新章节信息
+      operationId: chapter:edit
+      parameters:
+      - description: 章节ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsChapterUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新章节
+      tags:
+      - 章节管理
+  /api/v1/chapter/batch-split:
+    post:
+      consumes:
+      - application/json
+      description: 将多个章节加入切割队列，后台异步依次执行
+      operationId: chapter:batch-split
+      parameters:
+      - description: 批量切割请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.BatchSplitRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 批量 LLM 智能切割
+      tags:
+      - 章节管理
+  /api/v1/chapter/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取章节列表
+      operationId: chapter:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 项目ID
+        in: query
+        name: project_id
+        type: integer
+      - description: 章节标题
+        in: query
+        name: title
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取章节列表
+      tags:
+      - 章节管理
+  /api/v1/character:
+    post:
+      consumes:
+      - application/json
+      description: 在指定项目下创建角色
+      operationId: character:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsCharacterCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建角色
+      tags:
+      - 角色管理
+  /api/v1/character/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定角色
+      operationId: character:remove
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除角色
+      tags:
+      - 角色管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取角色详情
+      operationId: character:detail
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取角色详情
+      tags:
+      - 角色管理
+    put:
+      consumes:
+      - application/json
+      description: 更新角色信息（编辑别名、绑定声音配置等）
+      operationId: character:edit
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsCharacterUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新角色
+      tags:
+      - 角色管理
+  /api/v1/character/{id}/disable:
+    put:
+      description: 禁用指定角色
+      operationId: character:disable
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用角色
+      tags:
+      - 角色管理
+  /api/v1/character/{id}/enable:
+    put:
+      description: 启用指定角色
+      operationId: character:enable
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用角色
+      tags:
+      - 角色管理
+  /api/v1/character/{id}/voice-design/apply:
+    post:
+      consumes:
+      - application/json
+      description: 将试听音频保存为声音配置（参考音频 + 参考台词 + 种子），并绑定到角色
+      operationId: character:voice_design_apply
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 保存请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VoiceDesignApplyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 保存音色设计
+      tags:
+      - 角色管理
+  /api/v1/character/{id}/voice-design/auto:
+    post:
+      description: LLM 生成音色描述 → Voice Design 生成参考音频 → 保存为声音配置并绑定角色
+      operationId: character:voice_design_auto
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 一键自动生成音色
+      tags:
+      - 角色管理
+  /api/v1/character/{id}/voice-design/preview:
+    post:
+      consumes:
+      - application/json
+      description: 按音色描述调用 Breeze-TTS-2 Voice Design 生成试听音频，未传 seed 时随机生成
+      operationId: character:voice_design_preview
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 试听请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VoiceDesignPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 音色设计试听
+      tags:
+      - 角色管理
+  /api/v1/character/{id}/voice-design/suggest:
+    post:
+      description: 根据角色信息与台词，调用 LLM 生成音色描述（instruction）与参考台词（sample_text）
+      operationId: character:voice_design
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: LLM 生成音色描述
+      tags:
+      - 角色管理
+  /api/v1/character/extract-from-text:
+    post:
+      consumes:
+      - application/json
+      description: 用户提供一段文字描述，调用 LLM 提取角色信息并录入角色库
+      operationId: character:extract_from_text
+      parameters:
+      - description: 请求参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.CharacterExtractFromTextRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: LLM 智能录入角色
+      tags:
+      - 角色管理
+  /api/v1/character/extract/{project_id}:
+    post:
+      consumes:
+      - application/json
+      description: 调用 LLM 从全书文本中自动提取角色信息
+      operationId: character:extract
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: LLM 智能提取角色
+      tags:
+      - 角色管理
+  /api/v1/character/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取角色列表
+      operationId: character:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 项目ID
+        in: query
+        name: project_id
+        type: integer
+      - description: 角色名称
+        in: query
+        name: name
+        type: string
+      - description: 性别
+        in: query
+        name: gender
+        type: string
+      - description: 角色层级
+        in: query
+        name: level
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取角色列表
+      tags:
+      - 角色管理
+  /api/v1/character/merge:
+    post:
+      consumes:
+      - application/json
+      description: 将多个重复角色合并到目标角色：迁移片段归属、合并别名，被合并角色标记为已合并并停用
+      operationId: character:merge
+      parameters:
+      - description: 合并请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsCharacterMergeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 合并角色
+      tags:
+      - 角色管理
+  /api/v1/character/merge-generic/{project_id}:
+    post:
+      consumes:
+      - application/json
+      description: 将项目中"老者""店小二""众人"等泛称角色按性别与年龄段合并到路人池角色，dry_run 为 true 时仅预览
+      operationId: character:merge_generic
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: 请求参数
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsCharacterMergeGenericRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 泛称角色归入路人池
+      tags:
+      - 角色管理
+  /api/v1/character/voice-match/{project_id}:
+    post:
+      description: 调用 LLM 根据角色描述和声音描述自动匹配，已绑定声音的角色自动跳过
+      operationId: character:voice_match
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: LLM 自动匹配角色声音
+      tags:
+      - 角色管理
+  /api/v1/common/chapter/project/{project_id}:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定项目的全部章节列表（不分页）
+      operationId: common:chapter:project
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取项目下所有章节
+      tags:
+      - 章节管理
+  /api/v1/common/character/project/{project_id}:
+    get:
+      description: 获取指定项目下启用的角色列表（下拉选择用）
+      operationId: common:character:project
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取项目下的角色选项
+      tags:
+      - 角色管理
+  /api/v1/common/dept/options:
+    get:
+      consumes:
+      - application/json
+      description: 获取简化的部门树形结构，用于下拉选择（指定部门等场景）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取部门选项树
+      tags:
+      - 通用接口
+  /api/v1/common/project/workspace/{workspace_id}:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定工作空间下的项目列表（下拉选择用）
+      operationId: common:project:workspace
+      parameters:
+      - description: 工作空间ID
+        in: path
+        name: workspace_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取工作空间下的项目选项
+      tags:
+      - 项目管理
+  /api/v1/common/prompt-template/type/{type}:
+    get:
+      consumes:
+      - application/json
+      description: 按模板类型获取启用的Prompt模板列表（下拉选择用）
+      operationId: common:prompt-template:type
+      parameters:
+      - description: 模板类型
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 按类型获取Prompt模板选项
+      tags:
+      - Prompt模板管理
+  /api/v1/common/reference-audio/stream:
+    get:
+      description: 根据来源类型和ID以流的方式返回参考音频文件
+      operationId: common:referenceAudio:stream
+      parameters:
+      - description: 来源类型（voice-asset/voice-profile/voice-emotion）
+        in: query
+        name: source
+        required: true
+        type: string
+      - description: 资源ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 流式获取参考音频
+      tags:
+      - 通用上传
+  /api/v1/common/role/options:
+    get:
+      consumes:
+      - application/json
+      description: 获取简化的角色列表，用于下拉选择（指定审批人角色等场景）
+      parameters:
+      - description: 搜索关键词（角色名称）
+        in: query
+        name: keyword
+        type: string
+      - default: 100
+        description: 返回数量限制
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取角色选项列表
+      tags:
+      - 通用接口
+  /api/v1/common/script-segment/chapter/{chapter_id}:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定章节的全部脚本片段（不分页，按序号排列）
+      operationId: common:script-segment:chapter
+      parameters:
+      - description: 章节ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取章节下所有脚本片段
+      tags:
+      - 脚本片段管理
+  /api/v1/common/upload/reference-audio:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传参考音频文件（mp3/wav/flac/ogg），返回存储路径和原始文件名
+      operationId: common:upload:referenceAudio
+      parameters:
+      - description: 音频文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 上传参考音频
+      tags:
+      - 通用上传
+  /api/v1/common/user/options:
+    get:
+      consumes:
+      - application/json
+      description: 获取简化的用户列表，用于下拉选择（转办、指定审批人等场景）
+      parameters:
+      - description: 搜索关键词（用户名/登录名）
+        in: query
+        name: keyword
+        type: string
+      - description: 部门ID
+        in: query
+        name: dept_id
+        type: integer
+      - default: 50
+        description: 返回数量限制
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取用户选项列表
+      tags:
+      - 通用接口
+  /api/v1/common/voice-asset/options:
+    get:
+      operationId: common:voice-asset:options
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取所有启用的声音资产（下拉选择用）
+      tags:
+      - 声音资产
+  /api/v1/common/voice-emotion/asset/{voice_asset_id}:
+    get:
+      operationId: common:voice-emotion:asset
+      parameters:
+      - description: 音色资产ID
+        in: path
+        name: voice_asset_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取音色资产下的情绪音频列表
+      tags:
+      - 情绪音频
+  /api/v1/common/voice-emotion/profile/{voice_profile_id}:
+    get:
+      operationId: common:voice-emotion:profile
+      parameters:
+      - description: 声音配置ID
+        in: path
+        name: voice_profile_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取声音配置下的情绪音频列表
+      tags:
+      - 情绪音频
+  /api/v1/common/voice-profile/project/{project_id}:
+    get:
+      description: 获取指定项目下启用的声音配置列表（下拉选择用）
+      operationId: common:voice-profile:project
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取项目下的声音配置选项
+      tags:
+      - 声音配置
+  /api/v1/common/workspace/options:
+    get:
+      consumes:
+      - application/json
+      description: 获取启用的工作空间列表（下拉选择用）
+      operationId: common:workspace:options
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取工作空间选项列表
+      tags:
+      - 工作空间管理
+  /api/v1/project:
+    post:
+      consumes:
+      - application/json
+      description: 在指定工作空间下创建新项目
+      operationId: project:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsProjectCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建项目
+      tags:
+      - 项目管理
+  /api/v1/project/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定项目
+      operationId: project:remove
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除项目
+      tags:
+      - 项目管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取项目详情
+      operationId: project:detail
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取项目详情
+      tags:
+      - 项目管理
+    put:
+      consumes:
+      - application/json
+      description: 更新项目信息
+      operationId: project:edit
+      parameters:
+      - description: 项目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsProjectUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新项目
+      tags:
+      - 项目管理
+  /api/v1/project/import/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 为项目上传 txt/docx/epub 源文件
+      operationId: project:import:upload
+      parameters:
+      - description: 项目ID
+        in: formData
+        name: project_id
+        required: true
+        type: integer
+      - description: 源文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 上传源文件
+      tags:
+      - 文件导入
+  /api/v1/project/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取项目列表
+      operationId: project:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 工作空间ID
+        in: query
+        name: workspace_id
+        type: integer
+      - description: 项目名称
+        in: query
+        name: name
+        type: string
+      - description: 项目状态
+        in: query
+        name: status
+        type: string
+      - description: 导入来源
+        in: query
+        name: source_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取项目列表
+      tags:
+      - 项目管理
+  /api/v1/pronunciation-dict:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的发音词典条目
+      operationId: pronunciation-dict:add
+      parameters:
+      - description: 词典条目信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsPronunciationDictCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建发音词典条目
+      tags:
+      - 发音词典
+  /api/v1/pronunciation-dict/{id}:
+    delete:
+      description: 删除指定发音词典条目
+      operationId: pronunciation-dict:remove
+      parameters:
+      - description: 词典条目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除发音词典条目
+      tags:
+      - 发音词典
+    get:
+      description: 根据ID获取发音词典条目详情
+      operationId: pronunciation-dict:detail
+      parameters:
+      - description: 词典条目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取发音词典条目详情
+      tags:
+      - 发音词典
+    put:
+      consumes:
+      - application/json
+      description: 更新发音词典条目信息
+      operationId: pronunciation-dict:edit
+      parameters:
+      - description: 词典条目ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 词典条目信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsPronunciationDictUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新发音词典条目
+      tags:
+      - 发音词典
+  /api/v1/pronunciation-dict/list:
+    get:
+      description: 分页获取发音词典列表
+      operationId: pronunciation-dict:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 项目ID
+        in: query
+        name: project_id
+        required: true
+        type: integer
+      - description: 原始词
+        in: query
+        name: word
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取发音词典列表
+      tags:
+      - 发音词典
+  /api/v1/script-segment:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的脚本片段
+      operationId: script-segment:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsScriptSegmentCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建脚本片段
+      tags:
+      - 脚本片段管理
+  /api/v1/script-segment/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定脚本片段
+      operationId: script-segment:remove
+      parameters:
+      - description: 片段ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除脚本片段
+      tags:
+      - 脚本片段管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取脚本片段详情
+      operationId: script-segment:detail
+      parameters:
+      - description: 片段ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取脚本片段详情
+      tags:
+      - 脚本片段管理
+    put:
+      consumes:
+      - application/json
+      description: 更新脚本片段信息（修正说话人、调整类型/情绪/强度等）
+      operationId: script-segment:edit
+      parameters:
+      - description: 片段ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsScriptSegmentUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新脚本片段
+      tags:
+      - 脚本片段管理
+  /api/v1/script-segment/insert-after/{id}:
+    post:
+      consumes:
+      - application/json
+      description: 在指定片段之后插入一个新的空白片段，自动重排序号
+      operationId: script-segment:insertAfter
+      parameters:
+      - description: 目标片段ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 插入请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsScriptSegmentInsertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 在指定片段之后插入新片段
+      tags:
+      - 脚本片段管理
+  /api/v1/script-segment/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取脚本片段列表
+      operationId: script-segment:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 章节ID
+        in: query
+        name: chapter_id
+        type: integer
+      - description: 场景ID
+        in: query
+        name: scene_id
+        type: integer
+      - description: 片段类型
+        in: query
+        name: segment_type
+        type: string
+      - description: 说话人ID
+        in: query
+        name: character_id
+        type: integer
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取脚本片段列表
+      tags:
+      - 脚本片段管理
   /api/v1/system/api/list:
     get:
       consumes:
@@ -422,6 +4304,7 @@ paths:
       consumes:
       - application/json
       description: 获取系统API标签列表
+      operationId: system:api:tag:list
       produces:
       - application/json
       responses:
@@ -699,6 +4582,496 @@ paths:
       summary: 获取部门树
       tags:
       - 部门管理
+  /api/v1/system/dict/data:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的字典数据
+      operationId: system:dict:data:add
+      parameters:
+      - description: 创建字典数据请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysDictDataCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建字典数据
+      tags:
+      - 字典数据
+  /api/v1/system/dict/data/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定字典数据
+      operationId: system:dict:data:remove
+      parameters:
+      - description: 字典数据ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除字典数据
+      tags:
+      - 字典数据
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取字典数据详情
+      operationId: system:dict:data:detail
+      parameters:
+      - description: 字典数据ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取字典数据详情
+      tags:
+      - 字典数据
+    put:
+      consumes:
+      - application/json
+      description: 更新字典数据信息
+      operationId: system:dict:data:edit
+      parameters:
+      - description: 字典数据ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新字典数据请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysDictDataUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新字典数据
+      tags:
+      - 字典数据
+  /api/v1/system/dict/data/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定字典数据
+      operationId: system:dict:data:disable
+      parameters:
+      - description: 字典数据ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用字典数据
+      tags:
+      - 字典数据
+  /api/v1/system/dict/data/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定字典数据
+      operationId: system:dict:data:enable
+      parameters:
+      - description: 字典数据ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用字典数据
+      tags:
+      - 字典数据
+  /api/v1/system/dict/data/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取字典数据列表
+      operationId: system:dict:data:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 字典类型
+        in: query
+        name: dict_type
+        type: string
+      - description: 字典标签
+        in: query
+        name: dict_label
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取字典数据列表
+      tags:
+      - 字典数据
+  /api/v1/system/dict/data/type/{dictType}:
+    get:
+      consumes:
+      - application/json
+      description: 根据字典类型获取所有启用的字典数据
+      operationId: system:dict:data:type
+      parameters:
+      - description: 字典类型
+        in: path
+        name: dictType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 根据字典类型获取字典数据
+      tags:
+      - 字典数据
+  /api/v1/system/dict/type:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的字典类型
+      operationId: system:dict:add
+      parameters:
+      - description: 创建字典类型请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysDictTypeCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建字典类型
+      tags:
+      - 字典管理
+  /api/v1/system/dict/type/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定字典类型
+      operationId: system:dict:remove
+      parameters:
+      - description: 字典类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除字典类型
+      tags:
+      - 字典管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取字典类型详情
+      operationId: system:dict:detail
+      parameters:
+      - description: 字典类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取字典类型详情
+      tags:
+      - 字典管理
+    put:
+      consumes:
+      - application/json
+      description: 更新字典类型信息
+      operationId: system:dict:edit
+      parameters:
+      - description: 字典类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新字典类型请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysDictTypeUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新字典类型
+      tags:
+      - 字典管理
+  /api/v1/system/dict/type/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定字典类型
+      operationId: system:dict:disable
+      parameters:
+      - description: 字典类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用字典类型
+      tags:
+      - 字典管理
+  /api/v1/system/dict/type/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定字典类型
+      operationId: system:dict:enable
+      parameters:
+      - description: 字典类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用字典类型
+      tags:
+      - 字典管理
+  /api/v1/system/dict/type/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取字典类型列表
+      operationId: system:dict:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 字典名称
+        in: query
+        name: dict_name
+        type: string
+      - description: 字典类型
+        in: query
+        name: dict_type
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取字典类型列表
+      tags:
+      - 字典管理
   /api/v1/system/logininfor/{id}:
     get:
       consumes:
@@ -1052,6 +5425,142 @@ paths:
       summary: 根据类型获取菜单
       tags:
       - 菜单管理
+  /api/v1/system/operlog/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定操作日志
+      operationId: system:operlog:remove
+      parameters:
+      - description: 操作日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除操作日志
+      tags:
+      - 操作日志
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取操作日志详情
+      operationId: system:operlog:detail
+      parameters:
+      - description: 操作日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取操作日志详情
+      tags:
+      - 操作日志
+  /api/v1/system/operlog/clean:
+    delete:
+      consumes:
+      - application/json
+      description: 清空所有操作日志
+      operationId: system:operlog:clean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 清空操作日志
+      tags:
+      - 操作日志
+  /api/v1/system/operlog/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取操作日志列表
+      operationId: system:operlog:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 模块标题
+        in: query
+        name: title
+        type: string
+      - description: 业务类型
+        in: query
+        name: business_type
+        type: integer
+      - description: 操作人员
+        in: query
+        name: oper_name
+        type: string
+      - description: 操作状态
+        in: query
+        name: status
+        type: integer
+      - description: 开始时间
+        in: query
+        name: begin_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取操作日志列表
+      tags:
+      - 操作日志
   /api/v1/system/post:
     post:
       consumes:
@@ -1870,6 +6379,54 @@ paths:
       summary: 更新用户密码
       tags:
       - 用户管理
+  /api/v1/system/user/import:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 通过Excel文件批量导入用户
+      operationId: system:user:import
+      parameters:
+      - description: Excel文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 导入用户
+      tags:
+      - 用户管理
+  /api/v1/system/user/import/template:
+    get:
+      description: 下载用户导入Excel模板
+      operationId: system:user:import:template
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 下载用户导入模板
+      tags:
+      - 用户管理
   /api/v1/system/user/list:
     get:
       consumes:
@@ -1927,6 +6484,445 @@ paths:
       summary: 获取用户列表
       tags:
       - 用户管理
+  /api/v1/tts/audio/{segment_id}:
+    get:
+      description: 获取指定片段的当前版本音频信息
+      operationId: tts:audio
+      parameters:
+      - description: 片段ID
+        in: path
+        name: segment_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取片段最新音频
+      tags:
+      - TTS合成
+  /api/v1/tts/batch-generate:
+    post:
+      consumes:
+      - application/json
+      description: 异步批量生成指定章节所有可生成片段的语音
+      operationId: tts:batchGenerate
+      parameters:
+      - description: 批量生成请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.BatchGenerateRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 批量生成章节语音
+      tags:
+      - TTS合成
+  /api/v1/tts/chapter/{chapter_id}/active-task:
+    get:
+      description: 查询指定章节当前正在运行或等待中的生成任务
+      operationId: tts:activeTask
+      parameters:
+      - description: 章节ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 查询章节活跃任务
+      tags:
+      - TTS合成
+  /api/v1/tts/chapter/{chapter_id}/cancel:
+    post:
+      description: 取消指定章节下所有排队中的片段
+      operationId: tts:cancelChapter
+      parameters:
+      - description: 章节ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 取消章节生成队列
+      tags:
+      - TTS合成
+  /api/v1/tts/chapter/{chapter_id}/export:
+    post:
+      consumes:
+      - application/json
+      description: 将章节下所有已生成的音频片段合并为一个文件
+      operationId: tts:exportChapter
+      parameters:
+      - description: 章节ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      - description: 导出请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.ExportChapterAudioRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 导出章节音频
+      tags:
+      - 导出
+  /api/v1/tts/chapter/{chapter_id}/lock:
+    put:
+      operationId: tts:batchLock
+      parameters:
+      - description: 章节ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 批量锁定章节下所有已生成片段
+      tags:
+      - TTS合成
+  /api/v1/tts/chapter/{chapter_id}/unlock:
+    put:
+      operationId: tts:batchUnlock
+      parameters:
+      - description: 章节ID
+        in: path
+        name: chapter_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 批量解锁章节下所有已锁定片段
+      tags:
+      - TTS合成
+  /api/v1/tts/character/{character_id}/regenerate:
+    post:
+      description: 重新生成整个项目中指定角色的所有片段配音（已锁定的片段除外）
+      operationId: tts:regenerateByCharacter
+      parameters:
+      - description: 角色ID
+        in: path
+        name: character_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 按角色重新生成所有配音
+      tags:
+      - TTS合成
+  /api/v1/tts/export/{export_job_id}:
+    get:
+      operationId: tts:getExportJob
+      parameters:
+      - description: 导出任务ID
+        in: path
+        name: export_job_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 查询导出任务状态
+      tags:
+      - 导出
+  /api/v1/tts/export/{export_job_id}/download:
+    get:
+      operationId: tts:downloadExport
+      parameters:
+      - description: 导出任务ID
+        in: path
+        name: export_job_id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 下载导出文件
+      tags:
+      - 导出
+  /api/v1/tts/project/{project_id}/active-tasks:
+    get:
+      description: 查询指定项目下所有正在运行或等待中的生成任务
+      operationId: tts:projectActiveTasks
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 查询项目活跃任务列表
+      tags:
+      - TTS合成
+  /api/v1/tts/project/{project_id}/cancel:
+    post:
+      description: 取消指定项目下所有排队中的片段
+      operationId: tts:cancelProject
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 取消项目生成队列
+      tags:
+      - TTS合成
+  /api/v1/tts/project/{project_id}/events:
+    get:
+      description: 通过 Server-Sent Events 实时推送整个项目的 TTS 生成事件（包含所有章节）
+      operationId: tts:projectEvents
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: SSE 实时推送项目级 TTS 进度
+      tags:
+      - TTS合成
+  /api/v1/tts/segment/{segment_id}/lock:
+    put:
+      operationId: tts:lockSegment
+      parameters:
+      - description: 片段ID
+        in: path
+        name: segment_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 锁定片段
+      tags:
+      - TTS合成
+  /api/v1/tts/segment/{segment_id}/unlock:
+    put:
+      operationId: tts:unlockSegment
+      parameters:
+      - description: 片段ID
+        in: path
+        name: segment_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 解锁片段
+      tags:
+      - TTS合成
+  /api/v1/tts/stream/{clip_id}:
+    get:
+      description: 根据音频片段ID以流的方式返回音频数据
+      operationId: tts:streamAudio
+      parameters:
+      - description: 音频片段ID
+        in: path
+        name: clip_id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 流式获取音频
+      tags:
+      - TTS合成
+  /api/v1/tts/synthesize/{segment_id}:
+    post:
+      description: 将单个片段加入TTS生成队列，返回任务ID用于轮询进度
+      operationId: tts:synthesize
+      parameters:
+      - description: 片段ID
+        in: path
+        name: segment_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 合成单个片段语音（异步队列）
+      tags:
+      - TTS合成
+  /api/v1/tts/task/{task_id}:
+    get:
+      description: 查询异步生成任务的当前进度
+      operationId: tts:taskProgress
+      parameters:
+      - description: 任务ID
+        in: path
+        name: task_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 查询任务进度
+      tags:
+      - TTS合成
+  /api/v1/tts/voice-profile/{voice_profile_id}/regenerate:
+    post:
+      description: 重新生成整个项目中使用指定声音配置的所有片段配音（已锁定的片段除外）
+      operationId: tts:regenerateByVoiceProfile
+      parameters:
+      - description: 声音配置ID
+        in: path
+        name: voice_profile_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 按声音配置重新生成配音
+      tags:
+      - TTS合成
   /api/v1/user/info:
     get:
       consumes:
@@ -2004,6 +7000,725 @@ paths:
       summary: 退出登录
       tags:
       - 用户管理
+  /api/v1/user/update-password:
+    put:
+      consumes:
+      - application/json
+      description: 当前登录用户修改自己的密码
+      parameters:
+      - description: 修改密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.SysUserUpdateCurrentPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 修改当前用户密码
+      tags:
+      - 用户管理
+  /api/v1/voice-asset:
+    post:
+      operationId: voice-asset:add
+      parameters:
+      - description: 声音资产信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceAssetCreateRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建声音资产
+      tags:
+      - 声音资产
+  /api/v1/voice-asset/{id}:
+    delete:
+      operationId: voice-asset:remove
+      parameters:
+      - description: 声音资产ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除声音资产
+      tags:
+      - 声音资产
+    get:
+      operationId: voice-asset:detail
+      parameters:
+      - description: 声音资产ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取声音资产详情
+      tags:
+      - 声音资产
+    put:
+      operationId: voice-asset:edit
+      parameters:
+      - description: 声音资产ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 声音资产信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceAssetUpdateRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新声音资产
+      tags:
+      - 声音资产
+  /api/v1/voice-asset/{id}/disable:
+    put:
+      operationId: voice-asset:disable
+      parameters:
+      - description: 声音资产ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 停用声音资产
+      tags:
+      - 声音资产
+  /api/v1/voice-asset/{id}/enable:
+    put:
+      operationId: voice-asset:enable
+      parameters:
+      - description: 声音资产ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用声音资产
+      tags:
+      - 声音资产
+  /api/v1/voice-asset/list:
+    get:
+      operationId: voice-asset:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 名称
+        in: query
+        name: name
+        type: string
+      - description: 性别
+        in: query
+        name: gender
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取声音资产列表
+      tags:
+      - 声音资产
+  /api/v1/voice-emotion:
+    post:
+      consumes:
+      - application/json
+      operationId: voice-emotion:add
+      parameters:
+      - description: 情绪音频信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceEmotionCreateRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建情绪音频
+      tags:
+      - 情绪音频
+  /api/v1/voice-emotion/{id}:
+    delete:
+      operationId: voice-emotion:remove
+      parameters:
+      - description: 情绪音频ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除情绪音频
+      tags:
+      - 情绪音频
+    get:
+      operationId: voice-emotion:detail
+      parameters:
+      - description: 情绪音频ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取情绪音频详情
+      tags:
+      - 情绪音频
+    put:
+      consumes:
+      - application/json
+      operationId: voice-emotion:edit
+      parameters:
+      - description: 情绪音频ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 情绪音频信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceEmotionUpdateRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新情绪音频
+      tags:
+      - 情绪音频
+  /api/v1/voice-emotion/list:
+    get:
+      operationId: voice-emotion:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 声音配置ID
+        in: query
+        name: voice_profile_id
+        type: integer
+      - description: 情绪类型
+        in: query
+        name: emotion_type
+        type: string
+      - description: 情绪强度
+        in: query
+        name: emotion_strength
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取情绪音频列表
+      tags:
+      - 情绪音频
+  /api/v1/voice-profile:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的声音配置
+      operationId: voice-profile:add
+      parameters:
+      - description: 声音配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceProfileCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建声音配置
+      tags:
+      - 声音配置
+  /api/v1/voice-profile/{id}:
+    delete:
+      description: 删除指定声音配置
+      operationId: voice-profile:remove
+      parameters:
+      - description: 声音配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除声音配置
+      tags:
+      - 声音配置
+    get:
+      description: 根据ID获取声音配置详情
+      operationId: voice-profile:detail
+      parameters:
+      - description: 声音配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取声音配置详情
+      tags:
+      - 声音配置
+    put:
+      consumes:
+      - application/json
+      description: 更新声音配置信息
+      operationId: voice-profile:edit
+      parameters:
+      - description: 声音配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 声音配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceProfileUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新声音配置
+      tags:
+      - 声音配置
+  /api/v1/voice-profile/{id}/disable:
+    put:
+      operationId: voice-profile:disable
+      parameters:
+      - description: 声音配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 停用声音配置
+      tags:
+      - 声音配置
+  /api/v1/voice-profile/{id}/enable:
+    put:
+      operationId: voice-profile:enable
+      parameters:
+      - description: 声音配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用声音配置
+      tags:
+      - 声音配置
+  /api/v1/voice-profile/import:
+    post:
+      consumes:
+      - application/json
+      description: 根据音色资产ID列表批量创建声音配置
+      operationId: voice-profile:import
+      parameters:
+      - description: 导入请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceProfileImportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 从音色库批量导入声音配置
+      tags:
+      - 声音配置
+  /api/v1/voice-profile/list:
+    get:
+      description: 分页获取声音配置列表
+      operationId: voice-profile:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 项目ID
+        in: query
+        name: project_id
+        type: integer
+      - description: 配置名称
+        in: query
+        name: name
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取声音配置列表
+      tags:
+      - 声音配置
+  /api/v1/workspace:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的工作空间
+      operationId: workspace:add
+      parameters:
+      - description: 创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsWorkspaceCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 创建工作空间
+      tags:
+      - 工作空间管理
+  /api/v1/workspace/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定工作空间
+      operationId: workspace:remove
+      parameters:
+      - description: 工作空间ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 删除工作空间
+      tags:
+      - 工作空间管理
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取工作空间详情
+      operationId: workspace:detail
+      parameters:
+      - description: 工作空间ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取工作空间详情
+      tags:
+      - 工作空间管理
+    put:
+      consumes:
+      - application/json
+      description: 更新工作空间信息
+      operationId: workspace:edit
+      parameters:
+      - description: 工作空间ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VsWorkspaceUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 更新工作空间
+      tags:
+      - 工作空间管理
+  /api/v1/workspace/{id}/disable:
+    put:
+      consumes:
+      - application/json
+      description: 禁用指定工作空间
+      operationId: workspace:disable
+      parameters:
+      - description: 工作空间ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 禁用工作空间
+      tags:
+      - 工作空间管理
+  /api/v1/workspace/{id}/enable:
+    put:
+      consumes:
+      - application/json
+      description: 启用指定工作空间
+      operationId: workspace:enable
+      parameters:
+      - description: 工作空间ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 启用工作空间
+      tags:
+      - 工作空间管理
+  /api/v1/workspace/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取工作空间列表
+      operationId: workspace:list
+      parameters:
+      - description: 当前页
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: size
+        type: integer
+      - description: 空间名称
+        in: query
+        name: name
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取工作空间列表
+      tags:
+      - 工作空间管理
 securityDefinitions:
   Bearer:
     in: header

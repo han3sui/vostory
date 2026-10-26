@@ -8,6 +8,7 @@ import (
 	"time"
 
 	v1 "iot-alert-center/api/v1"
+	"iot-alert-center/internal/llmconfig"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/pkg/llm"
@@ -28,7 +29,7 @@ func NewVsChapterSplitService(
 	chapterRepo repository.VsChapterRepository,
 	projectRepo repository.VsProjectRepository,
 	promptRepo repository.VsPromptTemplateRepository,
-	providerRepo repository.VsLLMProviderRepository,
+	llmResolver llmconfig.Resolver,
 	sceneRepo repository.VsSceneRepository,
 	segmentRepo repository.VsScriptSegmentRepository,
 	characterRepo repository.VsCharacterRepository,
@@ -42,7 +43,7 @@ func NewVsChapterSplitService(
 		chapterRepo:   chapterRepo,
 		projectRepo:   projectRepo,
 		promptRepo:    promptRepo,
-		providerRepo:  providerRepo,
+		llmResolver:   llmResolver,
 		sceneRepo:     sceneRepo,
 		segmentRepo:   segmentRepo,
 		characterRepo: characterRepo,
@@ -59,7 +60,7 @@ type vsChapterSplitService struct {
 	chapterRepo   repository.VsChapterRepository
 	projectRepo   repository.VsProjectRepository
 	promptRepo    repository.VsPromptTemplateRepository
-	providerRepo  repository.VsLLMProviderRepository
+	llmResolver   llmconfig.Resolver
 	sceneRepo     repository.VsSceneRepository
 	segmentRepo   repository.VsScriptSegmentRepository
 	characterRepo repository.VsCharacterRepository
@@ -103,7 +104,7 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 		return nil, fmt.Errorf("项目不存在")
 	}
 
-	provider, err := s.resolveProvider(ctx, project)
+	resolved, err := s.llmResolver.ResolveByProject(ctx, project)
 	if err != nil {
 		return nil, err
 	}
@@ -119,25 +120,24 @@ func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint
 
 	start := time.Now()
 	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
-		BaseURL: provider.APIBaseURL,
-		APIKey:  provider.APIKey,
-		Model:   provider.DefaultModel,
+		BaseURL: resolved.BaseURL,
+		APIKey:  resolved.APIKey,
+		Model:   resolved.ModelName,
 		Messages: []llm.Message{
 			{Role: "user", Content: prompt},
 		},
 		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
-		CustomParams:   provider.CustomParams,
 	})
 
 	costTime := time.Since(start).Milliseconds()
 
 	projectID := project.ProjectID
-	providerID := provider.ProviderID
+	providerID := resolved.ProviderID
 	logEntry := &model.VsLLMLog{
 		ProjectID:    &projectID,
 		ProviderID:   providerID,
 		TemplateID:   templateID,
-		ModelName:    provider.DefaultModel,
+		ModelName:    resolved.ModelName,
 		InputTokens:  0,
 		OutputTokens: 0,
 		CostTime:     costTime,
@@ -273,7 +273,7 @@ func (s *vsChapterSplitService) BatchSplitChapters(ctx context.Context, projectI
 		return nil, fmt.Errorf("项目不存在")
 	}
 
-	if _, err := s.resolveProvider(ctx, project); err != nil {
+	if _, err := s.llmResolver.ResolveByProject(ctx, project); err != nil {
 		return nil, err
 	}
 	if _, _, err := s.resolvePrompt(ctx, project); err != nil {
@@ -326,20 +326,6 @@ func (s *vsChapterSplitService) BatchSplitChapters(ctx context.Context, projectI
 		TaskID: task.TaskID,
 		Total:  len(chapterIDs),
 	}, nil
-}
-
-func (s *vsChapterSplitService) resolveProvider(ctx context.Context, project *model.VsProject) (*model.VsLLMProvider, error) {
-	if project.LLMProviderID == nil || *project.LLMProviderID == 0 {
-		return nil, fmt.Errorf("项目未配置 LLM 提供商，请先在项目设置中绑定")
-	}
-	provider, err := s.providerRepo.FindByID(ctx, *project.LLMProviderID)
-	if err != nil {
-		return nil, fmt.Errorf("LLM 提供商不存在")
-	}
-	if provider.Status != "0" {
-		return nil, fmt.Errorf("LLM 提供商已停用")
-	}
-	return provider, nil
 }
 
 func (s *vsChapterSplitService) resolvePrompt(ctx context.Context, project *model.VsProject) (string, *uint64, error) {

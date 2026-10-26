@@ -14,14 +14,24 @@ const routers: RouteConfig[] = [
         component: Layout,
         children: [
             {
-                path: "/ai/llm-provider",
-                name: "ai-llm-provider",
+                path: "/ai/provider",
+                name: "ai-provider",
                 meta: {
-                    title: "LLM 提供商",
+                    title: "厂家配置",
                     sort: 4,
-                    permission: () => hasPermission("ai:llm-provider:list")
+                    permission: () => hasPermission("ai:provider:list")
                 },
-                component: () => import("@/views/ai/llm-provider/index.vue")
+                component: () => import("@/views/ai/provider/index.vue")
+            },
+            {
+                path: "/ai/model",
+                name: "ai-model",
+                meta: {
+                    title: "模型管理",
+                    sort: 5,
+                    permission: () => hasPermission("ai:model:list")
+                },
+                component: () => import("@/views/ai/model/index.vue")
             },
             {
                 path: "/ai/tts-provider",
@@ -48,7 +58,7 @@ const routers: RouteConfig[] = [
                 name: "ai-voice-asset",
                 meta: {
                     title: "音色管理",
-                    sort: 5,
+                    sort: 6,
                     permission: () => hasPermission("voice-asset:list")
                 },
                 component: () => import("@/views/ai/voice-asset/index.vue")

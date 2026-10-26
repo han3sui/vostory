@@ -17,7 +17,7 @@ type VsProjectCreateRequest struct {
 	Name              string            `json:"name" binding:"required"`         // 项目名称
 	Description       string            `json:"description"`                     // 项目描述
 	CoverURL          string            `json:"cover_url"`                       // 封面图
-	LLMProviderID     *uint64           `json:"llm_provider_id"`                 // LLM提供商ID
+	LLMModelID        *uint64           `json:"llm_model_id"`                    // LLM模型ID
 	TTSProviderID     *uint64           `json:"tts_provider_id"`                 // TTS提供商ID
 	PromptTemplateIDs map[string]uint64 `json:"prompt_template_ids"`             // Prompt模板ID映射
 	Remark            string            `json:"remark"`                          // 备注
@@ -29,7 +29,7 @@ type VsProjectUpdateRequest struct {
 	Name              string            `json:"name" binding:"required"` // 项目名称
 	Description       string            `json:"description"`             // 项目描述
 	CoverURL          string            `json:"cover_url"`               // 封面图
-	LLMProviderID     *uint64           `json:"llm_provider_id"`         // LLM提供商ID
+	LLMModelID        *uint64           `json:"llm_model_id"`            // LLM模型ID
 	TTSProviderID     *uint64           `json:"tts_provider_id"`         // TTS提供商ID
 	PromptTemplateIDs map[string]uint64 `json:"prompt_template_ids"`     // Prompt模板ID映射
 	Remark            string            `json:"remark"`                  // 备注
@@ -46,7 +46,8 @@ type VsProjectDetailResponse struct {
 	SourceType        string            `json:"source_type"`
 	SourceFileURL     string            `json:"source_file_url"`
 	Status            string            `json:"status"`
-	LLMProviderID     *uint64           `json:"llm_provider_id"`
+	LLMModelID        *uint64           `json:"llm_model_id"`
+	LLMModelName      string            `json:"llm_model_name"`
 	LLMProviderName   string            `json:"llm_provider_name"`
 	TTSProviderID     *uint64           `json:"tts_provider_id"`
 	TTSProviderName   string            `json:"tts_provider_name"`

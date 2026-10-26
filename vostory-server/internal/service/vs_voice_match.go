@@ -8,6 +8,7 @@ import (
 	"time"
 
 	v1 "iot-alert-center/api/v1"
+	"iot-alert-center/internal/llmconfig"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/pkg/llm"
@@ -23,7 +24,7 @@ func NewVsVoiceMatchService(
 	characterRepo repository.VsCharacterRepository,
 	voiceProfileRepo repository.VsVoiceProfileRepository,
 	promptRepo repository.VsPromptTemplateRepository,
-	providerRepo repository.VsLLMProviderRepository,
+	llmResolver llmconfig.Resolver,
 	llmLogRepo repository.VsLLMLogRepository,
 ) VsVoiceMatchService {
 	return &vsVoiceMatchService{
@@ -32,7 +33,7 @@ func NewVsVoiceMatchService(
 		characterRepo:    characterRepo,
 		voiceProfileRepo: voiceProfileRepo,
 		promptRepo:       promptRepo,
-		providerRepo:     providerRepo,
+		llmResolver:      llmResolver,
 		llmLogRepo:       llmLogRepo,
 		llmClient:        llm.NewClient(),
 	}
@@ -44,7 +45,7 @@ type vsVoiceMatchService struct {
 	characterRepo    repository.VsCharacterRepository
 	voiceProfileRepo repository.VsVoiceProfileRepository
 	promptRepo       repository.VsPromptTemplateRepository
-	providerRepo     repository.VsLLMProviderRepository
+	llmResolver      llmconfig.Resolver
 	llmLogRepo       repository.VsLLMLogRepository
 	llmClient        *llm.Client
 }
@@ -79,7 +80,7 @@ func (s *vsVoiceMatchService) MatchVoices(ctx context.Context, projectID uint64)
 		return nil, fmt.Errorf("项目不存在")
 	}
 
-	provider, err := s.resolveProvider(ctx, project)
+	resolved, err := s.llmResolver.ResolveByProject(ctx, project)
 	if err != nil {
 		return nil, err
 	}
@@ -156,22 +157,21 @@ func (s *vsVoiceMatchService) MatchVoices(ctx context.Context, projectID uint64)
 
 	start := time.Now()
 	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
-		BaseURL: provider.APIBaseURL,
-		APIKey:  provider.APIKey,
-		Model:   provider.DefaultModel,
+		BaseURL: resolved.BaseURL,
+		APIKey:  resolved.APIKey,
+		Model:   resolved.ModelName,
 		Messages: []llm.Message{
 			{Role: "user", Content: prompt},
 		},
 		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
-		CustomParams:   provider.CustomParams,
 	})
 	costTime := time.Since(start).Milliseconds()
 
 	logEntry := &model.VsLLMLog{
 		ProjectID:  &projectID,
-		ProviderID: provider.ProviderID,
+		ProviderID: resolved.ProviderID,
 		TemplateID: templateID,
-		ModelName:  provider.DefaultModel,
+		ModelName:  resolved.ModelName,
 		CostTime:   costTime,
 		Status:     0,
 		BaseModel: model.BaseModel{
@@ -256,20 +256,6 @@ func (s *vsVoiceMatchService) MatchVoices(ctx context.Context, projectID uint64)
 		InputTokens:  chatResp.InputTokens,
 		OutputTokens: chatResp.OutputTokens,
 	}, nil
-}
-
-func (s *vsVoiceMatchService) resolveProvider(ctx context.Context, project *model.VsProject) (*model.VsLLMProvider, error) {
-	if project.LLMProviderID == nil || *project.LLMProviderID == 0 {
-		return nil, fmt.Errorf("项目未配置 LLM 提供商，请先在项目设置中绑定")
-	}
-	provider, err := s.providerRepo.FindByID(ctx, *project.LLMProviderID)
-	if err != nil {
-		return nil, fmt.Errorf("LLM 提供商不存在")
-	}
-	if provider.Status != "0" {
-		return nil, fmt.Errorf("LLM 提供商已停用")
-	}
-	return provider, nil
 }
 
 func (s *vsVoiceMatchService) resolvePrompt(ctx context.Context, project *model.VsProject) (string, *uint64, error) {

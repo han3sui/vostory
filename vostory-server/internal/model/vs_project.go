@@ -28,15 +28,15 @@ type VsProject struct {
 	SourceType        string            `json:"source_type" gorm:"size:20;comment:导入来源（txt/docx/epub）"`
 	SourceFileURL     string            `json:"source_file_url" gorm:"size:500;comment:原始文件存储路径"`
 	Status            string            `json:"status" gorm:"size:20;default:'draft';comment:项目状态（draft/parsing/parsed/generating/completed）"`
-	LLMProviderID     *uint64           `json:"llm_provider_id" gorm:"comment:项目绑定的LLM提供商"`
-	TTSProviderID     *uint64           `json:"tts_provider_id" gorm:"comment:项目绑定的TTS提供商"`
+	LLMModelID        *uint64             `json:"llm_model_id" gorm:"comment:项目绑定的LLM模型"`
+	TTSProviderID     *uint64             `json:"tts_provider_id" gorm:"comment:项目绑定的TTS提供商"`
 	PromptTemplateIDs PromptTemplateIDMap `json:"prompt_template_ids" gorm:"type:text;comment:项目绑定的各类型Prompt模板ID映射"`
-	TotalChapters     int               `json:"total_chapters" gorm:"default:0;comment:总章节数"`
-	TotalCharacters   int               `json:"total_characters" gorm:"default:0;comment:总角色数"`
-	Remark            string            `json:"remark" gorm:"size:500;comment:备注"`
+	TotalChapters     int                 `json:"total_chapters" gorm:"default:0;comment:总章节数"`
+	TotalCharacters   int                 `json:"total_characters" gorm:"default:0;comment:总角色数"`
+	Remark            string              `json:"remark" gorm:"size:500;comment:备注"`
 
 	Workspace   *VsWorkspace   `json:"workspace" gorm:"foreignKey:WorkspaceID;references:WorkspaceID"`
-	LLMProvider *VsLLMProvider `json:"llm_provider" gorm:"foreignKey:LLMProviderID;references:ProviderID"`
+	LLMModel    *VsLLMModel    `json:"llm_model" gorm:"foreignKey:LLMModelID;references:ModelID"`
 	TTSProvider *VsTTSProvider `json:"tts_provider" gorm:"foreignKey:TTSProviderID;references:ProviderID"`
 }
 

@@ -52,8 +52,8 @@
 **关键设计**：
 
 - 用户配置 `api_base_url` 时需填到 `/v1` 级别（如 `https://api.deepseek.com/v1`）
-- 厂商差异通过 `custom_params`（JSON）传入，展开到请求参数中（如 `response_format`、`temperature`）
-- 项目绑定 `llm_provider_id`，运行时从 provider 取连接参数构造请求
+- 厂家配置只存接入点（`api_base_url` / `api_key`），模型管理存 `model_name`
+- 项目绑定 `llm_model_id`，运行时从模型跳到所属厂家取凭证构造请求
 
 **连通性测试**：
 

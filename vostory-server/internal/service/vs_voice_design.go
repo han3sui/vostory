@@ -13,6 +13,7 @@ import (
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/audio"
+	"iot-alert-center/internal/llmconfig"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/tts"
@@ -48,7 +49,7 @@ func NewVsVoiceDesignService(
 	voiceProfileRepo repository.VsVoiceProfileRepository,
 	segmentRepo repository.VsScriptSegmentRepository,
 	promptRepo repository.VsPromptTemplateRepository,
-	llmProviderRepo repository.VsLLMProviderRepository,
+	llmResolver llmconfig.Resolver,
 	llmLogRepo repository.VsLLMLogRepository,
 	ttsProviderRepo repository.VsTTSProviderRepository,
 ) VsVoiceDesignService {
@@ -59,7 +60,7 @@ func NewVsVoiceDesignService(
 		voiceProfileRepo: voiceProfileRepo,
 		segmentRepo:      segmentRepo,
 		promptRepo:       promptRepo,
-		llmProviderRepo:  llmProviderRepo,
+		llmResolver:      llmResolver,
 		llmLogRepo:       llmLogRepo,
 		ttsProviderRepo:  ttsProviderRepo,
 		llmClient:        llm.NewClient(),
@@ -73,7 +74,7 @@ type vsVoiceDesignService struct {
 	voiceProfileRepo repository.VsVoiceProfileRepository
 	segmentRepo      repository.VsScriptSegmentRepository
 	promptRepo       repository.VsPromptTemplateRepository
-	llmProviderRepo  repository.VsLLMProviderRepository
+	llmResolver      llmconfig.Resolver
 	llmLogRepo       repository.VsLLMLogRepository
 	ttsProviderRepo  repository.VsTTSProviderRepository
 	llmClient        *llm.Client
@@ -97,7 +98,7 @@ func (s *vsVoiceDesignService) Suggest(ctx context.Context, characterID uint64) 
 	if err != nil {
 		return nil, err
 	}
-	provider, err := s.resolveLLMProvider(ctx, project)
+	resolved, err := s.llmResolver.ResolveByProject(ctx, project)
 	if err != nil {
 		return nil, err
 	}
@@ -115,20 +116,19 @@ func (s *vsVoiceDesignService) Suggest(ctx context.Context, characterID uint64) 
 
 	start := time.Now()
 	chatResp, err := s.llmClient.ChatCompletionStream(ctx, &llm.ChatRequest{
-		BaseURL:        provider.APIBaseURL,
-		APIKey:         provider.APIKey,
-		Model:          provider.DefaultModel,
+		BaseURL:        resolved.BaseURL,
+		APIKey:         resolved.APIKey,
+		Model:          resolved.ModelName,
 		Messages:       []llm.Message{{Role: "user", Content: prompt}},
 		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
-		CustomParams:   provider.CustomParams,
 	})
 
 	projectID := project.ProjectID
 	logEntry := &model.VsLLMLog{
 		ProjectID:    &projectID,
-		ProviderID:   provider.ProviderID,
+		ProviderID:   resolved.ProviderID,
 		TemplateID:   templateID,
-		ModelName:    provider.DefaultModel,
+		ModelName:    resolved.ModelName,
 		CostTime:     time.Since(start).Milliseconds(),
 		InputSummary: truncate(prompt, 500),
 		BaseModel:    model.BaseModel{CreatedBy: getLoginName(ctx)},
@@ -345,20 +345,6 @@ func (s *vsVoiceDesignService) sampleLines(ctx context.Context, characterID uint
 		return "（暂无）"
 	}
 	return strings.Join(lines, "\n")
-}
-
-func (s *vsVoiceDesignService) resolveLLMProvider(ctx context.Context, project *model.VsProject) (*model.VsLLMProvider, error) {
-	if project.LLMProviderID == nil || *project.LLMProviderID == 0 {
-		return nil, fmt.Errorf("项目未配置 LLM 提供商，请先在项目设置中绑定")
-	}
-	provider, err := s.llmProviderRepo.FindByID(ctx, *project.LLMProviderID)
-	if err != nil {
-		return nil, fmt.Errorf("LLM 提供商不存在")
-	}
-	if provider.Status != "0" {
-		return nil, fmt.Errorf("LLM 提供商已停用")
-	}
-	return provider, nil
 }
 
 func (s *vsVoiceDesignService) resolveTTSProvider(ctx context.Context, project *model.VsProject) (*model.VsTTSProvider, error) {

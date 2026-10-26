@@ -21,7 +21,7 @@ import { Modal } from "@arco-design/web-vue";
 import { formHelper, ArcoTable, tableHelper, ArcoModalFormShow, ruleHelper, ArcoForm } from "@easyfe/admin-component";
 import { getProjectList, addProject, updateProject, deleteProject, ProjectDetailType } from "@/config/apis/project";
 import { getWorkspaceOptions, WorkspaceOptionType } from "@/config/apis/workspace";
-import { getLLMProviderList, LLMProviderDetailType } from "@/config/apis/ai";
+import { getModelList, AIModelType } from "@/config/apis/ai-model";
 import { getTTSProviderList, TTSProviderDetailType } from "@/config/apis/ai";
 import { cloneDeep } from "lodash-es";
 import { useRouter } from "vue-router";
@@ -54,16 +54,16 @@ const ttsOptions = ref<{ label: string; value: number }[]>([]);
 onMounted(async () => {
     const [wsRes, llmRes, ttsRes] = await Promise.all([
         getWorkspaceOptions(),
-        getLLMProviderList({ status: "0", page: 1, size: 100 }),
+        getModelList({ status: "0", page: 1, size: 200 }),
         getTTSProviderList({ status: "0", page: 1, size: 100 })
     ]);
     workspaceOptions.value = (wsRes as WorkspaceOptionType[]).map((w) => ({
         label: w.name,
         value: w.id
     }));
-    llmOptions.value = ((llmRes as any).data as LLMProviderDetailType[]).map((p) => ({
-        label: p.name,
-        value: p.id
+    llmOptions.value = ((llmRes as any).data as AIModelType[]).map((m) => ({
+        label: m.provider_name ? `${m.model_name}（${m.provider_name}）` : m.model_name,
+        value: m.id
     }));
     ttsOptions.value = ((ttsRes as any).data as TTSProviderDetailType[]).map((p) => ({
         label: p.name,
@@ -94,7 +94,7 @@ const tableConfig = computed(() => {
             tableHelper.default("项目名称", "name"),
             tableHelper.default("工作空间", "workspace_name"),
             tableHelper.slot("statusSlot"),
-            tableHelper.default("LLM 提供商", "llm_provider_name"),
+            tableHelper.default("LLM 模型", "llm_model_name"),
             tableHelper.default("TTS 提供商", "tts_provider_name"),
             tableHelper.default("章节数", "total_chapters"),
             tableHelper.default("角色数", "total_characters"),
@@ -166,7 +166,7 @@ function onEdit(v: Record<string, any> | null) {
                 rules: [ruleHelper.require("请输入项目名称")]
             }),
             formHelper.textarea("项目描述", "description"),
-            formHelper.select("LLM 提供商", "llm_provider_id", llmOptions.value, {
+            formHelper.select("LLM 模型", "llm_model_id", llmOptions.value, {
                 inputTips: "用于文本解析、角色抽取等 AI 功能"
             }),
             formHelper.select("TTS 提供商", "tts_provider_id", ttsOptions.value, {
@@ -181,7 +181,7 @@ function onEdit(v: Record<string, any> | null) {
                     name,
                     description,
                     cover_url,
-                    llm_provider_id,
+                    llm_model_id,
                     tts_provider_id,
                     prompt_template_ids,
                     remark
@@ -191,7 +191,7 @@ function onEdit(v: Record<string, any> | null) {
                     name,
                     description,
                     cover_url,
-                    llm_provider_id,
+                    llm_model_id,
                     tts_provider_id,
                     prompt_template_ids,
                     remark

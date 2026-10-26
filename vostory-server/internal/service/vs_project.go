@@ -45,7 +45,7 @@ func (s *vsProjectService) Create(ctx context.Context, request *v1.VsProjectCrea
 		Description:       request.Description,
 		CoverURL:          request.CoverURL,
 		Status:            "draft",
-		LLMProviderID:     request.LLMProviderID,
+		LLMModelID:        request.LLMModelID,
 		TTSProviderID:     request.TTSProviderID,
 		PromptTemplateIDs: model.PromptTemplateIDMap(request.PromptTemplateIDs),
 		Remark:            request.Remark,
@@ -63,7 +63,7 @@ func (s *vsProjectService) Update(ctx context.Context, request *v1.VsProjectUpda
 		"name":               request.Name,
 		"description":        request.Description,
 		"cover_url":          request.CoverURL,
-		"llm_provider_id":    request.LLMProviderID,
+		"llm_model_id":       request.LLMModelID,
 		"tts_provider_id":    request.TTSProviderID,
 		"prompt_template_ids": model.PromptTemplateIDMap(request.PromptTemplateIDs),
 		"remark":             request.Remark,
@@ -132,7 +132,7 @@ func (s *vsProjectService) convertToDetailResponse(ctx context.Context, p *model
 		SourceType:        p.SourceType,
 		SourceFileURL:     p.SourceFileURL,
 		Status:            p.Status,
-		LLMProviderID:     p.LLMProviderID,
+		LLMModelID:        p.LLMModelID,
 		TTSProviderID:     p.TTSProviderID,
 		PromptTemplateIDs: map[string]uint64(p.PromptTemplateIDs),
 		TotalChapters:     totalChapters,
@@ -145,8 +145,11 @@ func (s *vsProjectService) convertToDetailResponse(ctx context.Context, p *model
 	if p.Workspace != nil {
 		resp.WorkspaceName = p.Workspace.Name
 	}
-	if p.LLMProvider != nil {
-		resp.LLMProviderName = p.LLMProvider.Name
+	if p.LLMModel != nil {
+		resp.LLMModelName = p.LLMModel.ModelName
+		if p.LLMModel.Provider != nil {
+			resp.LLMProviderName = p.LLMModel.Provider.Name
+		}
 	}
 	if p.TTSProvider != nil {
 		resp.TTSProviderName = p.TTSProvider.Name
