@@ -308,17 +308,20 @@ docker-compose up -d
 
 ### TTS 引擎
 
-语音合成基于 **Breeze-TTS-2**，需自行在 GPU 机器上部署（[breezeblue-ai/breeze-tts](https://github.com/breezeblue-ai/breeze-tts)）：
+语音合成基于 **Breeze-TTS-2**，使用 [han3sui/breeze-tts](https://github.com/han3sui/breeze-tts) 发布的镜像 `han3sui/breeze-tts` 部署（上游 fork，增加了 Bearer 鉴权与 `/status` 系统负载接口，模型权重首次启动时下载）。
+
+**RunPod**：新建模板，镜像填 `han3sui/breeze-tts:latest`，Network Volume 挂载到 `/workspace`，暴露 HTTP 端口 `7860`，环境变量设置 `API_KEY`；API 地址为 `https://<pod-id>-7860.proxy.runpod.net`。
+
+**本地 / GPU 服务器**：
 
 ```bash
-git clone https://github.com/breezeblue-ai/breeze-tts
-cd breeze-tts
-python -m pip install -r requirements.txt
-# 权重下载到 ../breeze-tts-2 后启动单并发流式 API
-python -m breeze_infer.api ../breeze-tts-2 --host 0.0.0.0 --port 7860
+git clone https://github.com/han3sui/breeze-tts
+cd breeze-tts/deploy
+cp .env.example .env   # 修改 API_KEY
+docker compose up -d
 ```
 
-运行后在「AI 配置 > TTS 供应商」中把 API 地址设为 `http://<服务器IP>:7860`，点击「测试」验证连通。
+运行后在「AI 配置 > TTS 供应商」中填写 API 地址和 API 密钥（与 `API_KEY` 相同），点击「测试」验证连通。
 
 VoStory 用到 Breeze-TTS-2 的三种模式：
 

@@ -128,24 +128,45 @@ sequenceDiagram
 
 ### Breeze-TTS-2 服务
 
+使用 [han3sui/breeze-tts](https://github.com/han3sui/breeze-tts)（上游 fork，`deploy/` 下增加了部署包装）发布的镜像 `han3sui/breeze-tts`：
+
+- **Bearer 鉴权**：设置 `API_KEY` 后，除 `/health` 外的接口都需要 `Authorization: Bearer <API_KEY>`
+- **`/status`**：CPU / 内存 / GPU 负载，对应 TTS 提供商页的「系统负载」列
+- **权重不在镜像里**：首次启动按 `MODEL_ID`（默认 `BreezeBlue/Breeze-TTS-2`）下载到 `HF_HOME`（`/workspace/hf-cache`）
+
+**RunPod**（不支持 docker-compose，用模板部署）：
+
+| 模板项 | 值 |
+|--------|----|
+| Container Image | `han3sui/breeze-tts:latest` |
+| Volume Mount Path | `/workspace`（挂 Network Volume，模型只下载一次） |
+| Expose HTTP Ports | `7860` |
+| 环境变量 | `API_KEY`=随机串；`FAST_ALL`=`true`（16GB 以下显卡填 `false`）；需要时 `HF_TOKEN` |
+
+API 地址为 `https://<pod-id>-7860.proxy.runpod.net`。
+
+**本地 / 普通 GPU 服务器**：
+
 ```bash
-git clone https://github.com/breezeblue-ai/breeze-tts
-cd breeze-tts
-python -m pip install -r requirements.txt
-# 下载权重到 ../breeze-tts-2 后启动单并发流式 API
-python -m breeze_infer.api ../breeze-tts-2 --host 0.0.0.0 --port 7860
+git clone https://github.com/han3sui/breeze-tts
+cd breeze-tts/deploy
+cp .env.example .env   # 修改 API_KEY
+docker compose up -d
 ```
 
-- 普通推理约 7.7GB 显存，建议 12GB 以上；`--fast-all` 约 14.4GB，建议 24GB
-- 服务是单并发的，TTS 提供商的"最大并发数"保持 1
+- 普通推理约 7.7GB 显存，建议 12GB 以上；`FAST_ALL=true` 约 14.4GB，建议 24GB
+- 服务是单并发的，TTS 提供商的"最大并发数"保持 1；服务繁忙（409）时后端会等待重试，最长 3 分钟
+
+完整说明见 breeze-tts 仓库的 `deploy/README.md`。
 
 ### 配置 TTS 提供商
 
 "AI 配置 > TTS 提供商"：
 
-- **API 地址**：`http://<GPU 机器 IP>:7860`
-- **API 密钥**：留空（如在前面加了鉴权代理再填写，后端会以 `Authorization: Bearer` 发送）
-- 点击「测试」会调用 `/v1/model` 并显示模型摘要
+- **API 地址**：RunPod 填 `https://<pod-id>-7860.proxy.runpod.net`，本地填 `http://<GPU 机器 IP>:7860`
+- **API 密钥**：与部署时的 `API_KEY` 相同，后端以 `Authorization: Bearer` 发送
+- **最大并发数**：1
+- 点击「测试」会调用 `/v1/model` 并显示模型摘要；「查看状态」显示 GPU 负载
 
 ### 配置声音
 

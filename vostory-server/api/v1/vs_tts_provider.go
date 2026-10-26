@@ -67,3 +67,34 @@ type VsTTSProviderTestResponse struct {
 	Message  string `json:"message"`
 	Duration int64  `json:"duration"` // 耗时（毫秒）
 }
+
+// VsTTSProviderStatusCPU CPU状态
+type VsTTSProviderStatusCPU struct {
+	Name          string  `json:"name"`
+	Percent       float64 `json:"percent"`
+	CountPhysical *int    `json:"count_physical"`
+	CountLogical  int     `json:"count_logical"`
+}
+
+// VsTTSProviderStatusMemory 内存状态
+type VsTTSProviderStatusMemory struct {
+	TotalMB int     `json:"total_mb"`
+	UsedMB  int     `json:"used_mb"`
+	Percent float64 `json:"percent"`
+}
+
+// VsTTSProviderStatusGPU GPU状态
+type VsTTSProviderStatusGPU struct {
+	Name             string  `json:"name"`
+	GPUUtilization   *int    `json:"gpu_utilization"`
+	MemoryTotalMB    int     `json:"memory_total_mb"`
+	MemoryAllocatedMB int   `json:"memory_allocated_mb"`
+	MemoryReservedMB int     `json:"memory_reserved_mb"`
+}
+
+// VsTTSProviderStatusResponse 系统状态响应
+type VsTTSProviderStatusResponse struct {
+	CPU    *VsTTSProviderStatusCPU    `json:"cpu"`
+	Memory *VsTTSProviderStatusMemory `json:"memory"`
+	GPU    *VsTTSProviderStatusGPU    `json:"gpu"`
+}

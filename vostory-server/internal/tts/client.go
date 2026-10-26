@@ -31,6 +31,14 @@ const (
 // DefaultCfgScale 官方建议使用 4 以增强指令遵循
 const DefaultCfgScale = 4.0
 
+// busyRetryTimeout 服务繁忙（409）时最长等待时间，足够等完一条长句或一次音色设计
+const busyRetryTimeout = 3 * time.Minute
+
+// busyRetryDelay 409 重试间隔：0.5s 起翻倍，封顶 5s
+func busyRetryDelay(attempt int) time.Duration {
+	return min(500*time.Millisecond<<min(attempt, 4), 5*time.Second)
+}
+
 type Client struct {
 	baseURL    string
 	apiKey     string
@@ -126,26 +134,45 @@ func (c *Client) Speech(sr SpeechRequest) ([]byte, error) {
 		return nil, fmt.Errorf("close multipart writer: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.baseURL+"/v1/audio/speech", &buf)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	c.setAuth(req)
+	body := buf.Bytes()
+	contentType := writer.FormDataContentType()
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("synthesize request failed: %w", err)
-	}
-	defer resp.Body.Close()
+	// Breeze 服务单并发，已有请求在跑时返回 409；等待后重试（如批量生成时又在试听音色设计）
+	var (
+		status int
+		data   []byte
+	)
+	deadline := time.Now().Add(busyRetryTimeout)
+	for attempt := 0; ; attempt++ {
+		req, err := http.NewRequest("POST", c.baseURL+"/v1/audio/speech", bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("create request: %w", err)
+		}
+		req.Header.Set("Content-Type", contentType)
+		c.setAuth(req)
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("synthesize request failed: %w", err)
+		}
+		data, err = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("read response: %w", err)
+		}
+		status = resp.StatusCode
+
+		if status != http.StatusConflict || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(busyRetryDelay(attempt))
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("synthesize failed (status %d): %s", resp.StatusCode, truncateBody(data))
+	if status == http.StatusConflict {
+		return nil, fmt.Errorf("TTS 服务持续繁忙（409），请确认没有其他程序在使用该服务")
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("synthesize failed (status %d): %s", status, truncateBody(data))
 	}
 	if len(data) == 0 {
 		return nil, fmt.Errorf("TTS 服务返回空音频")

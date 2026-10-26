@@ -2,7 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	v1 "iot-alert-center/api/v1"
@@ -21,6 +25,7 @@ type VsTTSProviderService interface {
 	Enable(ctx context.Context, id uint64) error
 	Disable(ctx context.Context, id uint64) error
 	TestConnection(ctx context.Context, request *v1.VsTTSProviderTestRequest) *v1.VsTTSProviderTestResponse
+	GetStatus(ctx context.Context, id uint64) (*v1.VsTTSProviderStatusResponse, error)
 }
 
 func NewVsTTSProviderService(
@@ -150,6 +155,51 @@ func (s *vsTTSProviderService) TestConnection(_ context.Context, request *v1.VsT
 		Message:  msg,
 		Duration: time.Since(start).Milliseconds(),
 	}
+}
+
+// GetStatus 读取 Breeze 部署包装（deploy/serve.py）提供的 /status 系统负载。
+func (s *vsTTSProviderService) GetStatus(ctx context.Context, id uint64) (*v1.VsTTSProviderStatusResponse, error) {
+	provider, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("提供商不存在")
+	}
+
+	url := strings.TrimRight(provider.APIBaseURL, "/") + "/status"
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("构建请求失败: %v", err)
+	}
+
+	if provider.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("连接失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("该服务未提供 /status，请使用带部署包装的 han3sui/breeze-tts 镜像")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("远程服务返回错误: HTTP %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %v", err)
+	}
+
+	var status v1.VsTTSProviderStatusResponse
+	if err := json.Unmarshal(body, &status); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %v", err)
+	}
+
+	return &status, nil
 }
 
 func (s *vsTTSProviderService) convertToDetailResponse(p *model.VsTTSProvider) *v1.VsTTSProviderDetailResponse {

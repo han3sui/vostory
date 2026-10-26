@@ -225,6 +225,34 @@ func (h *VsTTSProviderHandler) Disable(ctx *gin.Context) {
 	v1.HandleSuccess(ctx, nil)
 }
 
+// GetStatus godoc
+// @Summary      获取TTS提供商系统状态
+// @Description  获取TTS提供商的GPU/CPU/内存负载信息
+// @Tags         TTS提供商管理
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "提供商ID"
+// @Success      200  {object}  v1.Response
+// @Failure      400  {object}  v1.Response
+// @Failure      500  {object}  v1.Response
+// @Router       /api/v1/ai/tts-provider/{id}/status [get]
+// @Id        ai:tts-provider:status
+func (h *VsTTSProviderHandler) GetStatus(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "ID is required"), nil)
+		return
+	}
+
+	status, err := h.svc.GetStatus(ctx, cast.ToUint64(id))
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+
+	v1.HandleSuccess(ctx, status)
+}
+
 // TestConnection godoc
 // @Summary      测试TTS连通性
 // @Description  测试TTS提供商API连通性
