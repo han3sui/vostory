@@ -142,6 +142,36 @@ export function mergeGenericCharacters(projectId: number, dryRun: boolean): Prom
     });
 }
 
+export type CharacterMergeSuggestGroup = {
+    rule: string;
+    reason: string;
+    target_kind: "character" | "pool" | string;
+    target_id?: number;
+    target_name: string;
+    source_ids: number[];
+    source_names?: string[];
+};
+
+export type CharacterMergeSuggestResult = {
+    dry_run: boolean;
+    merged_count: number;
+    affected_segments: number;
+    need_regenerate: number;
+    groups: CharacterMergeSuggestGroup[];
+    skipped_names?: string[];
+};
+
+export function suggestMergeCharacters(
+    projectId: number,
+    data: { dry_run: boolean; groups?: CharacterMergeSuggestGroup[] }
+): Promise<CharacterMergeSuggestResult> {
+    return request({
+        url: `/api/v1/character/merge-suggest/${projectId}`,
+        method: "post",
+        data
+    });
+}
+
 export type VoiceDesignSuggestResult = {
     instruction: string;
     sample_text: string;

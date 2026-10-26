@@ -21,6 +21,7 @@ type VsCharacterService interface {
 	Disable(ctx context.Context, id uint64) error
 	Merge(ctx context.Context, request *v1.VsCharacterMergeRequest) (*v1.VsCharacterMergeResponse, error)
 	MergeGenericToPool(ctx context.Context, projectID uint64, request *v1.VsCharacterMergeGenericRequest) (*v1.VsCharacterMergeGenericResponse, error)
+	SuggestMerge(ctx context.Context, projectID uint64, request *v1.VsCharacterMergeSuggestRequest) (*v1.VsCharacterMergeSuggestResponse, error)
 }
 
 func NewVsCharacterService(

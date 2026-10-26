@@ -42,7 +42,9 @@ var genericTermCategory = map[string]string{
 	// 青年
 	"少年": "young_m", "青年": "young_m", "男子": "young_m", "男人": "young_m", "书生": "young_m", "小厮": "young_m",
 	"伙计": "young_m", "店小二": "young_m", "小二": "young_m", "侍卫": "young_m", "护卫": "young_m", "守卫": "young_m",
-	"卫兵": "young_m", "士兵": "young_m", "官兵": "young_m", "衙役": "young_m",
+	"卫兵": "young_m", "士兵": "young_m", "官兵": "young_m", "衙役": "young_m", "士卒": "young_m", "军士": "young_m",
+	"差役": "young_m", "书童": "young_m", "甲士": "young_m", "学子": "young_m", "酒客": "young_m",
+	"管家": "mid_m", "官员": "mid_m", "大臣": "mid_m", "长老": "old_m", "观众": "young",
 	"少女": "young_f", "女子": "young_f", "女人": "young_f", "姑娘": "young_f", "小姑娘": "young_f", "丫鬟": "young_f",
 	"侍女": "young_f", "婢女": "young_f", "女弟子": "young_f",
 	"年轻人": "young", "弟子": "young", "黑衣人": "young", "蒙面人": "young", "刺客": "young", "路人": "young",

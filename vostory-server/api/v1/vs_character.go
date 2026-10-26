@@ -89,3 +89,30 @@ type VsCharacterMergeGenericResponse struct {
 	Groups           []VsCharacterMergeGenericGroup `json:"groups"`
 	SkippedNames     []string                       `json:"skipped_names,omitempty"` // 有片段正在生成而跳过的角色
 }
+
+// VsCharacterMergeSuggestRequest 规则扫描合并请求
+type VsCharacterMergeSuggestRequest struct {
+	DryRun bool                           `json:"dry_run"` // 仅预览
+	Groups []VsCharacterMergeSuggestGroup `json:"groups"`  // 确认合并时传入勾选的分组；为空则按扫描结果全部合并
+}
+
+// VsCharacterMergeSuggestGroup 一条建议：多个源角色合并到同一目标或路人池
+type VsCharacterMergeSuggestGroup struct {
+	Rule        string   `json:"rule"`                   // paren_alias / unnamed_to_named / unnamed_pool / numbered_pool / generic_pool
+	Reason      string   `json:"reason"`                 // 给用户看的原因
+	TargetKind  string   `json:"target_kind"`            // character | pool
+	TargetID    uint64   `json:"target_id,omitempty"`    // 已有目标角色
+	TargetName  string   `json:"target_name"`            // 目标名称（路人池名或角色名）
+	SourceIDs   []uint64 `json:"source_ids"`             // 被合并角色
+	SourceNames []string `json:"source_names,omitempty"` // 预览用
+}
+
+// VsCharacterMergeSuggestResponse 规则扫描合并响应
+type VsCharacterMergeSuggestResponse struct {
+	DryRun           bool                           `json:"dry_run"`
+	MergedCount      int                            `json:"merged_count"`
+	AffectedSegments int64                          `json:"affected_segments"`
+	NeedRegenerate   int64                          `json:"need_regenerate"`
+	Groups           []VsCharacterMergeSuggestGroup `json:"groups"`
+	SkippedNames     []string                       `json:"skipped_names,omitempty"`
+}

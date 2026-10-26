@@ -291,3 +291,37 @@ func (h *VsCharacterHandler) MergeGeneric(ctx *gin.Context) {
 	}
 	v1.HandleSuccess(ctx, resp)
 }
+
+// SuggestMerge godoc
+// @Summary      规则扫描并合并重复角色
+// @Description  按括号别名、不具名、甲乙丙、泛称等规则扫描可合并角色；dry_run 为 true 时仅预览，确认时可传入勾选的 groups
+// @Tags         角色管理
+// @Accept       json
+// @Produce      json
+// @Param        project_id  path      int                                true   "项目ID"
+// @Param        request     body      v1.VsCharacterMergeSuggestRequest  false  "请求参数"
+// @Success      200         {object}  v1.Response
+// @Failure      400         {object}  v1.Response
+// @Failure      500         {object}  v1.Response
+// @Router       /api/v1/character/merge-suggest/{project_id} [post]
+// @Id        character:merge
+func (h *VsCharacterHandler) SuggestMerge(ctx *gin.Context) {
+	projectID := cast.ToUint64(ctx.Param("project_id"))
+	if projectID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "project_id is required"), nil)
+		return
+	}
+	request := &v1.VsCharacterMergeSuggestRequest{DryRun: true}
+	if ctx.Request.ContentLength > 0 {
+		if err := ctx.ShouldBindJSON(request); err != nil {
+			v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, err.Error()), nil)
+			return
+		}
+	}
+	resp, err := h.svc.SuggestMerge(ctx, projectID, request)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, resp)
+}

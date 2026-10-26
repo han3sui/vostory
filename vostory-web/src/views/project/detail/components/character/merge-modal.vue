@@ -18,7 +18,10 @@
             被合并角色的台词会迁移到目标角色，其名称和别名并入目标角色的别名，之后切分章节时会自动识别为目标角色。被合并角色将从列表中移除。
         </a-alert>
         <div style="margin-top: 8px">
-            <a-link @click="emit('open-generic')">「老者」「众人」等泛称角色？一键归入路人池</a-link>
+            <a-space>
+                <a-link @click="emit('open-suggest')">扫描重复角色并批量合并</a-link>
+                <a-link @click="emit('open-generic')">「老者」「众人」等泛称角色？一键归入路人池</a-link>
+            </a-space>
         </div>
         <a-form :model="form" layout="vertical" style="margin-top: 16px">
             <a-form-item label="被合并的角色（重复的称呼）" required>
@@ -79,6 +82,7 @@ const emit = defineEmits<{
     (e: "update:visible", v: boolean): void;
     (e: "success", res: CharacterMergeResult, target: CharacterDetailType): void;
     (e: "open-generic"): void;
+    (e: "open-suggest"): void;
 }>();
 
 const LEVEL_LABELS: Record<string, string> = { main: "主角", supporting: "配角", minor: "龙套" };

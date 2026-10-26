@@ -299,6 +299,7 @@ func NewHTTPServer(
 				characterRouter.PUT("/:id/disable", vsCharacterHandler.Disable)
 				characterRouter.POST("/merge", vsCharacterHandler.Merge)
 				characterRouter.POST("/merge-generic/:project_id", vsCharacterHandler.MergeGeneric)
+				characterRouter.POST("/merge-suggest/:project_id", vsCharacterHandler.SuggestMerge)
 				characterRouter.POST("/extract/:project_id", vsCharacterExtractHandler.Extract)
 				characterRouter.POST("/extract-from-text", vsCharacterExtractHandler.ExtractFromText)
 				characterRouter.POST("/voice-match/:project_id", vsVoiceMatchHandler.MatchVoices)

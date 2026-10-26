@@ -78,6 +78,7 @@
             :preset-source="mergePresetSource"
             @success="onMergeSuccess"
             @open-generic="openGenericPool"
+            @open-suggest="openSuggestMerge"
         />
         <voice-design-modal
             v-model:visible="showVoiceDesignModal"
@@ -89,6 +90,11 @@
             v-model:visible="showGenericPoolModal"
             :project-id="projectId"
             @success="onGenericPoolSuccess"
+        />
+        <suggest-merge-modal
+            v-model:visible="showSuggestMergeModal"
+            :project-id="projectId"
+            @success="onSuggestMergeSuccess"
         />
     </div>
 </template>
@@ -114,11 +120,13 @@ import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import MergeModal from "./merge-modal.vue";
 import GenericPoolModal from "./generic-pool-modal.vue";
+import SuggestMergeModal from "./suggest-merge-modal.vue";
 import VoiceDesignModal from "./voice-design-modal.vue";
 import AutoVoiceModal from "./auto-voice-modal.vue";
 import type {
     CharacterMergeResult,
     CharacterMergeGenericResult,
+    CharacterMergeSuggestResult,
     VoiceDesignApplyResult
 } from "@/config/apis/character";
 
@@ -231,6 +239,14 @@ const tableConfig = computed(() => {
         ],
         trBtns: [
             {
+                label: "智能合并",
+                type: "outline",
+                if: () => hasPermission("character:merge"),
+                handler: () => {
+                    showSuggestMergeModal.value = true;
+                }
+            },
+            {
                 label: "合并角色",
                 type: "outline",
                 if: () => hasPermission("character:merge"),
@@ -326,6 +342,7 @@ async function onEdit(v: Record<string, any> | null) {
 const showMergeModal = ref(false);
 const mergePresetSource = ref<CharacterDetailType | null>(null);
 const showGenericPoolModal = ref(false);
+const showSuggestMergeModal = ref(false);
 
 function openMerge(row: CharacterDetailType | null) {
     mergePresetSource.value = row;
@@ -339,6 +356,11 @@ function openGenericPool() {
     }
     showMergeModal.value = false;
     showGenericPoolModal.value = true;
+}
+
+function openSuggestMerge() {
+    showMergeModal.value = false;
+    showSuggestMergeModal.value = true;
 }
 
 function onMergeSuccess(res: CharacterMergeResult, target: CharacterDetailType) {
@@ -362,6 +384,18 @@ function onGenericPoolSuccess(res: CharacterMergeGenericResult) {
     const parts = [`已将 ${res.merged_count} 个泛称角色归入路人池，迁移 ${res.affected_segments} 个片段`];
     if (res.need_regenerate > 0) {
         parts.push(`其中 ${res.need_regenerate} 个已生成片段音色变化，可在路人角色上重新生成配音`);
+    }
+    Message.success(parts.join("；"));
+    table.value.refresh();
+}
+
+function onSuggestMergeSuccess(res: CharacterMergeSuggestResult) {
+    const parts = [`已按规则合并 ${res.merged_count} 个角色，迁移 ${res.affected_segments} 个片段`];
+    if (res.need_regenerate > 0) {
+        parts.push(`其中 ${res.need_regenerate} 个已生成片段音色变化，可按角色重新生成配音`);
+    }
+    if (res.skipped_names?.length) {
+        parts.push(`跳过 ${res.skipped_names.length} 个生成中的角色`);
     }
     Message.success(parts.join("；"));
     table.value.refresh();
