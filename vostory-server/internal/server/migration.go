@@ -43,6 +43,7 @@ func (m *MigrateServer) Start(ctx context.Context) error {
 		&model.SysDictType{},
 		&model.SysDictData{},
 		&model.SysOperLog{},
+		&model.SysConfig{},
 		// VoStory 业务表
 		&model.VsWorkspace{},
 		&model.VsProject{},

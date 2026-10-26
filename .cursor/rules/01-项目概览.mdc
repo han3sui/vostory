@@ -95,6 +95,7 @@ vostory-web/src/
 | 操作日志 | ✅ | ✅ | 列表查询 + 详情 + 删除 + 清空 + 自动记录中间件 |
 | 权限中间件 | ✅ | — | TokenCacheAuth + APIPermission |
 | 操作日志中间件 | ✅ | — | 自动记录所有非 GET 请求，异步写入 |
+| 对象存储 | ✅ | ✅ | FileStorage 可插拔 local / OSS（S3 兼容），音频与上传文件统一收口 |
 
 ### 待做：MVP 业务模块
 

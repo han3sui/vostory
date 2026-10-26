@@ -92,13 +92,10 @@ func (h *VsExportJobHandler) DownloadExport(ctx *gin.Context) {
 		return
 	}
 
-	filePath, contentType, fileName, err := h.svc.GetExportFilePath(ctx, exportJobID)
+	r, contentType, fileName, err := h.svc.OpenExportFile(ctx, exportJobID)
 	if err != nil {
 		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
 		return
 	}
-
-	ctx.Header("Content-Type", contentType)
-	ctx.Header("Content-Disposition", "attachment; filename="+fileName)
-	ctx.File(filePath)
+	streamAttachment(ctx, r, contentType, "attachment; filename="+fileName)
 }

@@ -1,15 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
+	"io"
 	"strconv"
 	"strings"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/audio"
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/tts"
@@ -60,7 +61,7 @@ type VsTTSSynthesizeService interface {
 	GetTaskProgress(ctx context.Context, taskID uint64) (*v1.TaskProgressResponse, error)
 	GetActiveTaskByChapter(ctx context.Context, chapterID uint64) (*v1.TaskProgressResponse, error)
 	GetActiveTasksByProject(ctx context.Context, projectID uint64) ([]*v1.ProjectTaskProgressResponse, error)
-	GetAudioClipFile(ctx context.Context, clipID uint64) (filePath string, contentType string, err error)
+	OpenAudioClip(ctx context.Context, clipID uint64) (r io.ReadCloser, contentType string, err error)
 	LockSegment(ctx context.Context, segmentID uint64) error
 	UnlockSegment(ctx context.Context, segmentID uint64) error
 	BatchLockByChapter(ctx context.Context, chapterID uint64) (int64, error)
@@ -84,6 +85,7 @@ func NewVsTTSSynthesizeService(
 	projectRepo repository.VsProjectRepository,
 	taskRepo repository.VsGenerationTaskRepository,
 	rdb *redis.Client,
+	fileStorage filestorage.FileStorage,
 ) VsTTSSynthesizeService {
 	return &vsTTSSynthesizeService{
 		Service:               service,
@@ -98,6 +100,7 @@ func NewVsTTSSynthesizeService(
 		projectRepo:           projectRepo,
 		taskRepo:              taskRepo,
 		rdb:                   rdb,
+		fileStorage:           fileStorage,
 	}
 }
 
@@ -114,6 +117,7 @@ type vsTTSSynthesizeService struct {
 	projectRepo           repository.VsProjectRepository
 	taskRepo              repository.VsGenerationTaskRepository
 	rdb                   *redis.Client
+	fileStorage           filestorage.FileStorage
 }
 
 func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error) {
@@ -168,11 +172,17 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 
 	text := s.applyPronunciationDict(ctx, segment)
 
+	refPath, cleanup, err := s.fileStorage.DownloadToTemp(ctx, filestorage.NormalizeKey(referenceAudioURL))
+	if err != nil {
+		return failAndReturn(fmt.Sprintf("参考音频不存在: %v", err))
+	}
+	defer cleanup()
+
 	client := tts.NewClient(provider.APIBaseURL, provider.APIKey)
 
 	audioData, err := client.Speech(tts.SpeechRequest{
 		Text:         text,
-		RefAudioPath: referenceAudioURL,
+		RefAudioPath: refPath,
 		RefText:      referenceText,
 		Instruction:  segmentInstruction(segment),
 		CfgScale:     ttsParamFloat(voiceProfile.TTSParams, "cfg_scale"),
@@ -189,7 +199,7 @@ func (s *vsTTSSynthesizeService) SynthesizeSegment(ctx context.Context, segmentI
 		audioData = normalizedData
 	}
 
-	audioURL, fileSize, err := s.saveAudioFile(segment, audioData)
+	audioURL, fileSize, err := s.saveAudioFile(ctx, segment, audioData)
 	if err != nil {
 		return failAndReturn(fmt.Sprintf("保存音频文件失败: %v", err))
 	}
@@ -306,24 +316,14 @@ func ttsParamInt(params model.TTSParamsMap, key string) (int64, bool) {
 	return 0, false
 }
 
-func (s *vsTTSSynthesizeService) saveAudioFile(segment *model.VsScriptSegment, audioData []byte) (string, int64, error) {
-	maxVer, _ := s.audioClipRepo.GetMaxVersion(context.Background(), segment.SegmentID)
+func (s *vsTTSSynthesizeService) saveAudioFile(ctx context.Context, segment *model.VsScriptSegment, audioData []byte) (string, int64, error) {
+	maxVer, _ := s.audioClipRepo.GetMaxVersion(ctx, segment.SegmentID)
 	version := maxVer + 1
-
-	dir := filepath.Join("storage", "audio",
-		fmt.Sprintf("%d", segment.ChapterID))
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	key := fmt.Sprintf("audio/%d/%d_v%d.wav", segment.ChapterID, segment.SegmentID, version)
+	if err := s.fileStorage.Put(ctx, key, bytes.NewReader(audioData), int64(len(audioData)), "audio/wav"); err != nil {
 		return "", 0, err
 	}
-
-	filename := fmt.Sprintf("%d_v%d.wav", segment.SegmentID, version)
-	fullPath := filepath.Join(dir, filename)
-
-	if err := os.WriteFile(fullPath, audioData, 0644); err != nil {
-		return "", 0, err
-	}
-
-	return fullPath, int64(len(audioData)), nil
+	return key, int64(len(audioData)), nil
 }
 
 func (s *vsTTSSynthesizeService) createAudioClip(
@@ -513,14 +513,15 @@ func (s *vsTTSSynthesizeService) GetTaskProgress(ctx context.Context, taskID uin
 	}, nil
 }
 
-func (s *vsTTSSynthesizeService) GetAudioClipFile(ctx context.Context, clipID uint64) (string, string, error) {
+func (s *vsTTSSynthesizeService) OpenAudioClip(ctx context.Context, clipID uint64) (io.ReadCloser, string, error) {
 	clip, err := s.audioClipRepo.FindByID(ctx, clipID)
 	if err != nil {
-		return "", "", fmt.Errorf("音频片段不存在: %w", err)
+		return nil, "", fmt.Errorf("音频片段不存在: %w", err)
 	}
 
-	if _, err := os.Stat(clip.AudioURL); err != nil {
-		return "", "", fmt.Errorf("音频文件不存在: %w", err)
+	r, err := s.fileStorage.Open(ctx, filestorage.NormalizeKey(clip.AudioURL))
+	if err != nil {
+		return nil, "", fmt.Errorf("音频文件不存在: %w", err)
 	}
 
 	contentType := "audio/wav"
@@ -530,7 +531,7 @@ func (s *vsTTSSynthesizeService) GetAudioClipFile(ctx context.Context, clipID ui
 		contentType = "audio/flac"
 	}
 
-	return clip.AudioURL, contentType, nil
+	return r, contentType, nil
 }
 
 func (s *vsTTSSynthesizeService) GetActiveTasksByProject(ctx context.Context, projectID uint64) ([]*v1.ProjectTaskProgressResponse, error) {

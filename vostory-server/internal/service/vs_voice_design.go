@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,6 +17,7 @@ import (
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/audio"
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/llmconfig"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
@@ -22,15 +26,18 @@ import (
 )
 
 const (
-	voiceDesignTemplateType = "voice_design"
-	voiceDesignMaxLines     = 10
-	voiceDesignLineRunes    = 60
-	voiceDesignMinLineRunes = 6
-	voiceDesignPreviewTTL   = 24 * time.Hour
+	voiceDesignTemplateType  = "voice_design"
+	voiceDesignMaxLines      = 10
+	voiceDesignLineRunes     = 60
+	voiceDesignMinLineRunes  = 6
+	voiceDesignPreviewTTL    = 24 * time.Hour
+	referenceAudioPrefix     = "reference-audio/"
+	voiceDesignPreviewPrefix = "reference-audio/voice-design/"
+	voiceDesignDraftPrefix   = "reference-audio/voice-design/drafts/"
 )
 
 var (
-	referenceAudioDir     = filepath.Join("storage", "reference-audio")
+	// 仅 local 模式清理过期试听；oss 模式由 apply/delete 删除
 	voiceDesignPreviewDir = filepath.Join("storage", "reference-audio", "voice-design")
 )
 
@@ -52,6 +59,7 @@ type VsVoiceDesignService interface {
 	RegenerateItem(ctx context.Context, itemID uint64) error
 	DiscardItem(ctx context.Context, itemID uint64) error
 	ItemAudioPath(ctx context.Context, itemID uint64) (string, error)
+	OpenItemAudio(ctx context.Context, itemID uint64) (io.ReadCloser, error)
 }
 
 func NewVsVoiceDesignService(
@@ -65,6 +73,7 @@ func NewVsVoiceDesignService(
 	llmLogRepo repository.VsLLMLogRepository,
 	ttsProviderRepo repository.VsTTSProviderRepository,
 	itemRepo repository.VsVoiceDesignItemRepository,
+	fileStorage filestorage.FileStorage,
 ) VsVoiceDesignService {
 	return &vsVoiceDesignService{
 		Service:          service,
@@ -78,6 +87,7 @@ func NewVsVoiceDesignService(
 		ttsProviderRepo:  ttsProviderRepo,
 		itemRepo:         itemRepo,
 		llmClient:        llm.NewClient(),
+		fileStorage:      fileStorage,
 	}
 }
 
@@ -93,6 +103,7 @@ type vsVoiceDesignService struct {
 	ttsProviderRepo  repository.VsTTSProviderRepository
 	itemRepo         repository.VsVoiceDesignItemRepository
 	llmClient        *llm.Client
+	fileStorage      filestorage.FileStorage
 }
 
 type voiceDesignCharacterInput struct {
@@ -189,14 +200,10 @@ func (s *vsVoiceDesignService) Preview(ctx context.Context, characterID uint64, 
 		return nil, err
 	}
 
-	if err := os.MkdirAll(voiceDesignPreviewDir, 0755); err != nil {
-		return nil, fmt.Errorf("创建目录失败: %w", err)
-	}
 	cleanupVoiceDesignPreviews()
 
-	previewPath := filepath.Join(voiceDesignPreviewDir,
-		fmt.Sprintf("preview_%d_%d.wav", characterID, time.Now().UnixMilli()))
-	if err := os.WriteFile(previewPath, data, 0644); err != nil {
+	previewPath := fmt.Sprintf("%spreview_%d_%d.wav", voiceDesignPreviewPrefix, characterID, time.Now().UnixMilli())
+	if err := s.fileStorage.Put(ctx, previewPath, bytes.NewReader(data), int64(len(data)), "audio/wav"); err != nil {
 		return nil, fmt.Errorf("保存试听音频失败: %w", err)
 	}
 
@@ -241,7 +248,7 @@ func (s *vsVoiceDesignService) Apply(ctx context.Context, characterID uint64, re
 		return nil, err
 	}
 
-	previewPath, err := validatePreviewPath(request.PreviewPath)
+	previewPath, err := s.validatePreviewKey(ctx, request.PreviewPath)
 	if err != nil {
 		return nil, err
 	}
@@ -261,14 +268,11 @@ func (s *vsVoiceDesignService) saveDesignedVoice(
 		name = character.Name
 	}
 
-	if err := os.MkdirAll(referenceAudioDir, 0755); err != nil {
-		return nil, fmt.Errorf("创建目录失败: %w", err)
-	}
-	finalPath := filepath.Join(referenceAudioDir,
-		fmt.Sprintf("%d_%s_design.wav", time.Now().UnixMilli(), sanitizeFileName(name)))
-	if err := os.Rename(audioPath, finalPath); err != nil {
+	finalPath := fmt.Sprintf("%s%d_%s_design.wav", referenceAudioPrefix, time.Now().UnixMilli(), sanitizeFileName(name))
+	if err := filestorage.Copy(ctx, s.fileStorage, audioPath, finalPath, "audio/wav"); err != nil {
 		return nil, fmt.Errorf("保存参考音频失败: %w", err)
 	}
+	_ = s.fileStorage.Delete(ctx, filestorage.NormalizeKey(audioPath))
 
 	gender := character.Gender
 	if gender == "" {
@@ -293,7 +297,7 @@ func (s *vsVoiceDesignService) saveDesignedVoice(
 		},
 	}
 	if err := s.voiceProfileRepo.Create(ctx, profile); err != nil {
-		_ = os.Remove(finalPath)
+		_ = s.fileStorage.Delete(ctx, finalPath)
 		return nil, fmt.Errorf("创建声音配置失败: %w", err)
 	}
 
@@ -444,17 +448,25 @@ func (s *vsVoiceDesignService) resolvePrompt(ctx context.Context, project *model
 	return "", nil
 }
 
-// validatePreviewPath 只接受本服务生成在试听目录下的文件，防止通过路径参数操作任意文件
-func validatePreviewPath(p string) (string, error) {
-	cleaned := filepath.Clean(p)
-	dir, file := filepath.Split(cleaned)
-	if filepath.Clean(dir) != filepath.Clean(voiceDesignPreviewDir) || !strings.HasPrefix(file, "preview_") {
+// validatePreviewKey 只接受本服务生成的试听对象，防止通过路径参数操作任意文件
+func (s *vsVoiceDesignService) validatePreviewKey(ctx context.Context, p string) (string, error) {
+	key := filestorage.NormalizeKey(p)
+	base := path.Base(key)
+	if !strings.HasPrefix(key, voiceDesignPreviewPrefix) || strings.Contains(key, "/drafts/") || !strings.HasPrefix(base, "preview_") {
 		return "", fmt.Errorf("无效的试听文件")
 	}
-	if _, err := os.Stat(cleaned); err != nil {
+	if !filestorage.Exists(ctx, s.fileStorage, key) {
 		return "", fmt.Errorf("试听文件已过期，请重新生成")
 	}
-	return cleaned, nil
+	return key, nil
+}
+
+func (s *vsVoiceDesignService) OpenItemAudio(ctx context.Context, itemID uint64) (io.ReadCloser, error) {
+	key, err := s.ItemAudioPath(ctx, itemID)
+	if err != nil {
+		return nil, err
+	}
+	return s.fileStorage.Open(ctx, key)
 }
 
 // cleanupVoiceDesignPreviews 清理过期未保存的试听文件

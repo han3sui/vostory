@@ -180,12 +180,10 @@ func (h *VsVoiceDesignHandler) ItemAudio(ctx *gin.Context) {
 		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "item_id is required"), nil)
 		return
 	}
-	path, err := h.svc.ItemAudioPath(ctx, itemID)
+	r, err := h.svc.OpenItemAudio(ctx, itemID)
 	if err != nil {
 		v1.HandleError(ctx, http.StatusNotFound, v1.NewError(404, err.Error()), nil)
 		return
 	}
-	ctx.Header("Content-Type", "audio/wav")
-	ctx.Header("Content-Disposition", "inline")
-	ctx.File(path)
+	streamAttachment(ctx, r, "audio/wav", "inline")
 }

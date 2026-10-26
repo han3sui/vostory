@@ -71,7 +71,7 @@ sequenceDiagram
 4. **发音词典替换**：把词替换为词典里的"替换读法"（同音字）
 5. **演绎指令**：`segment.instruction` 优先；为空时按下表兜底
 6. **固定种子**：`tts_params.seed`（音色设计时记录），否则用声音配置 ID，保证同一角色各句音色稳定
-7. **合成并保存**：`storage/audio/{chapterID}/{segmentID}_v{version}.wav`，标记旧版本为非当前
+7. **合成并保存**：对象 Key `audio/{chapterID}/{segmentID}_v{version}.wav`（local 落在 `storage/` 下，oss 写入对象存储），标记旧版本为非当前
 
 ### 情绪 → 兜底演绎指令
 
@@ -113,7 +113,7 @@ sequenceDiagram
 
 - 音色描述的 prompt 模板类型为 `voice_design`，可在"AI 配置 > Prompt 模板"中修改
 - 参考台词既是试听文本，也是保存后的 `reference_text`（Voice Design 生成的音频与这句台词逐字对应）
-- 试听文件存放在 `storage/reference-audio/voice-design/`，保存时移动到 `storage/reference-audio/`，未保存的试听 24 小时后清理
+- 试听对象 Key 为 `reference-audio/voice-design/preview_*.wav`，保存时复制到 `reference-audio/{timestamp}_{name}_design.wav`；local 模式下未保存的试听 24 小时后清理
 - 保存的声音配置 `tts_params` 中记录 `seed` 与 `voice_design`（音色描述），`description` 也写入音色描述，供"匹配已有声音"使用
 
 前端入口：

@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 )
@@ -27,11 +28,13 @@ func NewVsFileImportService(
 	service *Service,
 	projectRepo repository.VsProjectRepository,
 	chapterRepo repository.VsChapterRepository,
+	fileStorage filestorage.FileStorage,
 ) VsFileImportService {
 	return &vsFileImportService{
 		Service:     service,
 		projectRepo: projectRepo,
 		chapterRepo: chapterRepo,
+		fileStorage: fileStorage,
 	}
 }
 
@@ -39,6 +42,7 @@ type vsFileImportService struct {
 	*Service
 	projectRepo repository.VsProjectRepository
 	chapterRepo repository.VsChapterRepository
+	fileStorage filestorage.FileStorage
 }
 
 func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, file *multipart.FileHeader) (string, string, error) {
@@ -63,13 +67,8 @@ func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, 
 		return "", "", fmt.Errorf("不支持的文件格式: %s，仅支持 txt/docx/epub", ext)
 	}
 
-	uploadDir := filepath.Join("storage", "uploads", fmt.Sprintf("%d", projectID))
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		return "", "", fmt.Errorf("创建上传目录失败: %w", err)
-	}
-
 	fileName := fmt.Sprintf("%d%s", time.Now().UnixMilli(), ext)
-	filePath := filepath.Join(uploadDir, fileName)
+	filePath := fmt.Sprintf("uploads/%d/%s", projectID, fileName)
 
 	src, err := file.Open()
 	if err != nil {
@@ -77,13 +76,7 @@ func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, 
 	}
 	defer src.Close()
 
-	dst, err := os.Create(filePath)
-	if err != nil {
-		return "", "", fmt.Errorf("创建文件失败: %w", err)
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
+	if err := s.fileStorage.Put(ctx, filePath, src, file.Size, "application/octet-stream"); err != nil {
 		return "", "", fmt.Errorf("保存文件失败: %w", err)
 	}
 
@@ -183,10 +176,11 @@ func (s *vsFileImportService) parseSourceFile(ctx context.Context, projectID uin
 }
 
 func (s *vsFileImportService) parseTxtFile(ctx context.Context, project *model.VsProject) (int, int, error) {
-	f, err := os.Open(project.SourceFileURL)
+	f, cleanup, err := s.openSource(ctx, project.SourceFileURL)
 	if err != nil {
 		return 0, 0, fmt.Errorf("打开源文件失败: %w", err)
 	}
+	defer cleanup()
 	defer f.Close()
 
 	type chapterData struct {
@@ -239,7 +233,12 @@ func (s *vsFileImportService) parseTxtFile(ctx context.Context, project *model.V
 }
 
 func (s *vsFileImportService) parseEpubFile(ctx context.Context, project *model.VsProject) (int, int, error) {
-	epubChapters, err := ParseEpubFile(project.SourceFileURL)
+	path, cleanup, err := s.sourceLocalPath(ctx, project.SourceFileURL)
+	if err != nil {
+		return 0, 0, fmt.Errorf("打开源文件失败: %w", err)
+	}
+	defer cleanup()
+	epubChapters, err := ParseEpubFile(path)
 	if err != nil {
 		return 0, 0, fmt.Errorf("解析 epub 失败: %w", err)
 	}
@@ -298,4 +297,27 @@ func (s *vsFileImportService) saveChapters(ctx context.Context, project *model.V
 	}
 
 	return len(chapters), totalWords, nil
+}
+
+// openSource 优先按存储 Key 打开，兼容历史本地绝对路径
+func (s *vsFileImportService) openSource(ctx context.Context, stored string) (io.ReadCloser, func(), error) {
+	if r, err := s.fileStorage.Open(ctx, filestorage.NormalizeKey(stored)); err == nil {
+		return r, func() {}, nil
+	}
+	f, err := os.Open(stored)
+	if err != nil {
+		return nil, nil, err
+	}
+	return f, func() {}, nil
+}
+
+// sourceLocalPath 给依赖本地路径的解析器（如 epub）用
+func (s *vsFileImportService) sourceLocalPath(ctx context.Context, stored string) (string, func(), error) {
+	if path, cleanup, err := s.fileStorage.DownloadToTemp(ctx, filestorage.NormalizeKey(stored)); err == nil {
+		return path, cleanup, nil
+	}
+	if _, err := os.Stat(stored); err == nil {
+		return stored, func() {}, nil
+	}
+	return "", nil, fmt.Errorf("源文件不存在")
 }

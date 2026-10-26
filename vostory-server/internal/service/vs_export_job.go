@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/audio"
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 )
@@ -16,7 +18,7 @@ import (
 type VsExportJobService interface {
 	ExportChapterAudio(ctx context.Context, chapterID uint64, format string) (*v1.ExportJobResponse, error)
 	GetExportJob(ctx context.Context, exportJobID uint64) (*v1.ExportJobResponse, error)
-	GetExportFilePath(ctx context.Context, exportJobID uint64) (filePath string, contentType string, fileName string, err error)
+	OpenExportFile(ctx context.Context, exportJobID uint64) (r io.ReadCloser, contentType string, fileName string, err error)
 }
 
 func NewVsExportJobService(
@@ -25,6 +27,7 @@ func NewVsExportJobService(
 	segmentRepo repository.VsScriptSegmentRepository,
 	audioClipRepo repository.VsAudioClipRepository,
 	chapterRepo repository.VsChapterRepository,
+	fileStorage filestorage.FileStorage,
 ) VsExportJobService {
 	return &vsExportJobService{
 		Service:       service,
@@ -32,6 +35,7 @@ func NewVsExportJobService(
 		segmentRepo:   segmentRepo,
 		audioClipRepo: audioClipRepo,
 		chapterRepo:   chapterRepo,
+		fileStorage:   fileStorage,
 	}
 }
 
@@ -41,6 +45,7 @@ type vsExportJobService struct {
 	segmentRepo   repository.VsScriptSegmentRepository
 	audioClipRepo repository.VsAudioClipRepository
 	chapterRepo   repository.VsChapterRepository
+	fileStorage   filestorage.FileStorage
 }
 
 func (s *vsExportJobService) ExportChapterAudio(ctx context.Context, chapterID uint64, format string) (*v1.ExportJobResponse, error) {
@@ -65,15 +70,23 @@ func (s *vsExportJobService) ExportChapterAudio(ctx context.Context, chapterID u
 	}
 
 	var audioPaths []string
+	var cleanups []func()
+	defer func() {
+		for _, fn := range cleanups {
+			fn()
+		}
+	}()
 	for _, seg := range segments {
 		clip, ok := audioMap[seg.SegmentID]
 		if !ok || clip.AudioURL == "" {
 			continue
 		}
-		if _, err := os.Stat(clip.AudioURL); err != nil {
+		path, cleanup, err := s.fileStorage.DownloadToTemp(ctx, filestorage.NormalizeKey(clip.AudioURL))
+		if err != nil {
 			continue
 		}
-		audioPaths = append(audioPaths, clip.AudioURL)
+		cleanups = append(cleanups, cleanup)
+		audioPaths = append(audioPaths, path)
 	}
 
 	if len(audioPaths) == 0 {
@@ -92,10 +105,8 @@ func (s *vsExportJobService) ExportChapterAudio(ctx context.Context, chapterID u
 	}
 
 	ext := "." + format
-	outputDir := filepath.Join("storage", "export", fmt.Sprintf("%d", chapter.ProjectID))
-	outputPath := filepath.Join(outputDir, fmt.Sprintf("chapter_%d_%d%s", chapterID, job.ExportJobID, ext))
-
-	if err := audio.MergeAudioFiles(audioPaths, outputPath, format); err != nil {
+	tmpOut := filepath.Join(os.TempDir(), fmt.Sprintf("vostory_export_%d%s", job.ExportJobID, ext))
+	if err := audio.MergeAudioFiles(audioPaths, tmpOut, format); err != nil {
 		now := time.Now()
 		job.Status = "failed"
 		job.ErrorMessage = err.Error()
@@ -103,14 +114,35 @@ func (s *vsExportJobService) ExportChapterAudio(ctx context.Context, chapterID u
 		_ = s.exportJobRepo.Update(ctx, job)
 		return nil, fmt.Errorf("音频合并失败: %w", err)
 	}
+	defer os.Remove(tmpOut)
 
-	fi, err := os.Stat(outputPath)
+	f, err := os.Open(tmpOut)
 	if err != nil {
 		return nil, fmt.Errorf("导出文件不可读: %w", err)
 	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("导出文件不可读: %w", err)
+	}
+
+	contentType := "audio/wav"
+	if format == "mp3" {
+		contentType = "audio/mpeg"
+	}
+	key := fmt.Sprintf("export/%d/chapter_%d_%d%s", chapter.ProjectID, chapterID, job.ExportJobID, ext)
+	if err := s.fileStorage.Put(ctx, key, f, fi.Size(), contentType); err != nil {
+		now := time.Now()
+		job.Status = "failed"
+		job.ErrorMessage = err.Error()
+		job.CompletedAt = &now
+		_ = s.exportJobRepo.Update(ctx, job)
+		return nil, fmt.Errorf("保存导出文件失败: %w", err)
+	}
+
 	now := time.Now()
 	job.Status = "completed"
-	job.OutputURL = outputPath
+	job.OutputURL = key
 	job.FileSize = fi.Size()
 	job.CompletedAt = &now
 	if err := s.exportJobRepo.Update(ctx, job); err != nil {
@@ -142,16 +174,17 @@ func (s *vsExportJobService) GetExportJob(ctx context.Context, exportJobID uint6
 	}, nil
 }
 
-func (s *vsExportJobService) GetExportFilePath(ctx context.Context, exportJobID uint64) (string, string, string, error) {
+func (s *vsExportJobService) OpenExportFile(ctx context.Context, exportJobID uint64) (io.ReadCloser, string, string, error) {
 	job, err := s.exportJobRepo.FindByID(ctx, exportJobID)
 	if err != nil {
-		return "", "", "", fmt.Errorf("导出任务不存在: %w", err)
+		return nil, "", "", fmt.Errorf("导出任务不存在: %w", err)
 	}
 	if job.Status != "completed" {
-		return "", "", "", fmt.Errorf("导出任务尚未完成，当前状态: %s", job.Status)
+		return nil, "", "", fmt.Errorf("导出任务尚未完成，当前状态: %s", job.Status)
 	}
-	if _, err := os.Stat(job.OutputURL); err != nil {
-		return "", "", "", fmt.Errorf("导出文件不存在")
+	r, err := s.fileStorage.Open(ctx, filestorage.NormalizeKey(job.OutputURL))
+	if err != nil {
+		return nil, "", "", fmt.Errorf("导出文件不存在")
 	}
 
 	contentType := "audio/wav"
@@ -162,5 +195,5 @@ func (s *vsExportJobService) GetExportFilePath(ctx context.Context, exportJobID 
 	}
 
 	fileName := fmt.Sprintf("chapter_%d%s", *job.ChapterID, ext)
-	return job.OutputURL, contentType, fileName, nil
+	return r, contentType, fileName, nil
 }

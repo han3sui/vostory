@@ -7,12 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"sync"
 	"testing"
 
 	v1 "iot-alert-center/api/v1"
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/llmconfig"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
@@ -195,6 +195,7 @@ func newBatchTestService(t *testing.T, fakes *fakeVoiceServers) (*vsVoiceDesignS
 		llmLogRepo:       repository.NewVsLLMLogRepository(repo),
 		ttsProviderRepo:  repository.NewVsTTSProviderRepository(repo),
 		itemRepo:         repository.NewVsVoiceDesignItemRepository(repo),
+		fileStorage:      filestorage.NewLocal("storage"),
 	}
 	return svc, db
 }
@@ -297,14 +298,14 @@ func TestVoiceDesignBatchFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(audioPath); !os.IsNotExist(err) {
+	if filestorage.Exists(ctx, svc.fileStorage, audioPath) {
 		t.Fatal("draft audio should be moved into reference audio dir after apply")
 	}
 	profile := model.VsVoiceProfile{}
 	if err := db.First(&profile, applied.VoiceProfileID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(profile.ReferenceAudioURL); err != nil || profile.ReferenceText != "我命由我不由天。" {
+	if !filestorage.Exists(ctx, svc.fileStorage, profile.ReferenceAudioURL) || profile.ReferenceText != "我命由我不由天。" {
 		t.Fatalf("profile=%+v, want saved reference audio and text", profile)
 	}
 	if got := loadTestCharacter(t, db, xiao.CharacterID); got.VoiceProfileID == nil || *got.VoiceProfileID != applied.VoiceProfileID {
@@ -343,7 +344,7 @@ func TestVoiceDesignDraftRegenerateAndDiscard(t *testing.T) {
 	if err := svc.RegenerateItem(ctx, item.ItemID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(firstAudio); !os.IsNotExist(err) {
+	if filestorage.Exists(ctx, svc.fileStorage, firstAudio) {
 		t.Fatal("old draft audio should be removed on regenerate")
 	}
 	processAllQueued(t, svc)
@@ -355,7 +356,7 @@ func TestVoiceDesignDraftRegenerateAndDiscard(t *testing.T) {
 	if err := svc.DiscardItem(ctx, item.ItemID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(secondAudio); !os.IsNotExist(err) {
+	if filestorage.Exists(ctx, svc.fileStorage, secondAudio) {
 		t.Fatal("draft audio should be removed on discard")
 	}
 	resp, _ = svc.GetBatch(ctx, 1)

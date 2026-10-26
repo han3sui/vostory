@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/pkg/llm"
@@ -306,6 +307,7 @@ func newImportTestService(t *testing.T) (*vsFileImportService, *gorm.DB) {
 		Service:     &Service{logger: nopLogger()},
 		projectRepo: repository.NewVsProjectRepository(repo),
 		chapterRepo: repository.NewVsChapterRepository(repo),
+		fileStorage: filestorage.NewLocal("storage"),
 	}, db
 }
 

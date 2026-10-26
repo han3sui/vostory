@@ -151,15 +151,12 @@ func (h *VsTTSSynthesizeHandler) StreamAudio(ctx *gin.Context) {
 		return
 	}
 
-	filePath, contentType, err := h.svc.GetAudioClipFile(ctx, clipID)
+	r, contentType, err := h.svc.OpenAudioClip(ctx, clipID)
 	if err != nil {
 		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
 		return
 	}
-
-	ctx.Header("Content-Type", contentType)
-	ctx.Header("Content-Disposition", "inline")
-	ctx.File(filePath)
+	streamAttachment(ctx, r, contentType, "inline")
 }
 
 // GetActiveTask godoc

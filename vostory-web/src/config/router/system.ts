@@ -117,6 +117,16 @@ const routers: RouteConfig[] = [
                     permission: () => hasPermission("system:api:list")
                 },
                 component: () => import("@/views/system/api/index.vue")
+            },
+            {
+                path: "/system/oss-config",
+                name: "system-oss-config",
+                meta: {
+                    title: "对象存储",
+                    sort: 9,
+                    permission: () => hasPermission("system:oss-config:view")
+                },
+                component: () => import("@/views/system/oss-config/index.vue")
             }
         ]
     }

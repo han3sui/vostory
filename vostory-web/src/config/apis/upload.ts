@@ -10,7 +10,7 @@ export type UploadResult = {
 
 /**
  * 从存储路径中提取原始文件名。
- * 存储格式为 "storage/reference-audio/1774443473329_原始文件名.wav"，
+ * 存储格式为 "reference-audio/1774443473329_原始文件名.wav"（历史数据可能带 storage/ 前缀），
  * 需去掉时间戳前缀。
  */
 export function extractFilenameFromPath(storedPath: string): string {

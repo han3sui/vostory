@@ -591,7 +591,7 @@ export function onSelectItem(config: { checkType: "checkbox" | "radio" }) {
 适用于参考音频等非公开文件。文件存储在后端 `storage/` 目录，前端无法直接访问，需通过带鉴权的流接口获取。
 
 **后端接口：**
-- `POST /api/v1/common/upload/reference-audio` — 上传，返回 `{ path: "storage/reference-audio/1774xxx_文件名.wav", filename: "文件名.wav" }`
+- `POST /api/v1/common/upload/reference-audio` — 上传，返回 `{ path: "reference-audio/1774xxx_文件名.wav", filename: "文件名.wav" }`
 - `GET /api/v1/common/reference-audio/stream?source=voice-asset&id=2` — 流式获取，通过 source + id 查库获取文件路径
 
 **工具函数（`@/config/apis/upload.ts`）：**
@@ -668,7 +668,7 @@ audio.onended = () => URL.revokeObjectURL(blobURL); // 播放结束释放
 ```
 
 **关键注意事项：**
-- 本地文件**没有直链**，`reference_audio_url` 存的是服务器本地路径（如 `storage\reference-audio\xxx.wav`），前端不能直接用于 `<audio src>` 或 `new Audio()`
+- 音频文件**没有直链**，`reference_audio_url` 存的是存储 Key（如 `reference-audio/xxx.wav`），前端不能直接用于 `<audio src>` 或 `new Audio()`
 - 播放必须通过 `fetchReferenceAudioBlob` 走流接口 + Blob URL
 - `fetch` 必须使用 `envHelper.get("VITE_APP_API_URL")` 拼接 baseURL，与 `request` 保持一致
 - 使用完 Blob URL 后务必调用 `URL.revokeObjectURL()` 释放内存
@@ -713,7 +713,7 @@ formHelper.upload("附件", "file_url", {
 | | 本地上传 | OSS/CDN 上传 |
 |---|---|---|
 | **customRequest** | `uploadReferenceAudio` | `uploadFileNew` |
-| **存储值** | 服务器本地路径 | 公开直链 URL |
+| **存储值** | 存储 Key（经后端流接口访问） | 公开直链 URL |
 | **编辑回显** | 需 `pathToFileList()` 转换 | 直接使用 URL 字符串 |
 | **提交提取** | 需 `extractUploadUrl()` | 需 `extractUploadUrl()` |
 | **前端访问** | 流接口 `fetchReferenceAudioBlob()` | 直接 `<img src>` / `new Audio()` |

@@ -8,6 +8,7 @@ import (
 	"iot-alert-center/internal/client/kafka"
 	"iot-alert-center/internal/client/mqtt"
 	"iot-alert-center/internal/client/resty"
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/handler"
 	"iot-alert-center/internal/job"
 	"iot-alert-center/internal/llmconfig"
@@ -64,6 +65,7 @@ var repositorySet = wire.NewSet(
 	repository.NewVsVoiceAssetRepository,
 	repository.NewVsGenerationTaskRepository,
 	repository.NewVsExportJobRepository,
+	repository.NewSysOSSConfigRepository,
 )
 
 var serviceSet = wire.NewSet(
@@ -101,6 +103,8 @@ var serviceSet = wire.NewSet(
 	service.NewVsVoiceMatchService,
 	service.NewVsVoiceDesignService,
 	service.NewVsExportJobService,
+	service.NewSysOSSConfigService,
+	filestorage.NewFileStorage,
 	cache.NewUserCache,
 	mqtt.NewMqttClient,
 	kafka.NewKafkaProducer,
@@ -142,6 +146,7 @@ var handlerSet = wire.NewSet(
 	handler.NewVsVoiceMatchHandler,
 	handler.NewVsVoiceDesignHandler,
 	handler.NewVsExportJobHandler,
+	handler.NewSysOSSConfigHandler,
 )
 
 var workerSet = wire.NewSet(

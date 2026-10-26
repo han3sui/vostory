@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	v1 "iot-alert-center/api/v1"
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/repository"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +21,7 @@ type VsCommonUploadHandler struct {
 	voiceAssetRepo   repository.VsVoiceAssetRepository
 	voiceProfileRepo repository.VsVoiceProfileRepository
 	voiceEmotionRepo repository.VsVoiceEmotionRepository
+	fileStorage      filestorage.FileStorage
 }
 
 func NewVsCommonUploadHandler(
@@ -28,12 +29,14 @@ func NewVsCommonUploadHandler(
 	voiceAssetRepo repository.VsVoiceAssetRepository,
 	voiceProfileRepo repository.VsVoiceProfileRepository,
 	voiceEmotionRepo repository.VsVoiceEmotionRepository,
+	fileStorage filestorage.FileStorage,
 ) *VsCommonUploadHandler {
 	return &VsCommonUploadHandler{
 		Handler:          handler,
 		voiceAssetRepo:   voiceAssetRepo,
 		voiceProfileRepo: voiceProfileRepo,
 		voiceEmotionRepo: voiceEmotionRepo,
+		fileStorage:      fileStorage,
 	}
 }
 
@@ -76,16 +79,20 @@ func (h *VsCommonUploadHandler) UploadReferenceAudio(ctx *gin.Context) {
 		return
 	}
 
-	uploadDir := filepath.Join("storage", "reference-audio")
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, "创建上传目录失败"), nil)
+	src, err := file.Open()
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, "打开上传文件失败"), nil)
 		return
 	}
+	defer src.Close()
 
-	storedName := fmt.Sprintf("%d_%s", time.Now().UnixMilli(), file.Filename)
-	filePath := filepath.Join(uploadDir, storedName)
-
-	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
+	storedName := fmt.Sprintf("%d_%s", time.Now().UnixMilli(), filepath.Base(file.Filename))
+	filePath := "reference-audio/" + storedName
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	if err := h.fileStorage.Put(ctx, filePath, src, file.Size, contentType); err != nil {
 		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, "保存文件失败"), nil)
 		return
 	}
@@ -149,17 +156,11 @@ func (h *VsCommonUploadHandler) StreamReferenceAudio(ctx *gin.Context) {
 		return
 	}
 
-	if _, err := os.Stat(storedPath); os.IsNotExist(err) {
+	r, err := h.fileStorage.Open(ctx, filestorage.NormalizeKey(storedPath))
+	if err != nil {
 		v1.HandleError(ctx, http.StatusNotFound, v1.NewError(404, "音频文件不存在"), nil)
 		return
 	}
-
 	contentType := mime.TypeByExtension(filepath.Ext(storedPath))
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-
-	ctx.Header("Content-Type", contentType)
-	ctx.Header("Content-Disposition", "inline")
-	ctx.File(storedPath)
+	streamAttachment(ctx, r, contentType, "inline")
 }

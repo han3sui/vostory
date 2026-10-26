@@ -1,19 +1,18 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
+	"path"
+	"strings"
 	"time"
 
 	v1 "iot-alert-center/api/v1"
+	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 )
-
-// 草稿音频不放在试听目录，避免被 24 小时的试听清理误删
-var voiceDesignDraftDir = filepath.Join("storage", "reference-audio", "voice-design", "drafts")
 
 func (s *vsVoiceDesignService) StartBatch(ctx context.Context, projectID uint64, request *v1.VoiceDesignBatchRequest) (*v1.VoiceDesignBatchResponse, error) {
 	active, err := s.itemRepo.CountActiveByProject(ctx, projectID)
@@ -188,11 +187,8 @@ func (s *vsVoiceDesignService) ProcessItem(ctx context.Context, itemID uint64) e
 	if err != nil {
 		return fail(err)
 	}
-	if err := os.MkdirAll(voiceDesignDraftDir, 0755); err != nil {
-		return fail(fmt.Errorf("创建目录失败: %w", err))
-	}
-	draftPath := filepath.Join(voiceDesignDraftDir, fmt.Sprintf("draft_%d_%d.wav", itemID, time.Now().UnixMilli()))
-	if err := os.WriteFile(draftPath, data, 0644); err != nil {
+	draftPath := fmt.Sprintf("%sdraft_%d_%d.wav", voiceDesignDraftPrefix, itemID, time.Now().UnixMilli())
+	if err := s.fileStorage.Put(ctx, draftPath, bytes.NewReader(data), int64(len(data)), "audio/wav"); err != nil {
 		return fail(fmt.Errorf("保存音频失败: %w", err))
 	}
 
@@ -210,7 +206,7 @@ func (s *vsVoiceDesignService) ProcessItem(ctx context.Context, itemID uint64) e
 
 	applied, err := s.saveDesignedVoice(ctx, character, project, draftPath, "", suggestion.Instruction, suggestion.SampleText, seed)
 	if err != nil {
-		_ = os.Remove(draftPath)
+		_ = s.fileStorage.Delete(ctx, draftPath)
 		return fail(err)
 	}
 	fields["status"] = repository.VoiceDesignItemApplied
@@ -239,11 +235,11 @@ func (s *vsVoiceDesignService) ApplyItem(ctx context.Context, itemID uint64) (*v
 	if err != nil {
 		return nil, err
 	}
-	path, err := validateDraftPath(item.PreviewPath)
+	draftKey, err := s.validateDraftKey(ctx, item.PreviewPath)
 	if err != nil {
 		return nil, err
 	}
-	applied, err := s.saveDesignedVoice(ctx, character, project, path, "", item.Instruction, item.SampleText, item.Seed)
+	applied, err := s.saveDesignedVoice(ctx, character, project, draftKey, "", item.Instruction, item.SampleText, item.Seed)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +262,7 @@ func (s *vsVoiceDesignService) RegenerateItem(ctx context.Context, itemID uint64
 	if item.Status != repository.VoiceDesignItemDraft && item.Status != repository.VoiceDesignItemFailed {
 		return fmt.Errorf("只有草稿或失败的任务项可以重新生成")
 	}
-	removeDraftFile(item.PreviewPath)
+	s.removeObject(ctx, item.PreviewPath)
 	return s.itemRepo.UpdateFields(ctx, itemID, map[string]interface{}{
 		"status":        repository.VoiceDesignItemQueued,
 		"preview_path":  "",
@@ -279,7 +275,7 @@ func (s *vsVoiceDesignService) DiscardItem(ctx context.Context, itemID uint64) e
 	if err != nil {
 		return err
 	}
-	removeDraftFile(item.PreviewPath)
+	s.removeObject(ctx, item.PreviewPath)
 	return s.itemRepo.UpdateFields(ctx, itemID, map[string]interface{}{
 		"status":       repository.VoiceDesignItemDiscarded,
 		"preview_path": "",
@@ -291,26 +287,27 @@ func (s *vsVoiceDesignService) ItemAudioPath(ctx context.Context, itemID uint64)
 	if err != nil {
 		return "", err
 	}
-	return validateDraftPath(item.PreviewPath)
+	return s.validateDraftKey(ctx, item.PreviewPath)
 }
 
-// validateDraftPath 只允许访问草稿目录下的文件
-func validateDraftPath(p string) (string, error) {
+// validateDraftKey 只允许访问草稿目录下的对象
+func (s *vsVoiceDesignService) validateDraftKey(ctx context.Context, p string) (string, error) {
 	if p == "" {
 		return "", fmt.Errorf("草稿音频不存在，请重新生成")
 	}
-	cleaned := filepath.Clean(p)
-	if filepath.Dir(cleaned) != filepath.Clean(voiceDesignDraftDir) {
+	key := filestorage.NormalizeKey(p)
+	base := path.Base(key)
+	if !strings.HasPrefix(key, voiceDesignDraftPrefix) || !strings.HasPrefix(base, "draft_") {
 		return "", fmt.Errorf("无效的草稿音频")
 	}
-	if _, err := os.Stat(cleaned); err != nil {
+	if !filestorage.Exists(ctx, s.fileStorage, key) {
 		return "", fmt.Errorf("草稿音频不存在，请重新生成")
 	}
-	return cleaned, nil
+	return key, nil
 }
 
-func removeDraftFile(p string) {
-	if path, err := validateDraftPath(p); err == nil {
-		_ = os.Remove(path)
+func (s *vsVoiceDesignService) removeObject(ctx context.Context, p string) {
+	if key, err := s.validateDraftKey(ctx, p); err == nil {
+		_ = s.fileStorage.Delete(ctx, key)
 	}
 }

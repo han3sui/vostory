@@ -60,6 +60,7 @@ func NewHTTPServer(
 	vsVoiceMatchHandler *handler.VsVoiceMatchHandler,
 	vsVoiceDesignHandler *handler.VsVoiceDesignHandler,
 	vsExportJobHandler *handler.VsExportJobHandler,
+	sysOSSConfigHandler *handler.SysOSSConfigHandler,
 
 ) *http.Server {
 	if conf.GetString("env") == "local" {
@@ -241,6 +242,13 @@ func NewHTTPServer(
 					operlogRouter.GET("/list", sysOperLogHandler.List)
 					operlogRouter.DELETE("/:id", sysOperLogHandler.Delete)
 					operlogRouter.DELETE("/clean", sysOperLogHandler.Clean)
+				}
+
+				ossConfigRouter := systemRouter.Group("/oss-config")
+				{
+					ossConfigRouter.GET("", sysOSSConfigHandler.GetConfig)
+					ossConfigRouter.PUT("", sysOSSConfigHandler.UpdateConfig)
+					ossConfigRouter.POST("/test", sysOSSConfigHandler.TestConnection)
 				}
 
 			}
