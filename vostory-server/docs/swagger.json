@@ -2498,6 +2498,310 @@
                 }
             }
         },
+        "/api/v1/character/voice-design/batch/{project_id}": {
+            "get": {
+                "description": "返回项目最近一批音色设计任务的进度，以及更早批次中仍待确认的草稿",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "批量音色设计进度",
+                "operationId": "character:voice_design_batch_status",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "为选中的角色创建批量音色设计任务，由后台逐个生成；confirm_important 为 true 时主角、配角、旁白先生成草稿待试听确认",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "批量生成音色",
+                "operationId": "character:voice_design_batch",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.VoiceDesignBatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/voice-design/batch/{project_id}/cancel": {
+            "post": {
+                "description": "取消项目中尚未开始的音色设计任务项，正在处理的那一个会继续完成",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "停止批量音色设计",
+                "operationId": "character:voice_design_batch_cancel",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/voice-design/item/{item_id}/apply": {
+            "post": {
+                "description": "将批量生成的音色草稿保存为声音配置并绑定角色",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "确认音色草稿",
+                "operationId": "character:voice_design_item_apply",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "任务项ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/voice-design/item/{item_id}/audio": {
+            "get": {
+                "description": "返回音色草稿的 WAV 音频",
+                "produces": [
+                    "audio/wav"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "试听音色草稿",
+                "operationId": "character:voice_design_item_audio",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "任务项ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/voice-design/item/{item_id}/discard": {
+            "post": {
+                "description": "删除草稿音频，角色保持未绑定声音",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "放弃音色草稿",
+                "operationId": "character:voice_design_item_discard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "任务项ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/character/voice-design/item/{item_id}/regenerate": {
+            "post": {
+                "description": "丢弃当前草稿或失败结果，重新排队生成",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色管理"
+                ],
+                "summary": "重新生成音色草稿",
+                "operationId": "character:voice_design_item_regenerate",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "任务项ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/character/voice-match/{project_id}": {
             "post": {
                 "description": "调用 LLM 根据角色描述和声音描述自动匹配，已绑定声音的角色自动跳过",
@@ -10362,6 +10666,25 @@
                 }
             }
         },
+        "iot-alert-center_api_v1.VoiceDesignBatchRequest": {
+            "type": "object",
+            "required": [
+                "character_ids"
+            ],
+            "properties": {
+                "character_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "confirm_important": {
+                    "description": "主角、配角、旁白先生成草稿，试听确认后再保存",
+                    "type": "boolean"
+                }
+            }
+        },
         "iot-alert-center_api_v1.VoiceDesignPreviewRequest": {
             "type": "object",
             "required": [
@@ -10484,6 +10807,10 @@
                 },
                 "status": {
                     "description": "状态",
+                    "type": "string"
+                },
+                "trait_notes": {
+                    "description": "角色特征补充（每行一条）",
                     "type": "string"
                 },
                 "voice_profile_id": {
@@ -10622,6 +10949,10 @@
                 },
                 "status": {
                     "description": "状态",
+                    "type": "string"
+                },
+                "trait_notes": {
+                    "description": "角色特征补充（每行一条）",
                     "type": "string"
                 },
                 "voice_profile_id": {

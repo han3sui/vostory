@@ -12,6 +12,7 @@ type VsCharacterRepository interface {
 	UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsCharacter, error)
+	FindByIDs(ctx context.Context, ids []uint64) (map[uint64]*model.VsCharacter, error)
 	FindWithPagination(ctx context.Context, query *v1.VsCharacterListQuery) ([]*model.VsCharacter, int64, error)
 	FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsCharacter, error)
 	CountByProjectID(ctx context.Context, projectID uint64) (int64, error)
@@ -48,6 +49,21 @@ func (r *vsCharacterRepository) FindByID(ctx context.Context, id uint64) (*model
 		return nil, err
 	}
 	return &character, nil
+}
+
+func (r *vsCharacterRepository) FindByIDs(ctx context.Context, ids []uint64) (map[uint64]*model.VsCharacter, error) {
+	result := make(map[uint64]*model.VsCharacter, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+	var characters []*model.VsCharacter
+	if err := r.db.WithContext(ctx).Where("character_id IN ?", ids).Find(&characters).Error; err != nil {
+		return nil, err
+	}
+	for _, c := range characters {
+		result[c.CharacterID] = c
+	}
+	return result, nil
 }
 
 func (r *vsCharacterRepository) FindWithPagination(ctx context.Context, query *v1.VsCharacterListQuery) ([]*model.VsCharacter, int64, error) {

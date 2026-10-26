@@ -24,6 +24,7 @@ type VsCharacter struct {
 	Aliases        StringList `json:"aliases" gorm:"type:text;comment:别名列表"`
 	Gender         string     `json:"gender" gorm:"size:10;comment:性别（male/female/unknown）"`
 	Description    string     `json:"description" gorm:"size:1000;comment:角色描述"`
+	TraitNotes     string     `json:"trait_notes" gorm:"type:text;comment:角色特征补充（各章节切分时 LLM 给出的描述去重累积，每行一条）"`
 	Level          string     `json:"level" gorm:"size:20;default:'main';comment:角色层级（main/supporting/minor）"`
 	VoiceProfileID *uint64    `json:"voice_profile_id" gorm:"comment:绑定的声音配置"`
 	MergedIntoID   *uint64    `json:"merged_into_id" gorm:"index;comment:已合并到的目标角色ID（非空表示已被合并）"`

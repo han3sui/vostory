@@ -542,6 +542,19 @@ definitions:
     - preview_path
     - sample_text
     type: object
+  iot-alert-center_api_v1.VoiceDesignBatchRequest:
+    properties:
+      character_ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+      confirm_important:
+        description: 主角、配角、旁白先生成草稿，试听确认后再保存
+        type: boolean
+    required:
+    - character_ids
+    type: object
   iot-alert-center_api_v1.VoiceDesignPreviewRequest:
     properties:
       instruction:
@@ -627,6 +640,9 @@ definitions:
         type: integer
       status:
         description: 状态
+        type: string
+      trait_notes:
+        description: 角色特征补充（每行一条）
         type: string
       voice_profile_id:
         description: 绑定声音配置
@@ -726,6 +742,9 @@ definitions:
         type: integer
       status:
         description: 状态
+        type: string
+      trait_notes:
+        description: 角色特征补充（每行一条）
         type: string
       voice_profile_id:
         description: 绑定声音配置
@@ -3336,6 +3355,209 @@ paths:
           schema:
             $ref: '#/definitions/iot-alert-center_api_v1.Response'
       summary: 规则扫描并合并重复角色
+      tags:
+      - 角色管理
+  /api/v1/character/voice-design/batch/{project_id}:
+    get:
+      description: 返回项目最近一批音色设计任务的进度，以及更早批次中仍待确认的草稿
+      operationId: character:voice_design_batch_status
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 批量音色设计进度
+      tags:
+      - 角色管理
+    post:
+      consumes:
+      - application/json
+      description: 为选中的角色创建批量音色设计任务，由后台逐个生成；confirm_important 为 true 时主角、配角、旁白先生成草稿待试听确认
+      operationId: character:voice_design_batch
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      - description: 请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.VoiceDesignBatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 批量生成音色
+      tags:
+      - 角色管理
+  /api/v1/character/voice-design/batch/{project_id}/cancel:
+    post:
+      description: 取消项目中尚未开始的音色设计任务项，正在处理的那一个会继续完成
+      operationId: character:voice_design_batch_cancel
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 停止批量音色设计
+      tags:
+      - 角色管理
+  /api/v1/character/voice-design/item/{item_id}/apply:
+    post:
+      description: 将批量生成的音色草稿保存为声音配置并绑定角色
+      operationId: character:voice_design_item_apply
+      parameters:
+      - description: 任务项ID
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 确认音色草稿
+      tags:
+      - 角色管理
+  /api/v1/character/voice-design/item/{item_id}/audio:
+    get:
+      description: 返回音色草稿的 WAV 音频
+      operationId: character:voice_design_item_audio
+      parameters:
+      - description: 任务项ID
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      produces:
+      - audio/wav
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 试听音色草稿
+      tags:
+      - 角色管理
+  /api/v1/character/voice-design/item/{item_id}/discard:
+    post:
+      description: 删除草稿音频，角色保持未绑定声音
+      operationId: character:voice_design_item_discard
+      parameters:
+      - description: 任务项ID
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 放弃音色草稿
+      tags:
+      - 角色管理
+  /api/v1/character/voice-design/item/{item_id}/regenerate:
+    post:
+      description: 丢弃当前草稿或失败结果，重新排队生成
+      operationId: character:voice_design_item_regenerate
+      parameters:
+      - description: 任务项ID
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 重新生成音色草稿
       tags:
       - 角色管理
   /api/v1/character/voice-match/{project_id}:

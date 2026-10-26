@@ -46,3 +46,33 @@ type VoiceDesignAutoResponse struct {
 	SampleText       string `json:"sample_text"`
 	Seed             int64  `json:"seed"`
 }
+
+// VoiceDesignBatchRequest 批量音色设计请求，由后台任务逐个角色处理
+type VoiceDesignBatchRequest struct {
+	CharacterIDs     []uint64 `json:"character_ids" binding:"required,min=1"`
+	ConfirmImportant bool     `json:"confirm_important"` // 主角、配角、旁白先生成草稿，试听确认后再保存
+}
+
+// VoiceDesignBatchItem 批量音色设计任务项
+type VoiceDesignBatchItem struct {
+	ItemID         uint64  `json:"item_id"`
+	BatchID        uint64  `json:"batch_id"`
+	CharacterID    uint64  `json:"character_id"`
+	CharacterName  string  `json:"character_name"`
+	CharacterLevel string  `json:"character_level"`
+	NeedConfirm    bool    `json:"need_confirm"`
+	Status         string  `json:"status"` // queued/running/draft/applied/skipped/failed/discarded/cancelled
+	Instruction    string  `json:"instruction"`
+	SampleText     string  `json:"sample_text"`
+	Seed           int64   `json:"seed"`
+	VoiceProfileID *uint64 `json:"voice_profile_id"`
+	ErrorMessage   string  `json:"error_message"`
+}
+
+// VoiceDesignBatchResponse 最近一批的进度，以及更早批次中仍待确认的草稿
+type VoiceDesignBatchResponse struct {
+	BatchID uint64                 `json:"batch_id"`
+	Running bool                   `json:"running"` // 是否仍有排队或处理中的任务项
+	Items   []VoiceDesignBatchItem `json:"items"`
+	Skipped []string               `json:"skipped,omitempty"` // 创建批次时跳过的角色及原因
+}

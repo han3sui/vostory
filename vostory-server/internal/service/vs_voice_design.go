@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/audio"
@@ -22,8 +23,9 @@ import (
 
 const (
 	voiceDesignTemplateType = "voice_design"
-	voiceDesignMaxLines     = 8
+	voiceDesignMaxLines     = 10
 	voiceDesignLineRunes    = 60
+	voiceDesignMinLineRunes = 6
 	voiceDesignPreviewTTL   = 24 * time.Hour
 )
 
@@ -40,6 +42,16 @@ type VsVoiceDesignService interface {
 	Preview(ctx context.Context, characterID uint64, request *v1.VoiceDesignPreviewRequest) (*v1.VoiceDesignPreviewResponse, error)
 	Apply(ctx context.Context, characterID uint64, request *v1.VoiceDesignApplyRequest) (*v1.VoiceDesignApplyResponse, error)
 	Auto(ctx context.Context, characterID uint64) (*v1.VoiceDesignAutoResponse, error)
+
+	// 批量音色设计：创建任务后由后台 worker 调用 ProcessItem 逐个处理
+	StartBatch(ctx context.Context, projectID uint64, request *v1.VoiceDesignBatchRequest) (*v1.VoiceDesignBatchResponse, error)
+	GetBatch(ctx context.Context, projectID uint64) (*v1.VoiceDesignBatchResponse, error)
+	CancelBatch(ctx context.Context, projectID uint64) (int64, error)
+	ProcessItem(ctx context.Context, itemID uint64) error
+	ApplyItem(ctx context.Context, itemID uint64) (*v1.VoiceDesignApplyResponse, error)
+	RegenerateItem(ctx context.Context, itemID uint64) error
+	DiscardItem(ctx context.Context, itemID uint64) error
+	ItemAudioPath(ctx context.Context, itemID uint64) (string, error)
 }
 
 func NewVsVoiceDesignService(
@@ -52,6 +64,7 @@ func NewVsVoiceDesignService(
 	llmResolver llmconfig.Resolver,
 	llmLogRepo repository.VsLLMLogRepository,
 	ttsProviderRepo repository.VsTTSProviderRepository,
+	itemRepo repository.VsVoiceDesignItemRepository,
 ) VsVoiceDesignService {
 	return &vsVoiceDesignService{
 		Service:          service,
@@ -63,6 +76,7 @@ func NewVsVoiceDesignService(
 		llmResolver:      llmResolver,
 		llmLogRepo:       llmLogRepo,
 		ttsProviderRepo:  ttsProviderRepo,
+		itemRepo:         itemRepo,
 		llmClient:        llm.NewClient(),
 	}
 }
@@ -77,6 +91,7 @@ type vsVoiceDesignService struct {
 	llmResolver      llmconfig.Resolver
 	llmLogRepo       repository.VsLLMLogRepository
 	ttsProviderRepo  repository.VsTTSProviderRepository
+	itemRepo         repository.VsVoiceDesignItemRepository
 	llmClient        *llm.Client
 }
 
@@ -86,6 +101,7 @@ type voiceDesignCharacterInput struct {
 	Gender      string   `json:"gender"`
 	Level       string   `json:"level"`
 	Description string   `json:"description"`
+	Traits      []string `json:"traits,omitempty"` // 各章节出现过的特征描述，可能随剧情变化
 }
 
 type llmVoiceDesignResult struct {
@@ -110,6 +126,7 @@ func (s *vsVoiceDesignService) Suggest(ctx context.Context, characterID uint64) 
 		Gender:      character.Gender,
 		Level:       character.Level,
 		Description: character.Description,
+		Traits:      splitTraitNotes(character.TraitNotes),
 	})
 	prompt := strings.ReplaceAll(promptContent, "{{character}}", string(charJSON))
 	prompt = strings.ReplaceAll(prompt, "{{lines}}", s.sampleLines(ctx, characterID))
@@ -167,29 +184,9 @@ func (s *vsVoiceDesignService) Preview(ctx context.Context, characterID uint64, 
 	if err != nil {
 		return nil, err
 	}
-	provider, err := s.resolveTTSProvider(ctx, project)
+	data, seed, err := s.synthesizeDesign(ctx, project, request.Instruction, request.SampleText, request.Seed)
 	if err != nil {
 		return nil, err
-	}
-
-	seed := rand.Int63n(1 << 31)
-	if request.Seed != nil {
-		seed = *request.Seed
-	}
-
-	data, err := tts.NewClient(provider.APIBaseURL, provider.APIKey).Speech(tts.SpeechRequest{
-		Text:        strings.TrimSpace(request.SampleText),
-		Instruction: strings.TrimSpace(request.Instruction),
-		CfgScale:    tts.DefaultCfgScale,
-		Seed:        &seed,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("音色生成失败: %w", err)
-	}
-	if normalized, normErr := audio.NormalizeLoudness(data, -16.0); normErr == nil {
-		data = normalized
-	} else {
-		s.logger.Warn(fmt.Sprintf("音色试听音量归一化失败，使用原始音频: %v", normErr))
 	}
 
 	if err := os.MkdirAll(voiceDesignPreviewDir, 0755); err != nil {
@@ -210,6 +207,34 @@ func (s *vsVoiceDesignService) Preview(ctx context.Context, characterID uint64, 
 	}, nil
 }
 
+// synthesizeDesign 按音色描述调用 Voice Design 生成参考台词音频；seed 为空时随机生成
+func (s *vsVoiceDesignService) synthesizeDesign(ctx context.Context, project *model.VsProject, instruction, sampleText string, seed *int64) ([]byte, int64, error) {
+	provider, err := s.resolveTTSProvider(ctx, project)
+	if err != nil {
+		return nil, 0, err
+	}
+	actualSeed := rand.Int63n(1 << 31)
+	if seed != nil {
+		actualSeed = *seed
+	}
+
+	data, err := tts.NewClient(provider.APIBaseURL, provider.APIKey).Speech(tts.SpeechRequest{
+		Text:        strings.TrimSpace(sampleText),
+		Instruction: strings.TrimSpace(instruction),
+		CfgScale:    tts.DefaultCfgScale,
+		Seed:        &actualSeed,
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("音色生成失败: %w", err)
+	}
+	if normalized, normErr := audio.NormalizeLoudness(data, -16.0); normErr == nil {
+		data = normalized
+	} else {
+		s.logger.Warn(fmt.Sprintf("音色试听音量归一化失败，使用原始音频: %v", normErr))
+	}
+	return data, actualSeed, nil
+}
+
 func (s *vsVoiceDesignService) Apply(ctx context.Context, characterID uint64, request *v1.VoiceDesignApplyRequest) (*v1.VoiceDesignApplyResponse, error) {
 	character, project, err := s.loadCharacter(ctx, characterID)
 	if err != nil {
@@ -220,8 +245,18 @@ func (s *vsVoiceDesignService) Apply(ctx context.Context, characterID uint64, re
 	if err != nil {
 		return nil, err
 	}
+	return s.saveDesignedVoice(ctx, character, project, previewPath, request.Name, request.Instruction, request.SampleText, request.Seed)
+}
 
-	name := strings.TrimSpace(request.Name)
+// saveDesignedVoice 把生成好的音频文件移入参考音频目录，创建声音配置（参考音频 + 转写 + 固定种子）并绑定角色
+func (s *vsVoiceDesignService) saveDesignedVoice(
+	ctx context.Context,
+	character *model.VsCharacter,
+	project *model.VsProject,
+	audioPath, name, instruction, sampleText string,
+	seed int64,
+) (*v1.VoiceDesignApplyResponse, error) {
+	name = strings.TrimSpace(name)
 	if name == "" {
 		name = character.Name
 	}
@@ -231,7 +266,7 @@ func (s *vsVoiceDesignService) Apply(ctx context.Context, characterID uint64, re
 	}
 	finalPath := filepath.Join(referenceAudioDir,
 		fmt.Sprintf("%d_%s_design.wav", time.Now().UnixMilli(), sanitizeFileName(name)))
-	if err := os.Rename(previewPath, finalPath); err != nil {
+	if err := os.Rename(audioPath, finalPath); err != nil {
 		return nil, fmt.Errorf("保存参考音频失败: %w", err)
 	}
 
@@ -239,16 +274,16 @@ func (s *vsVoiceDesignService) Apply(ctx context.Context, characterID uint64, re
 	if gender == "" {
 		gender = "unknown"
 	}
-	instruction := strings.TrimSpace(request.Instruction)
+	instruction = strings.TrimSpace(instruction)
 	profile := &model.VsVoiceProfile{
 		ProjectID:         project.ProjectID,
 		Name:              name,
 		Gender:            gender,
 		Description:       instruction,
 		ReferenceAudioURL: finalPath,
-		ReferenceText:     strings.TrimSpace(request.SampleText),
+		ReferenceText:     strings.TrimSpace(sampleText),
 		TTSParams: model.TTSParamsMap{
-			"seed":         request.Seed,
+			"seed":         seed,
 			"voice_design": instruction,
 		},
 		Status: "0",
@@ -321,30 +356,53 @@ func (s *vsVoiceDesignService) loadCharacter(ctx context.Context, characterID ui
 	return character, project, nil
 }
 
-// sampleLines 取角色的若干条台词作为 LLM 把握说话风格的参考
+// sampleLines 从角色全书台词中均匀抽取若干条，作为 LLM 把握说话风格的参考
 func (s *vsVoiceDesignService) sampleLines(ctx context.Context, characterID uint64) string {
 	segments, err := s.segmentRepo.FindByCharacterIDs(ctx, []uint64{characterID})
 	if err != nil {
 		return "（暂无）"
 	}
-	var lines []string
+	var contents []string
 	for _, seg := range segments {
 		if seg.SegmentType != "dialogue" && seg.SegmentType != "monologue" {
 			continue
 		}
-		content := strings.TrimSpace(seg.Content)
-		if content == "" {
-			continue
-		}
-		lines = append(lines, "- "+truncate(content, voiceDesignLineRunes))
-		if len(lines) >= voiceDesignMaxLines {
-			break
+		if content := strings.TrimSpace(seg.Content); content != "" {
+			contents = append(contents, content)
 		}
 	}
-	if len(lines) == 0 {
+	picked := sampleEvenly(contents, voiceDesignMaxLines, voiceDesignMinLineRunes)
+	if len(picked) == 0 {
 		return "（暂无）"
 	}
+	lines := make([]string, len(picked))
+	for i, content := range picked {
+		lines[i] = "- " + truncate(content, voiceDesignLineRunes)
+	}
 	return strings.Join(lines, "\n")
+}
+
+// sampleEvenly 按出现顺序在全书范围内等距抽取 n 条，避免只取到开头几章的台词。
+// 「嗯」「是」这类过短的台词信息量低，足够多时优先跳过。
+func sampleEvenly(contents []string, n, minRunes int) []string {
+	pool := make([]string, 0, len(contents))
+	for _, c := range contents {
+		if utf8.RuneCountInString(c) >= minRunes {
+			pool = append(pool, c)
+		}
+	}
+	if len(pool) < n {
+		pool = contents
+	}
+	if len(pool) <= n {
+		return pool
+	}
+	result := make([]string, n)
+	for i := 0; i < n; i++ {
+		// 取每段区间的中点，首尾两段也不会贴着边界
+		result[i] = pool[(2*i+1)*len(pool)/(2*n)]
+	}
+	return result
 }
 
 func (s *vsVoiceDesignService) resolveTTSProvider(ctx context.Context, project *model.VsProject) (*model.VsTTSProvider, error) {

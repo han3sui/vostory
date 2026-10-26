@@ -134,7 +134,61 @@ func (s *vsChapterSplitService) ensureCharacters(
 	if err := s.persistResolvedAliases(ctx, aliasUpdates, loginName); err != nil {
 		return created, err
 	}
+	if err := s.persistTraitNotes(ctx, speakers, genericNames, charMap, loginName); err != nil {
+		return created, err
+	}
 	return created, nil
+}
+
+// persistTraitNotes 把本章 LLM 给出的角色特征描述累积到角色的 trait_notes 上，
+// 让角色描述不止停留在首次出场那一章，供音色设计参考。路人池与旁白不累积。
+func (s *vsChapterSplitService) persistTraitNotes(
+	ctx context.Context,
+	speakers map[string]*splitSpeaker,
+	genericNames map[string]string,
+	charMap map[string]uint64,
+	loginName string,
+) error {
+	adds := map[uint64][]string{}
+	for key, info := range speakers {
+		if info.description == "" || info.name == narratorName {
+			continue
+		}
+		if _, generic := genericNames[key]; generic {
+			continue
+		}
+		if id, ok := charMap[key]; ok {
+			adds[id] = append(adds[id], info.description)
+		}
+	}
+	if len(adds) == 0 {
+		return nil
+	}
+
+	ids := make([]uint64, 0, len(adds))
+	for id := range adds {
+		ids = append(ids, id)
+	}
+	// 写入前重新读取，尽量缩小与并发切分之间的覆盖窗口
+	var chars []*model.VsCharacter
+	if err := s.db.WithContext(ctx).Where("character_id IN ?", ids).Find(&chars).Error; err != nil {
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+	for _, c := range chars {
+		if isPoolCharacterName(c.Name) || c.Name == narratorName {
+			continue
+		}
+		notes := appendTraitNotes(c.TraitNotes, c.Description, adds[c.CharacterID]...)
+		if notes == c.TraitNotes {
+			continue
+		}
+		if err := s.db.WithContext(ctx).Model(&model.VsCharacter{}).
+			Where("character_id = ?", c.CharacterID).
+			Updates(map[string]interface{}{"trait_notes": notes, "updated_by": loginName}).Error; err != nil {
+			return fmt.Errorf("回写角色特征失败: %w", err)
+		}
+	}
+	return nil
 }
 
 func collectSplitSpeakers(result *llmSplitResult, charMap map[string]uint64) map[string]*splitSpeaker {

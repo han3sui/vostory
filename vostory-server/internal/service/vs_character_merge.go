@@ -246,8 +246,15 @@ func mergeCharactersTx(tx *gorm.DB, target *model.VsCharacter, sources []*model.
 				level = src.Level
 			}
 		}
+		// 被合并角色的描述与特征并入目标的特征补充，合并后重新设计音色时信息更完整
+		var traits []string
+		for _, src := range sources {
+			traits = append(traits, src.Description)
+			traits = append(traits, splitTraitNotes(src.TraitNotes)...)
+		}
 		fields["gender"] = gender
 		fields["description"] = description
+		fields["trait_notes"] = appendTraitNotes(target.TraitNotes, description, traits...)
 		fields["level"] = level
 	}
 	if err := tx.Model(&model.VsCharacter{}).
@@ -357,4 +364,45 @@ func uniqueIDs(ids []uint64) []uint64 {
 		result = append(result, id)
 	}
 	return result
+}
+
+const (
+	maxTraitNotes     = 12
+	maxTraitNoteRunes = 80
+)
+
+func splitTraitNotes(notes string) []string {
+	var result []string
+	for _, line := range strings.Split(notes, "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			result = append(result, line)
+		}
+	}
+	return result
+}
+
+// appendTraitNotes 把新的特征描述追加到 notes（每行一条）：去重、跳过与主描述相同的条目，
+// 超过上限时保留最近的条目，因为角色身份、年龄会随剧情推进变化。
+func appendTraitNotes(notes, description string, adds ...string) string {
+	seen := map[string]bool{normalizeLookupKey(description): true}
+	var lines []string
+	add := func(line string) {
+		line = truncate(strings.TrimSpace(line), maxTraitNoteRunes)
+		key := normalizeLookupKey(line)
+		if line == "" || seen[key] {
+			return
+		}
+		seen[key] = true
+		lines = append(lines, line)
+	}
+	for _, line := range splitTraitNotes(notes) {
+		add(line)
+	}
+	for _, line := range adds {
+		add(line)
+	}
+	if len(lines) > maxTraitNotes {
+		lines = lines[len(lines)-maxTraitNotes:]
+	}
+	return strings.Join(lines, "\n")
 }

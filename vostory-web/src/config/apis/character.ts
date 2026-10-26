@@ -1,4 +1,6 @@
 import request from "@/packages/request";
+import storage from "@/utils/tools/storage";
+import envHelper from "@/utils/helper/env";
 
 export type CharacterDetailType = {
     id: number;
@@ -7,6 +9,7 @@ export type CharacterDetailType = {
     aliases: string[];
     gender: string;
     description: string;
+    trait_notes?: string;
     level: string;
     voice_profile_id: number | null;
     voice_profile_name?: string;
@@ -222,4 +225,75 @@ export function applyVoiceDesign(
 
 export function autoVoiceDesign(characterId: number): Promise<VoiceDesignAutoResult> {
     return request({ url: `/api/v1/character/${characterId}/voice-design/auto`, method: "post", timeout: 0 });
+}
+
+export type VoiceDesignBatchItemStatus =
+    | "queued"
+    | "running"
+    | "draft"
+    | "applied"
+    | "skipped"
+    | "failed"
+    | "discarded"
+    | "cancelled";
+
+export type VoiceDesignBatchItem = {
+    item_id: number;
+    batch_id: number;
+    character_id: number;
+    character_name: string;
+    character_level: string;
+    need_confirm: boolean;
+    status: VoiceDesignBatchItemStatus;
+    instruction: string;
+    sample_text: string;
+    seed: number;
+    voice_profile_id: number | null;
+    error_message: string;
+};
+
+export type VoiceDesignBatchResult = {
+    batch_id: number;
+    running: boolean;
+    items: VoiceDesignBatchItem[];
+    skipped?: string[];
+};
+
+export function startVoiceDesignBatch(
+    projectId: number,
+    data: { character_ids: number[]; confirm_important: boolean }
+): Promise<VoiceDesignBatchResult> {
+    return request({ url: `/api/v1/character/voice-design/batch/${projectId}`, method: "post", data });
+}
+
+export function getVoiceDesignBatch(projectId: number): Promise<VoiceDesignBatchResult> {
+    return request({ url: `/api/v1/character/voice-design/batch/${projectId}` });
+}
+
+export function cancelVoiceDesignBatch(projectId: number): Promise<{ cancelled: number }> {
+    return request({ url: `/api/v1/character/voice-design/batch/${projectId}/cancel`, method: "post" });
+}
+
+export function applyVoiceDesignItem(itemId: number): Promise<VoiceDesignApplyResult> {
+    return request({ url: `/api/v1/character/voice-design/item/${itemId}/apply`, method: "post" });
+}
+
+export function regenerateVoiceDesignItem(itemId: number) {
+    return request({ url: `/api/v1/character/voice-design/item/${itemId}/regenerate`, method: "post" });
+}
+
+export function discardVoiceDesignItem(itemId: number) {
+    return request({ url: `/api/v1/character/voice-design/item/${itemId}/discard`, method: "post" });
+}
+
+/**
+ * 获取音色草稿音频，返回 Blob URL（调用方负责 revoke）。
+ */
+export async function fetchVoiceDesignItemAudio(itemId: number): Promise<string> {
+    const base = envHelper.get("VITE_APP_API_URL") || "";
+    const resp = await fetch(`${base}/api/v1/character/voice-design/item/${itemId}/audio?_t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${storage.getToken()}` }
+    });
+    if (!resp.ok) throw new Error("获取音频失败");
+    return URL.createObjectURL(await resp.blob());
 }

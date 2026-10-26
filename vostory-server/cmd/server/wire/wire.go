@@ -56,6 +56,7 @@ var repositorySet = wire.NewSet(
 	repository.NewVsCharacterRepository,
 	repository.NewVsLLMLogRepository,
 	repository.NewVsVoiceProfileRepository,
+	repository.NewVsVoiceDesignItemRepository,
 	repository.NewVsPronunciationDictRepository,
 	repository.NewVsSceneRepository,
 	repository.NewVsAudioClipRepository,
@@ -146,6 +147,7 @@ var handlerSet = wire.NewSet(
 var workerSet = wire.NewSet(
 	worker.NewTTSWorker,
 	worker.NewLLMWorker,
+	worker.NewVoiceDesignWorker,
 )
 
 var jobSet = wire.NewSet(

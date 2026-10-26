@@ -101,6 +101,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsScriptSegmentService := service.NewVsScriptSegmentService(serviceService, vsScriptSegmentRepository, vsAudioClipRepository)
 	vsScriptSegmentHandler := handler.NewVsScriptSegmentHandler(handlerHandler, vsScriptSegmentService)
 	vsVoiceProfileRepository := repository.NewVsVoiceProfileRepository(repositoryRepository)
+	vsVoiceDesignItemRepository := repository.NewVsVoiceDesignItemRepository(repositoryRepository)
 	vsCharacterService := service.NewVsCharacterService(serviceService, db, vsCharacterRepository, vsVoiceProfileRepository)
 	vsCharacterHandler := handler.NewVsCharacterHandler(handlerHandler, vsCharacterService)
 	vsFileImportService := service.NewVsFileImportService(serviceService, vsProjectRepository, vsChapterRepository)
@@ -133,7 +134,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	vsCommonUploadHandler := handler.NewVsCommonUploadHandler(handlerHandler, vsVoiceAssetRepository, vsVoiceProfileRepository, vsVoiceEmotionRepository)
 	vsVoiceMatchService := service.NewVsVoiceMatchService(serviceService, vsProjectRepository, vsCharacterRepository, vsVoiceProfileRepository, vsPromptTemplateRepository, resolver, vsLLMLogRepository)
 	vsVoiceMatchHandler := handler.NewVsVoiceMatchHandler(handlerHandler, vsVoiceMatchService)
-	vsVoiceDesignService := service.NewVsVoiceDesignService(serviceService, vsCharacterRepository, vsProjectRepository, vsVoiceProfileRepository, vsScriptSegmentRepository, vsPromptTemplateRepository, resolver, vsLLMLogRepository, vsTTSProviderRepository)
+	vsVoiceDesignService := service.NewVsVoiceDesignService(serviceService, vsCharacterRepository, vsProjectRepository, vsVoiceProfileRepository, vsScriptSegmentRepository, vsPromptTemplateRepository, resolver, vsLLMLogRepository, vsTTSProviderRepository, vsVoiceDesignItemRepository)
 	vsVoiceDesignHandler := handler.NewVsVoiceDesignHandler(handlerHandler, vsVoiceDesignService)
 	vsExportJobRepository := repository.NewVsExportJobRepository(repositoryRepository)
 	vsExportJobService := service.NewVsExportJobService(serviceService, vsExportJobRepository, vsScriptSegmentRepository, vsAudioClipRepository, vsChapterRepository)
@@ -143,7 +144,8 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	userJob := job.NewUserJob(jobJob)
 	ttsWorker := worker.NewTTSWorker(client, logger, vsGenerationTaskRepository, vsScriptSegmentRepository, vsTTSSynthesizeService, vsTTSProviderRepository, vsProjectRepository)
 	llmWorker := worker.NewLLMWorker(client, logger, vsGenerationTaskRepository, vsChapterRepository, vsChapterSplitService, vsLLMProviderRepository, vsProjectRepository, resolver)
-	jobServer := server.NewJobServer(logger, viperViper, userJob, ttsWorker, llmWorker)
+	voiceDesignWorker := worker.NewVoiceDesignWorker(logger, vsVoiceDesignItemRepository, vsVoiceDesignService)
+	jobServer := server.NewJobServer(logger, viperViper, userJob, ttsWorker, llmWorker, voiceDesignWorker)
 	appApp := newApp(httpServer, jobServer)
 	return appApp, func() {
 	}, nil
@@ -151,13 +153,13 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 
 // wire.go:
 
-var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repository.NewRepository, repository.NewTransaction, repository.NewSysPostRepository, repository.NewSysDeptRepository, repository.NewSysMenuRepository, repository.NewSysRoleRepository, repository.NewSysRoleDeptRepository, repository.NewSysRoleMenuRepository, repository.NewSysUserRoleRepository, repository.NewSysUserPostRepository, repository.NewSysUserRepository, repository.NewSysLogininforRepository, repository.NewSysApiRepository, repository.NewSysDictTypeRepository, repository.NewSysDictDataRepository, repository.NewSysOperLogRepository, repository.NewVsLLMProviderRepository, repository.NewVsLLMModelRepository, repository.NewVsTTSProviderRepository, repository.NewVsPromptTemplateRepository, repository.NewVsWorkspaceRepository, repository.NewVsProjectRepository, repository.NewVsChapterRepository, repository.NewVsScriptSegmentRepository, repository.NewVsCharacterRepository, repository.NewVsLLMLogRepository, repository.NewVsVoiceProfileRepository, repository.NewVsPronunciationDictRepository, repository.NewVsSceneRepository, repository.NewVsAudioClipRepository, repository.NewVsVoiceEmotionRepository, repository.NewVsVoiceAssetRepository, repository.NewVsGenerationTaskRepository, repository.NewVsExportJobRepository)
+var repositorySet = wire.NewSet(repository.NewDB, repository.NewRedis, repository.NewRepository, repository.NewTransaction, repository.NewSysPostRepository, repository.NewSysDeptRepository, repository.NewSysMenuRepository, repository.NewSysRoleRepository, repository.NewSysRoleDeptRepository, repository.NewSysRoleMenuRepository, repository.NewSysUserRoleRepository, repository.NewSysUserPostRepository, repository.NewSysUserRepository, repository.NewSysLogininforRepository, repository.NewSysApiRepository, repository.NewSysDictTypeRepository, repository.NewSysDictDataRepository, repository.NewSysOperLogRepository, repository.NewVsLLMProviderRepository, repository.NewVsLLMModelRepository, repository.NewVsTTSProviderRepository, repository.NewVsPromptTemplateRepository, repository.NewVsWorkspaceRepository, repository.NewVsProjectRepository, repository.NewVsChapterRepository, repository.NewVsScriptSegmentRepository, repository.NewVsCharacterRepository, repository.NewVsLLMLogRepository, repository.NewVsVoiceProfileRepository, repository.NewVsVoiceDesignItemRepository, repository.NewVsPronunciationDictRepository, repository.NewVsSceneRepository, repository.NewVsAudioClipRepository, repository.NewVsVoiceEmotionRepository, repository.NewVsVoiceAssetRepository, repository.NewVsGenerationTaskRepository, repository.NewVsExportJobRepository)
 
 var serviceSet = wire.NewSet(service.NewService, service.NewSysPostService, service.NewSysDeptService, service.NewSysMenuService, service.NewSysRoleService, service.NewSysUserService, service.NewSysLogininforService, service.NewSysApiService, service.NewSysDictTypeService, service.NewSysDictDataService, service.NewSysOperLogService, service.NewVsLLMProviderService, service.NewVsLLMModelService, llmconfig.NewResolver, service.NewVsTTSProviderService, service.NewVsPromptTemplateService, service.NewVsWorkspaceService, service.NewVsProjectService, service.NewVsChapterService, service.NewVsScriptSegmentService, service.NewVsCharacterService, service.NewVsFileImportService, service.NewVsLLMLogService, service.NewVsVoiceProfileService, service.NewVsPronunciationDictService, service.NewVsPreciseFillService, service.NewVsChapterSplitService, service.NewVsCharacterExtractService, service.NewVsVoiceEmotionService, service.NewVsTTSSynthesizeService, service.NewVsVoiceAssetService, service.NewVsVoiceMatchService, service.NewVsVoiceDesignService, service.NewVsExportJobService, cache.NewUserCache, mqtt.NewMqttClient, kafka.NewKafkaProducer, resty.NewRestyClient)
 
 var handlerSet = wire.NewSet(handler.NewHandler, handler.NewSysPostHandler, handler.NewSysDeptHandler, handler.NewSysMenuHandler, handler.NewSysRoleHandler, handler.NewSysUserHandler, handler.NewSysLogininforHandler, handler.NewSysApiHandler, handler.NewSysDictTypeHandler, handler.NewSysDictDataHandler, handler.NewSysOperLogHandler, handler.NewVsLLMProviderHandler, handler.NewVsLLMModelHandler, handler.NewVsTTSProviderHandler, handler.NewVsPromptTemplateHandler, handler.NewVsWorkspaceHandler, handler.NewVsProjectHandler, handler.NewVsChapterHandler, handler.NewVsScriptSegmentHandler, handler.NewVsCharacterHandler, handler.NewVsFileImportHandler, handler.NewVsLLMLogHandler, handler.NewVsVoiceProfileHandler, handler.NewVsPronunciationDictHandler, handler.NewVsPreciseFillHandler, handler.NewVsChapterSplitHandler, handler.NewVsCharacterExtractHandler, handler.NewVsVoiceEmotionHandler, handler.NewVsTTSSynthesizeHandler, handler.NewVsVoiceAssetHandler, handler.NewVsCommonUploadHandler, handler.NewVsVoiceMatchHandler, handler.NewVsVoiceDesignHandler, handler.NewVsExportJobHandler)
 
-var workerSet = wire.NewSet(worker.NewTTSWorker, worker.NewLLMWorker)
+var workerSet = wire.NewSet(worker.NewTTSWorker, worker.NewLLMWorker, worker.NewVoiceDesignWorker)
 
 var jobSet = wire.NewSet(job.NewJob, job.NewUserJob)
 

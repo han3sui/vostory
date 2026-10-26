@@ -19,6 +19,7 @@ type VsCharacterCreateRequest struct {
 	Aliases        []string `json:"aliases"`                       // 别名列表
 	Gender         string   `json:"gender"`                        // 性别
 	Description    string   `json:"description"`                   // 角色描述
+	TraitNotes     string   `json:"trait_notes"`                   // 角色特征补充（每行一条）
 	Level          string   `json:"level"`                         // 角色层级
 	VoiceProfileID *uint64  `json:"voice_profile_id"`              // 绑定声音配置
 	SortOrder      int      `json:"sort_order"`                    // 排序
@@ -39,6 +40,7 @@ type VsCharacterDetailResponse struct {
 	Aliases          []string  `json:"aliases"`
 	Gender           string    `json:"gender"`
 	Description      string    `json:"description"`
+	TraitNotes       string    `json:"trait_notes"`
 	Level            string    `json:"level"`
 	VoiceProfileID   *uint64   `json:"voice_profile_id"`
 	VoiceProfileName string    `json:"voice_profile_name,omitempty"`

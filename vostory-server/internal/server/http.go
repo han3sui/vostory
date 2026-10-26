@@ -307,6 +307,13 @@ func NewHTTPServer(
 				characterRouter.POST("/:id/voice-design/preview", vsVoiceDesignHandler.Preview)
 				characterRouter.POST("/:id/voice-design/apply", vsVoiceDesignHandler.Apply)
 				characterRouter.POST("/:id/voice-design/auto", vsVoiceDesignHandler.Auto)
+				characterRouter.POST("/voice-design/batch/:project_id", vsVoiceDesignHandler.StartBatch)
+				characterRouter.GET("/voice-design/batch/:project_id", vsVoiceDesignHandler.GetBatch)
+				characterRouter.POST("/voice-design/batch/:project_id/cancel", vsVoiceDesignHandler.CancelBatch)
+				characterRouter.POST("/voice-design/item/:item_id/apply", vsVoiceDesignHandler.ApplyItem)
+				characterRouter.POST("/voice-design/item/:item_id/regenerate", vsVoiceDesignHandler.RegenerateItem)
+				characterRouter.POST("/voice-design/item/:item_id/discard", vsVoiceDesignHandler.DiscardItem)
+				characterRouter.GET("/voice-design/item/:item_id/audio", vsVoiceDesignHandler.ItemAudio)
 			}
 
 			voiceProfileRouter := strictAuthRouter.Group("/voice-profile")

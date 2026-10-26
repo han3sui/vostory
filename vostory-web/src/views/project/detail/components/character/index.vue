@@ -258,7 +258,7 @@ const tableConfig = computed(() => {
             {
                 label: "配置声音",
                 type: "outline",
-                if: () => hasPermission("character:voice_match") || hasPermission("character:voice_design_auto"),
+                if: () => hasPermission("character:voice_match") || hasPermission("character:voice_design_batch"),
                 handler: () => {
                     showAutoVoiceModal.value = true;
                 }
@@ -317,6 +317,10 @@ async function onEdit(v: Record<string, any> | null) {
                 }
             ),
             formHelper.textarea("角色描述", "description", { autoSize: true }),
+            formHelper.textarea("特征补充", "trait_notes", {
+                autoSize: { minRows: 2, maxRows: 8 },
+                placeholder: "章节切分时自动累积各章出现的角色特征，每行一条，设计音色时会参考"
+            }),
             formHelper.radio(
                 "状态",
                 "status",

@@ -16,6 +16,7 @@ type JobServer struct {
 	userJob   job.UserJob
 	ttsWorker *worker.TTSWorker
 	llmWorker *worker.LLMWorker
+	vdWorker  *worker.VoiceDesignWorker
 	jobsMutex sync.Mutex
 }
 
@@ -30,6 +31,7 @@ func NewJobServer(
 	userJob job.UserJob,
 	ttsWorker *worker.TTSWorker,
 	llmWorker *worker.LLMWorker,
+	vdWorker *worker.VoiceDesignWorker,
 ) *JobServer {
 	return &JobServer{
 		log:       log,
@@ -37,6 +39,7 @@ func NewJobServer(
 		userJob:   userJob,
 		ttsWorker: ttsWorker,
 		llmWorker: llmWorker,
+		vdWorker:  vdWorker,
 	}
 }
 
@@ -48,6 +51,7 @@ func (j *JobServer) Start(ctx context.Context) error {
 
 	j.ttsWorker.Start(ctx)
 	j.llmWorker.Start(ctx)
+	j.vdWorker.Start(ctx)
 
 	<-ctx.Done()
 	return nil
@@ -59,6 +63,7 @@ func (j *JobServer) Stop(ctx context.Context) error {
 
 	j.ttsWorker.Stop()
 	j.llmWorker.Stop()
+	j.vdWorker.Stop()
 
 	j.log.Info("所有Job已停止")
 	return nil
