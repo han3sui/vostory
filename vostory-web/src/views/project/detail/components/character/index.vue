@@ -36,12 +36,18 @@
             <template #previewSlot>
                 <a-table-column title="试听">
                     <template #cell="{ record }">
-                        <a-button v-if="record.voice_profile_id" type="text" size="mini" @click="togglePreview(record)">
+                        <a-button
+                            v-if="record.voice_profile_id"
+                            type="text"
+                            size="mini"
+                            :loading="previewLoadingId === record.voice_profile_id"
+                            @click="togglePreview(record)"
+                        >
                             <template #icon>
                                 <icon-play-arrow v-if="previewingId !== record.voice_profile_id" />
                                 <icon-pause v-else />
                             </template>
-                            {{ previewingId === record.voice_profile_id ? "停止" : "试听" }}
+                            {{ previewButtonText(record.voice_profile_id) }}
                         </a-button>
                         <span v-else style="color: var(--color-text-3)">-</span>
                     </template>
@@ -195,7 +201,7 @@ const tableConfig = computed(() => {
             tableHelper.default("声音配置", "voice_profile_name"),
             tableHelper.slot("previewSlot"),
             tableHelper.slot("switchSlot"),
-            tableHelper.date("更新时间", "updated_at", { format: "YYYY-MM-DD HH:mm:ss" }),
+            // tableHelper.date("更新时间", "updated_at", { format: "YYYY-MM-DD HH:mm:ss" }),
             tableHelper.btns(
                 "操作",
                 [
@@ -500,11 +506,18 @@ function stopPreview() {
     previewLoadingId.value = null;
 }
 
+function previewButtonText(vpId: number) {
+    if (previewLoadingId.value === vpId) return "加载中";
+    if (previewingId.value === vpId) return "停止";
+    return "试听";
+}
+
 async function togglePreview(row: CharacterDetailType) {
     const vpId = row.voice_profile_id;
     if (!vpId) return;
 
-    if (previewingId.value === vpId) {
+    // 正在播放或加载同一条时，再次点击取消
+    if (previewingId.value === vpId || previewLoadingId.value === vpId) {
         stopPreview();
         return;
     }
@@ -522,15 +535,18 @@ async function togglePreview(row: CharacterDetailType) {
         previewBlobURL = blobURL;
         const audio = new Audio(blobURL);
         previewAudioEl = audio;
-        previewingId.value = vpId;
-        previewLoadingId.value = null;
 
         audio.addEventListener("ended", () => stopPreview());
         audio.addEventListener("error", () => {
             Message.warning("音频播放失败");
             stopPreview();
         });
+
+        // 等音频真正开始播放后再切到停止态
         await audio.play();
+        if (previewLoadingId.value !== vpId) return;
+        previewingId.value = vpId;
+        previewLoadingId.value = null;
     } catch {
         Message.warning("音频加载失败");
         stopPreview();
