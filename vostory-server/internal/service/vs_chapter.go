@@ -119,6 +119,7 @@ func (s *vsChapterService) convertToListResponse(c *model.VsChapter) *v1.VsChapt
 		WordCount:    c.WordCount,
 		SegmentCount: c.SegmentCount,
 		Status:       c.Status,
+		SplitStatus:  c.SplitStatus,
 		Remark:       c.Remark,
 		CreatedAt:    c.CreatedAt,
 		UpdatedAt:    c.UpdatedAt,

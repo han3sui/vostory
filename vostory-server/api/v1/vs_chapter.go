@@ -38,6 +38,7 @@ type VsChapterListResponse struct {
 	WordCount    int       `json:"word_count"`
 	SegmentCount int       `json:"segment_count"`
 	Status       string    `json:"status"`
+	SplitStatus  string    `json:"split_status"` // 切割状态（空/queued/running/done/failed/cancelled）
 	Remark       string    `json:"remark"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`

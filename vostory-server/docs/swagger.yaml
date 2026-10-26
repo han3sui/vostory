@@ -2800,6 +2800,34 @@ paths:
       summary: 批量 LLM 智能切割
       tags:
       - 章节管理
+  /api/v1/chapter/batch-split/{project_id}/cancel:
+    post:
+      description: 取消项目中进行中的批量切割任务：排队中的章节不再切割，正在切割的章节会继续完成
+      operationId: chapter:batch-split-cancel
+      parameters:
+      - description: 项目ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 取消批量切割
+      tags:
+      - 章节管理
   /api/v1/chapter/list:
     get:
       consumes:

@@ -145,7 +145,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger, eventBus *eventbus.Eve
 	ttsWorker := worker.NewTTSWorker(client, logger, vsGenerationTaskRepository, vsScriptSegmentRepository, vsTTSSynthesizeService, vsTTSProviderRepository, vsProjectRepository)
 	llmWorker := worker.NewLLMWorker(client, logger, vsGenerationTaskRepository, vsChapterRepository, vsChapterSplitService, vsLLMProviderRepository, vsProjectRepository, resolver)
 	voiceDesignWorker := worker.NewVoiceDesignWorker(logger, vsVoiceDesignItemRepository, vsVoiceDesignService)
-	jobServer := server.NewJobServer(logger, viperViper, userJob, ttsWorker, llmWorker, voiceDesignWorker)
+	jobServer := server.NewJobServer(logger, viperViper, userJob, ttsWorker, llmWorker, voiceDesignWorker, vsFileImportService)
 	appApp := newApp(httpServer, jobServer)
 	return appApp, func() {
 	}, nil

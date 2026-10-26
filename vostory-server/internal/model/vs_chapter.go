@@ -11,6 +11,8 @@ type VsChapter struct {
 	WordCount  int    `json:"word_count" gorm:"default:0;comment:字数"`
 	Status     string `json:"status" gorm:"size:20;default:'raw';comment:章节状态（raw/parsed/edited/generated/exported）"`
 	Remark     string `json:"remark" gorm:"size:500;comment:备注"`
+	// SplitStatus 按章节记录切割进度，用于防重复入队、取消和服务重启后的恢复
+	SplitStatus string `json:"split_status" gorm:"size:20;default:'';index;comment:切割状态（空/queued/running/done/failed/cancelled）"`
 
 	SegmentCount int `json:"segment_count" gorm:"->"`
 

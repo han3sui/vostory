@@ -77,3 +77,28 @@ func (h *VsChapterSplitHandler) BatchSplit(ctx *gin.Context) {
 	}
 	v1.HandleSuccess(ctx, result)
 }
+
+// CancelBatchSplit godoc
+// @Summary      取消批量切割
+// @Description  取消项目中进行中的批量切割任务：排队中的章节不再切割，正在切割的章节会继续完成
+// @Tags         章节管理
+// @Produce      json
+// @Param        project_id  path      int  true  "项目ID"
+// @Success      200         {object}  v1.Response
+// @Failure      400         {object}  v1.Response
+// @Failure      500         {object}  v1.Response
+// @Router       /api/v1/chapter/batch-split/{project_id}/cancel [post]
+// @Id        chapter:batch-split-cancel
+func (h *VsChapterSplitHandler) CancelBatchSplit(ctx *gin.Context) {
+	projectID := cast.ToUint64(ctx.Param("project_id"))
+	if projectID == 0 {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "project_id is required"), nil)
+		return
+	}
+	cancelled, err := h.svc.CancelSplitQueue(ctx, projectID)
+	if err != nil {
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, gin.H{"cancelled_count": cancelled})
+}

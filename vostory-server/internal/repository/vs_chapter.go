@@ -5,10 +5,14 @@ import (
 
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
+
+	"gorm.io/gorm"
 )
 
 type VsChapterRepository interface {
 	Create(ctx context.Context, chapter *model.VsChapter) error
+	// CreateBatch 批量创建章节，在一个事务里完成，失败时不会留下部分章节
+	CreateBatch(ctx context.Context, chapters []*model.VsChapter) error
 	Update(ctx context.Context, chapter *model.VsChapter) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsChapter, error)
@@ -27,6 +31,12 @@ type vsChapterRepository struct {
 
 func (r *vsChapterRepository) Create(ctx context.Context, chapter *model.VsChapter) error {
 	return r.db.WithContext(ctx).Create(chapter).Error
+}
+
+func (r *vsChapterRepository) CreateBatch(ctx context.Context, chapters []*model.VsChapter) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return tx.CreateInBatches(chapters, 100).Error
+	})
 }
 
 func (r *vsChapterRepository) Update(ctx context.Context, chapter *model.VsChapter) error {
@@ -51,7 +61,7 @@ func (r *vsChapterRepository) FindByID(ctx context.Context, id uint64) (*model.V
 func (r *vsChapterRepository) FindWithPagination(ctx context.Context, query *v1.VsChapterListQuery) ([]*model.VsChapter, int64, error) {
 	var chapters []*model.VsChapter
 	db := r.db.WithContext(ctx).Model(&model.VsChapter{}).
-		Select("chapter_id, project_id, title, chapter_num, word_count, status, remark, created_by, created_at, updated_by, updated_at, dept_id")
+		Select("chapter_id, project_id, title, chapter_num, word_count, status, split_status, remark, created_by, created_at, updated_by, updated_at, dept_id")
 
 	if query.ProjectID > 0 {
 		db = db.Where("project_id = ?", query.ProjectID)
@@ -82,7 +92,7 @@ func (r *vsChapterRepository) FindWithPagination(ctx context.Context, query *v1.
 func (r *vsChapterRepository) FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsChapter, error) {
 	var chapters []*model.VsChapter
 	if err := r.db.WithContext(ctx).
-		Select("vs_chapter.chapter_id, vs_chapter.project_id, vs_chapter.title, vs_chapter.chapter_num, vs_chapter.word_count, vs_chapter.status, vs_chapter.remark, vs_chapter.created_by, vs_chapter.created_at, vs_chapter.updated_by, vs_chapter.updated_at, vs_chapter.dept_id, "+
+		Select("vs_chapter.chapter_id, vs_chapter.project_id, vs_chapter.title, vs_chapter.chapter_num, vs_chapter.word_count, vs_chapter.status, vs_chapter.split_status, vs_chapter.remark, vs_chapter.created_by, vs_chapter.created_at, vs_chapter.updated_by, vs_chapter.updated_at, vs_chapter.dept_id, "+
 			"(SELECT COUNT(*) FROM vs_script_segment WHERE vs_script_segment.chapter_id = vs_chapter.chapter_id AND vs_script_segment.deleted_at IS NULL) AS segment_count").
 		Where("vs_chapter.project_id = ?", projectID).
 		Order("vs_chapter.chapter_num ASC").Find(&chapters).Error; err != nil {

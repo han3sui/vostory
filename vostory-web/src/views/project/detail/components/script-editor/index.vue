@@ -377,7 +377,6 @@ import {
 import {
     synthesizeSegment,
     batchGenerate,
-    getActiveTasksByProject,
     getTTSStreamURL,
     TTSSegmentEvent,
     lockSegment,
@@ -495,21 +494,13 @@ async function loadChapters() {
     await syncSplittingChapterIds();
 }
 
+// 以章节自身的切割状态为准：并发切割时完成顺序与任务里的章节顺序不一致，按已处理数量推算会标错章节
 async function syncSplittingChapterIds() {
-    if (!props.projectId) return;
-    try {
-        const tasks = await getActiveTasksByProject(props.projectId);
-        const ids = new Set<number>();
-        for (const task of tasks) {
-            if (task.task_type === "chapter_split" && task.segment_ids) {
-                const processed = task.completed_count + task.failed_count;
-                task.segment_ids.slice(processed).forEach((id) => ids.add(id));
-            }
-        }
-        splittingChapterIds.value = ids;
-    } catch {
-        // 查询失败不影响主流程
+    const ids = new Set<number>();
+    for (const ch of chapters.value as any[]) {
+        if (ch?.split_status === "queued" || ch?.split_status === "running") ids.add(ch.id);
     }
+    splittingChapterIds.value = ids;
 }
 
 async function handleRefreshChapters() {
@@ -763,6 +754,11 @@ async function handleBatchSplit() {
 }
 
 function handleChapterSplitEvent(evt: any) {
+    // 详情页取消了切割队列：重新拉取章节，以章节切割状态刷新「切割中」标记
+    if (evt.type === "split_queue_cancelled") {
+        handleRefreshChapters();
+        return;
+    }
     if (evt.type !== "chapter_split_done") return;
 
     const ids = new Set(splittingChapterIds.value);
@@ -806,8 +802,9 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
     seg.status = "queued";
     try {
         await synthesizeSegment(seg.id);
-    } catch {
-        seg.status = "failed";
+    } catch (e: any) {
+        // 409：片段已在其他任务中排队或合成（页面状态滞后），保持排队状态等推送更新
+        seg.status = e?.status === 409 ? "queued" : "failed";
     } finally {
         const next = new Set(synthesizingIds.value);
         next.delete(seg.id);

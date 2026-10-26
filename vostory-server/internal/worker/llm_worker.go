@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"iot-alert-center/internal/llmconfig"
+	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/service"
 	"iot-alert-center/pkg/log"
@@ -149,6 +150,19 @@ func (w *LLMWorker) recoverTasks(ctx context.Context) {
 	w.logger.Info("recovering interrupted LLM tasks", zap.Int("count", len(tasks)))
 
 	for _, task := range tasks {
+		// 按章节切割状态决定要补的章节，而不是按已处理数量跳过列表前 N 个：
+		// 并发切割时完成顺序与列表顺序不一致，按数量跳过会漏掉未完成的章节、重切已完成的章节
+		remaining, err := w.splitSvc.RecoverableChapters(ctx, task)
+		if err != nil {
+			w.logger.Error("llm recover: collect chapters failed",
+				zap.Uint64("task_id", task.TaskID), zap.Error(err))
+			continue
+		}
+		if len(remaining) == 0 {
+			w.finalizeStaleTask(ctx, task)
+			continue
+		}
+
 		if task.Status == "running" {
 			if err := w.taskRepo.ResetStatus(ctx, task.TaskID, "pending"); err != nil {
 				w.logger.Error("llm recover: reset status failed",
@@ -158,11 +172,7 @@ func (w *LLMWorker) recoverTasks(ctx context.Context) {
 		}
 		_ = w.taskRepo.SetStarted(ctx, task.TaskID)
 
-		processed := task.CompletedBatches + task.FailedBatches
-		for i, chID := range task.SegmentIDs {
-			if i < processed {
-				continue
-			}
+		for _, chID := range remaining {
 			msg := fmt.Sprintf("%d:%d", task.TaskID, chID)
 			// 防止服务重启恢复时重复入队同一消息。
 			if err := w.rdb.LRem(ctx, llmQueueKey, 0, msg).Err(); err != nil {
@@ -175,6 +185,16 @@ func (w *LLMWorker) recoverTasks(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// finalizeStaleTask 没有待处理章节的旧任务直接收口，避免每次重启都被捞起来
+func (w *LLMWorker) finalizeStaleTask(ctx context.Context, task *model.VsGenerationTask) {
+	if task.FailedBatches > 0 {
+		_ = w.taskRepo.SetFailed(ctx, task.TaskID,
+			fmt.Sprintf("%d/%d chapters failed", task.FailedBatches, task.TotalBatches))
+		return
+	}
+	_ = w.taskRepo.SetCompleted(ctx, task.TaskID)
 }
 
 func (w *LLMWorker) resolveProviderID(ctx context.Context, taskID uint64) uint64 {
@@ -253,28 +273,55 @@ func (w *LLMWorker) processChapter(ctx context.Context, taskID, chapterID uint64
 		return
 	}
 
-	splitResult, splitErr := w.splitSvc.SplitChapter(ctx, chapterID)
+	splitResult, claimed, splitErr := w.splitSvc.RunQueuedChapter(ctx, chapterID)
+	if !claimed && splitErr == nil {
+		// 章节已被取消，或已由其他消息处理（例如恢复时重复入队）
+		w.logger.Info("chapter is not queued, skipping",
+			zap.Uint64("task_id", taskID), zap.Uint64("chapter_id", chapterID))
+		return
+	}
 
 	var status, errMsg string
 	var sceneCount, segmentCount int
-
 	if splitErr != nil {
 		w.logger.Warn("chapter split failed",
 			zap.Uint64("task_id", taskID), zap.Uint64("chapter_id", chapterID), zap.Error(splitErr))
-		if _, err := w.taskRepo.IncrementFailed(ctx, taskID); err != nil {
-			w.logger.Error("increment failed count error", zap.Uint64("task_id", taskID), zap.Error(err))
-		}
 		status = "failed"
 		errMsg = splitErr.Error()
 	} else {
-		if _, err := w.taskRepo.IncrementCompleted(ctx, taskID); err != nil {
-			w.logger.Error("increment completed failed", zap.Uint64("task_id", taskID), zap.Error(err))
-		}
 		status = "completed"
 		if splitResult != nil {
 			sceneCount = splitResult.SceneCount
 			segmentCount = splitResult.SegmentCount
 		}
+	}
+
+	// 切割期间任务被取消：结果已落库，不再计入进度，只推送本章结果让前端更新
+	if latest, err := w.taskRepo.FindByID(ctx, taskID); err == nil && latest.Status == "cancelled" {
+		w.publishEvent(ctx, LLMEvent{
+			Type:         "chapter_split_done",
+			TaskID:       taskID,
+			ChapterID:    chapterID,
+			ChapterTitle: chapter.Title,
+			Status:       status,
+			ErrorMsg:     errMsg,
+			SceneCount:   sceneCount,
+			SegmentCount: segmentCount,
+			Progress:     latest.Progress,
+			Completed:    latest.CompletedBatches,
+			Failed:       latest.FailedBatches,
+			Total:        latest.TotalBatches,
+			TaskStatus:   latest.Status,
+		}, latest.ProjectID)
+		return
+	}
+
+	if splitErr != nil {
+		if _, err := w.taskRepo.IncrementFailed(ctx, taskID); err != nil {
+			w.logger.Error("increment failed count error", zap.Uint64("task_id", taskID), zap.Error(err))
+		}
+	} else if _, err := w.taskRepo.IncrementCompleted(ctx, taskID); err != nil {
+		w.logger.Error("increment completed failed", zap.Uint64("task_id", taskID), zap.Error(err))
 	}
 
 	task, err = w.taskRepo.FindByID(ctx, taskID)

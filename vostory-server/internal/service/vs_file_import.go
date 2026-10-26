@@ -19,6 +19,8 @@ import (
 
 type VsFileImportService interface {
 	UploadFile(ctx context.Context, projectID uint64, file *multipart.FileHeader) (string, string, error)
+	// RecoverParsing 服务启动时重新解析上次中断、停在「解析中」的项目
+	RecoverParsing(ctx context.Context)
 }
 
 func NewVsFileImportService(
@@ -43,6 +45,9 @@ func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, 
 	project, err := s.projectRepo.FindByID(ctx, projectID)
 	if err != nil {
 		return "", "", fmt.Errorf("项目不存在")
+	}
+	if project.Status == projectStatusParsing && isAutoParsedSource(project.SourceType) {
+		return "", "", fmt.Errorf("项目正在解析上一次上传的文件，请等待完成后再上传")
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
@@ -88,21 +93,66 @@ func (s *vsFileImportService) UploadFile(ctx context.Context, projectID uint64, 
 	if err := s.projectRepo.UpdateFields(ctx, project.ProjectID, map[string]interface{}{
 		"source_type":     sourceType,
 		"source_file_url": filePath,
-		"status":          "parsing",
+		"status":          projectStatusParsing,
 		"updated_by":      loginName,
 	}); err != nil {
 		return "", "", fmt.Errorf("更新项目失败: %w", err)
 	}
 
-	if sourceType == "txt" || sourceType == "epub" {
-		go func() {
-			bgCtx := context.WithValue(context.Background(), "login_name", loginName)
-			bgCtx = context.WithValue(bgCtx, "dept_id", deptID)
-			s.parseSourceFile(bgCtx, projectID)
-		}()
+	if isAutoParsedSource(sourceType) {
+		go s.parseInBackground(projectID, loginName, deptID)
 	}
 
 	return sourceType, filePath, nil
+}
+
+const (
+	projectStatusParsing     = "parsing"
+	projectStatusParseFailed = "parse_failed"
+)
+
+// isAutoParsedSource 上传后会在后台自动解析章节的文件类型
+func isAutoParsedSource(sourceType string) bool {
+	return sourceType == "txt" || sourceType == "epub"
+}
+
+// parseInBackground 后台解析源文件。解析代码 panic（例如格式异常的 epub）时只把项目标为解析失败，不会带崩整个服务
+func (s *vsFileImportService) parseInBackground(projectID uint64, loginName string, deptID uint) {
+	ctx := context.WithValue(context.Background(), "login_name", loginName)
+	ctx = context.WithValue(ctx, "dept_id", deptID)
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error(fmt.Sprintf("解析项目 %d 源文件时发生 panic: %v", projectID, r))
+			_ = s.projectRepo.UpdateFields(ctx, projectID, map[string]interface{}{
+				"status":     projectStatusParseFailed,
+				"updated_by": loginName,
+			})
+		}
+	}()
+	s.parseSourceFile(ctx, projectID)
+}
+
+func (s *vsFileImportService) RecoverParsing(ctx context.Context) {
+	projects, err := s.projectRepo.FindByStatus(ctx, projectStatusParsing)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("查询解析中的项目失败: %v", err))
+		return
+	}
+	for _, p := range projects {
+		if ctx.Err() != nil {
+			return
+		}
+		if !isAutoParsedSource(p.SourceType) {
+			continue
+		}
+		operator := p.UpdatedBy
+		if operator == "" {
+			operator = p.CreatedBy
+		}
+		// 章节是一次性事务写入的，中断时不会留下部分章节，可以直接重新解析
+		s.logger.Info(fmt.Sprintf("恢复解析项目 %d（%s）", p.ProjectID, p.Name))
+		s.parseInBackground(p.ProjectID, operator, p.DeptID)
+	}
 }
 
 var chapterPattern = regexp.MustCompile(`^第[零一二三四五六七八九十百千万\d]+[章节回卷集篇]`)
@@ -124,8 +174,9 @@ func (s *vsFileImportService) parseSourceFile(ctx context.Context, projectID uin
 	}
 
 	if parseErr != nil {
-		s.projectRepo.UpdateFields(ctx, project.ProjectID, map[string]interface{}{
-			"status":     "parse_failed",
+		s.logger.Warn(fmt.Sprintf("解析项目 %d 源文件失败: %v", project.ProjectID, parseErr))
+		_ = s.projectRepo.UpdateFields(ctx, project.ProjectID, map[string]interface{}{
+			"status":     projectStatusParseFailed,
 			"updated_by": ctx.Value("login_name").(string),
 		})
 	}
@@ -210,10 +261,11 @@ func (s *vsFileImportService) saveChapters(ctx context.Context, project *model.V
 		return 0, 0, fmt.Errorf("未识别到任何章节")
 	}
 
-	loginName := ctx.Value("login_name").(string)
-	deptID := ctx.Value("dept_id").(uint)
+	loginName, _ := ctx.Value("login_name").(string)
+	deptID, _ := ctx.Value("dept_id").(uint)
 	totalWords := 0
 
+	records := make([]*model.VsChapter, 0, len(chapters))
 	for i, ch := range chapters {
 		wordCount := utf8.RuneCountInString(ch.Content)
 		totalWords += wordCount
@@ -231,9 +283,10 @@ func (s *vsFileImportService) saveChapters(ctx context.Context, project *model.V
 			},
 		}
 
-		if err := s.chapterRepo.Create(ctx, chapter); err != nil {
-			return 0, 0, fmt.Errorf("创建章节失败: %w", err)
-		}
+		records = append(records, chapter)
+	}
+	if err := s.chapterRepo.CreateBatch(ctx, records); err != nil {
+		return 0, 0, fmt.Errorf("创建章节失败: %w", err)
 	}
 
 	if err := s.projectRepo.UpdateFields(ctx, project.ProjectID, map[string]interface{}{

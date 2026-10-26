@@ -1847,6 +1847,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/chapter/batch-split/{project_id}/cancel": {
+            "post": {
+                "description": "取消项目中进行中的批量切割任务：排队中的章节不再切割，正在切割的章节会继续完成",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "章节管理"
+                ],
+                "summary": "取消批量切割",
+                "operationId": "chapter:batch-split-cancel",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/chapter/list": {
             "get": {
                 "description": "分页获取章节列表",

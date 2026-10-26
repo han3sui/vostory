@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"iot-alert-center/internal/job"
+	"iot-alert-center/internal/service"
 	"iot-alert-center/internal/worker"
 	"iot-alert-center/pkg/log"
 	"sync"
@@ -17,6 +18,7 @@ type JobServer struct {
 	ttsWorker *worker.TTSWorker
 	llmWorker *worker.LLMWorker
 	vdWorker  *worker.VoiceDesignWorker
+	importSvc service.VsFileImportService
 	jobsMutex sync.Mutex
 }
 
@@ -32,6 +34,7 @@ func NewJobServer(
 	ttsWorker *worker.TTSWorker,
 	llmWorker *worker.LLMWorker,
 	vdWorker *worker.VoiceDesignWorker,
+	importSvc service.VsFileImportService,
 ) *JobServer {
 	return &JobServer{
 		log:       log,
@@ -40,6 +43,7 @@ func NewJobServer(
 		ttsWorker: ttsWorker,
 		llmWorker: llmWorker,
 		vdWorker:  vdWorker,
+		importSvc: importSvc,
 	}
 }
 
@@ -52,6 +56,7 @@ func (j *JobServer) Start(ctx context.Context) error {
 	j.ttsWorker.Start(ctx)
 	j.llmWorker.Start(ctx)
 	j.vdWorker.Start(ctx)
+	go j.importSvc.RecoverParsing(ctx)
 
 	<-ctx.Done()
 	return nil

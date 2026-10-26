@@ -18,6 +18,12 @@
                         <a-tag size="small" color="cyan"
                             >切割队列 {{ splitProcessedCount }}/{{ splitTotalCount }}</a-tag
                         >
+                        <a-popconfirm
+                            content="确认取消切割队列？排队中的章节不再切割，正在切割的章节会继续完成"
+                            @ok="handleCancelSplit"
+                        >
+                            <a-button type="text" size="mini" status="danger">取消切割队列</a-button>
+                        </a-popconfirm>
                     </template>
                 </a-space>
             </template>
@@ -55,6 +61,7 @@ import { useRoute, useRouter } from "vue-router";
 import { fetchEventSource } from "@fortaine/fetch-event-source";
 import { getProject, ProjectDetailType } from "@/config/apis/project";
 import { getProjectEventsURL, cancelProjectQueue, getActiveTasksByProject, TTSSegmentEvent, ProjectTaskProgress } from "@/config/apis/tts";
+import { cancelBatchSplit } from "@/config/apis/script-segment";
 import storage from "@/utils/tools/storage";
 import ProjectImport from "./components/import/index.vue";
 import ProjectChapter from "./components/chapter/index.vue";
@@ -202,6 +209,23 @@ async function handleCancelAll() {
             task_done: false,
             task_status: "cancelled"
         };
+        ttsEventHandlers.value.forEach((fn) => fn(evt));
+    } catch {
+        Message.error("取消失败");
+    }
+}
+
+async function handleCancelSplit() {
+    if (!projectId.value) return;
+    try {
+        const res = await cancelBatchSplit(projectId.value);
+        Message.success(`已取消 ${res.cancelled_count} 个排队中的章节`);
+        const map = new Map(activeTasks.value);
+        for (const [id, task] of map) {
+            if (task.task_type === "chapter_split") map.delete(id);
+        }
+        activeTasks.value = map;
+        const evt = { type: "split_queue_cancelled" } as unknown as TTSSegmentEvent;
         ttsEventHandlers.value.forEach((fn) => fn(evt));
     } catch {
         Message.error("取消失败");

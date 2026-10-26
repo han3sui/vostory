@@ -370,7 +370,7 @@ func (s *vsTTSSynthesizeService) enqueueSegments(ctx context.Context, task *mode
 		_ = s.segmentRepo.UpdateStatus(ctx, segID, "queued")
 
 		msg := fmt.Sprintf("%d:%d", task.TaskID, segID)
-		if err := s.rdb.LPush(ctx, "vs:tts:queue", msg).Err(); err != nil {
+		if err := s.rdb.LPush(ctx, ttsQueueKey, msg).Err(); err != nil {
 			return fmt.Errorf("片段 %d 入队失败: %w", segID, err)
 		}
 	}
@@ -384,6 +384,10 @@ func (s *vsTTSSynthesizeService) SingleGenerate(ctx context.Context, segmentID u
 	}
 	if segment.CharacterID == nil {
 		return nil, fmt.Errorf("该片段未关联角色，无法合成")
+	}
+	// 已在队列中的片段再入队会被合成两次，并发时还可能写出同名音频文件、两条当前版本
+	if segment.Status == "queued" || segment.Status == "processing" {
+		return nil, fmt.Errorf("CONFLICT:该片段正在排队或合成中，请等待完成")
 	}
 
 	chapterID := segment.ChapterID
@@ -667,29 +671,8 @@ func (s *vsTTSSynthesizeService) cancelTaskQueuedSegments(ctx context.Context, t
 	return affected, nil
 }
 
-// removeQueueScript 一次性移除队列中指定前缀的消息，并保持其余消息的顺序。
-// 逐条 LREM 是 O(N²)，队列有几千条时会长时间阻塞 Redis。
-var removeQueueScript = redis.NewScript(`
-local items = redis.call('LRANGE', KEYS[1], 0, -1)
-local prefix = ARGV[1]
-local kept = {}
-for _, v in ipairs(items) do
-	if string.sub(v, 1, #prefix) ~= prefix then
-		kept[#kept + 1] = v
-	end
-end
-local removed = #items - #kept
-if removed > 0 then
-	redis.call('DEL', KEYS[1])
-	for i = 1, #kept, 1000 do
-		redis.call('RPUSH', KEYS[1], unpack(kept, i, math.min(i + 999, #kept)))
-	end
-end
-return removed
-`)
-
 func (s *vsTTSSynthesizeService) removeQueueMessagesByTask(ctx context.Context, taskID uint64) error {
-	return removeQueueScript.Run(ctx, s.rdb, []string{"vs:tts:queue"}, fmt.Sprintf("%d:", taskID)).Err()
+	return removeTaskQueueMessages(ctx, s.rdb, ttsQueueKey, taskID)
 }
 
 func (s *vsTTSSynthesizeService) RegenerateByVoiceProfile(ctx context.Context, voiceProfileID uint64) (*v1.BatchGenerateResponse, error) {

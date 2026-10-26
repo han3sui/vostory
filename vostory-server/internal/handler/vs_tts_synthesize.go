@@ -43,6 +43,10 @@ func (h *VsTTSSynthesizeHandler) Synthesize(ctx *gin.Context) {
 
 	result, err := h.svc.SingleGenerate(ctx, segmentID)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "CONFLICT:") {
+			v1.HandleError(ctx, http.StatusConflict, v1.NewError(409, strings.TrimPrefix(err.Error(), "CONFLICT:")), nil)
+			return
+		}
 		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
 		return
 	}

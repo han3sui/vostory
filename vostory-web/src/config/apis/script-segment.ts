@@ -79,6 +79,10 @@ export type BatchSplitResult = {
     total: number;
 };
 
+export function cancelBatchSplit(projectId: number): Promise<{ cancelled_count: number }> {
+    return request({ url: `/api/v1/chapter/batch-split/${projectId}/cancel`, method: "post" });
+}
+
 export function batchSplitChapters(projectId: number, chapterIds: number[]): Promise<BatchSplitResult> {
     return request({
         url: "/api/v1/chapter/batch-split",

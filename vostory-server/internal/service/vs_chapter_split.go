@@ -20,7 +20,27 @@ import (
 type VsChapterSplitService interface {
 	SplitChapter(ctx context.Context, chapterID uint64) (*v1.ChapterSplitResponse, error)
 	BatchSplitChapters(ctx context.Context, projectID uint64, chapterIDs []uint64, loginName string) (*v1.BatchSplitResponse, error)
+	// RunQueuedChapter 由 LLM worker 调用，只处理仍处于 queued 的章节；claimed 为 false 表示已取消或已被处理
+	RunQueuedChapter(ctx context.Context, chapterID uint64) (result *v1.ChapterSplitResponse, claimed bool, err error)
+	// CancelSplitQueue 取消项目中进行中的批量切割任务，返回取消的排队章节数
+	CancelSplitQueue(ctx context.Context, projectID uint64) (int64, error)
+	// RecoverableChapters 服务重启恢复：把任务中卡在 running 的章节重置为 queued，返回仍需处理的章节
+	RecoverableChapters(ctx context.Context, task *model.VsGenerationTask) ([]uint64, error)
 }
+
+// 章节切割状态
+const (
+	splitStatusQueued    = "queued"
+	splitStatusRunning   = "running"
+	splitStatusDone      = "done"
+	splitStatusFailed    = "failed"
+	splitStatusCancelled = "cancelled"
+)
+
+var activeSplitStatuses = []string{splitStatusQueued, splitStatusRunning}
+
+// splitIdleCondition 章节不在切割队列中（兼容新增字段前的 NULL）
+const splitIdleCondition = "(split_status IS NULL OR split_status NOT IN ?)"
 
 func NewVsChapterSplitService(
 	service *Service,
@@ -90,7 +110,53 @@ type llmSegment struct {
 	Instruction          string `json:"instruction"`
 }
 
+// SplitChapter 同步切割单个章节；章节已在切割队列中时拒绝，避免同一章被并发切割、互相覆盖
 func (s *vsChapterSplitService) SplitChapter(ctx context.Context, chapterID uint64) (*v1.ChapterSplitResponse, error) {
+	if _, err := s.chapterRepo.FindByID(ctx, chapterID); err != nil {
+		return nil, fmt.Errorf("章节不存在")
+	}
+	res := s.db.WithContext(ctx).Model(&model.VsChapter{}).
+		Where("chapter_id = ? AND "+splitIdleCondition, chapterID, activeSplitStatuses).
+		Update("split_status", splitStatusRunning)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, fmt.Errorf("该章节正在切割队列中，请等待完成或取消队列后再试")
+	}
+	result, err := s.doSplitChapter(ctx, chapterID)
+	s.finishSplit(ctx, chapterID, err)
+	return result, err
+}
+
+func (s *vsChapterSplitService) RunQueuedChapter(ctx context.Context, chapterID uint64) (*v1.ChapterSplitResponse, bool, error) {
+	res := s.db.WithContext(ctx).Model(&model.VsChapter{}).
+		Where("chapter_id = ? AND split_status = ?", chapterID, splitStatusQueued).
+		Update("split_status", splitStatusRunning)
+	if res.Error != nil {
+		return nil, false, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, false, nil
+	}
+	result, err := s.doSplitChapter(ctx, chapterID)
+	s.finishSplit(ctx, chapterID, err)
+	return result, true, err
+}
+
+func (s *vsChapterSplitService) finishSplit(ctx context.Context, chapterID uint64, splitErr error) {
+	status := splitStatusDone
+	if splitErr != nil {
+		status = splitStatusFailed
+	}
+	if err := s.db.WithContext(ctx).Model(&model.VsChapter{}).
+		Where("chapter_id = ?", chapterID).
+		Update("split_status", status).Error; err != nil {
+		s.logger.Warn(fmt.Sprintf("更新章节 %d 切割状态失败: %v", chapterID, err))
+	}
+}
+
+func (s *vsChapterSplitService) doSplitChapter(ctx context.Context, chapterID uint64) (*v1.ChapterSplitResponse, error) {
 	chapter, err := s.chapterRepo.FindByID(ctx, chapterID)
 	if err != nil {
 		return nil, fmt.Errorf("章节不存在")
@@ -280,6 +346,10 @@ func (s *vsChapterSplitService) BatchSplitChapters(ctx context.Context, projectI
 		return nil, err
 	}
 
+	chapterIDs = uniqueIDs(chapterIDs)
+	if len(chapterIDs) == 0 {
+		return nil, fmt.Errorf("请选择要切割的章节")
+	}
 	for _, chID := range chapterIDs {
 		ch, err := s.chapterRepo.FindByID(ctx, chID)
 		if err != nil {
@@ -303,8 +373,30 @@ func (s *vsChapterSplitService) BatchSplitChapters(ctx context.Context, projectI
 			CreatedBy: loginName,
 		},
 	}
-	if err := s.taskRepo.Create(ctx, task); err != nil {
-		return nil, fmt.Errorf("创建批量切割任务失败: %w", err)
+	// 在同一事务里把章节标为 queued 并创建任务：已在队列中的章节不会被重复入队
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&model.VsChapter{}).
+			Where("chapter_id IN ? AND "+splitIdleCondition, chapterIDs, activeSplitStatuses).
+			Update("split_status", splitStatusQueued)
+		if res.Error != nil {
+			return res.Error
+		}
+		if int(res.RowsAffected) != len(chapterIDs) {
+			var busy []model.VsChapter
+			tx.Select("title").Where("chapter_id IN ? AND split_status IN ?", chapterIDs, activeSplitStatuses).Find(&busy)
+			titles := make([]string, 0, len(busy))
+			for _, ch := range busy {
+				titles = append(titles, ch.Title)
+			}
+			return fmt.Errorf("以下章节已在切割队列中，请等待完成或取消后再试：%s", strings.Join(titles, "、"))
+		}
+		if err := tx.Create(task).Error; err != nil {
+			return fmt.Errorf("创建批量切割任务失败: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	if err := s.taskRepo.SetStarted(ctx, task.TaskID); err != nil {
@@ -315,10 +407,13 @@ func (s *vsChapterSplitService) BatchSplitChapters(ctx context.Context, projectI
 	pipe := s.rdb.TxPipeline()
 	for _, chID := range chapterIDs {
 		msg := fmt.Sprintf("%d:%d", task.TaskID, chID)
-		pipe.LPush(ctx, "vs:llm:queue", msg)
+		pipe.LPush(ctx, llmQueueKey, msg)
 	}
 	if _, err := pipe.Exec(ctx); err != nil {
 		_ = s.taskRepo.SetFailed(ctx, task.TaskID, fmt.Sprintf("任务入队失败: %v", err))
+		s.db.WithContext(ctx).Model(&model.VsChapter{}).
+			Where("chapter_id IN ? AND split_status = ?", chapterIDs, splitStatusQueued).
+			Update("split_status", splitStatusFailed)
 		return nil, fmt.Errorf("批量入队失败: %w", err)
 	}
 
@@ -455,4 +550,82 @@ func truncate(s string, maxRunes int) string {
 		return s
 	}
 	return string(runes[:maxRunes]) + "..."
+}
+
+func (s *vsChapterSplitService) CancelSplitQueue(ctx context.Context, projectID uint64) (int64, error) {
+	tasks, err := s.taskRepo.FindActiveByProjectID(ctx, projectID)
+	if err != nil {
+		return 0, err
+	}
+	var cancelled int64
+	for _, task := range tasks {
+		if task.TaskType != "chapter_split" {
+			continue
+		}
+		// 先结束任务：worker 取到残留消息时会因任务已取消而跳过
+		if err := s.taskRepo.SetCancelled(ctx, task.TaskID, "cancelled by user"); err != nil {
+			return cancelled, err
+		}
+		if len(task.SegmentIDs) > 0 {
+			// 正在切割的章节会继续完成，只取消还在排队的
+			res := s.db.WithContext(ctx).Model(&model.VsChapter{}).
+				Where("chapter_id IN ? AND split_status = ?", []uint64(task.SegmentIDs), splitStatusQueued).
+				Update("split_status", splitStatusCancelled)
+			if res.Error != nil {
+				return cancelled, res.Error
+			}
+			cancelled += res.RowsAffected
+		}
+		if err := removeTaskQueueMessages(ctx, s.rdb, llmQueueKey, task.TaskID); err != nil {
+			s.logger.Warn(fmt.Sprintf("清理切割任务 %d 的队列消息失败: %v", task.TaskID, err))
+		}
+	}
+	return cancelled, nil
+}
+
+func (s *vsChapterSplitService) RecoverableChapters(ctx context.Context, task *model.VsGenerationTask) ([]uint64, error) {
+	ids := []uint64(task.SegmentIDs)
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var chapters []model.VsChapter
+	if err := s.db.WithContext(ctx).Select("chapter_id, split_status").
+		Where("chapter_id IN ?", ids).Find(&chapters).Error; err != nil {
+		return nil, err
+	}
+	statusByID := make(map[uint64]string, len(chapters))
+	tracked := false
+	for _, ch := range chapters {
+		statusByID[ch.ChapterID] = ch.SplitStatus
+		if ch.SplitStatus != "" {
+			tracked = true
+		}
+	}
+
+	var remaining []uint64
+	if !tracked {
+		// 新增切割状态字段之前创建的任务：章节没有状态可查，退回按已处理数量跳过
+		processed := task.CompletedBatches + task.FailedBatches
+		for i, id := range ids {
+			if _, exists := statusByID[id]; exists && i >= processed {
+				remaining = append(remaining, id)
+			}
+		}
+	} else {
+		for _, id := range ids {
+			if st := statusByID[id]; st == splitStatusQueued || st == splitStatusRunning {
+				remaining = append(remaining, id)
+			}
+		}
+	}
+	if len(remaining) == 0 {
+		return nil, nil
+	}
+	// 上次退出时正在切割的章节重新排队
+	if err := s.db.WithContext(ctx).Model(&model.VsChapter{}).
+		Where("chapter_id IN ?", remaining).
+		Update("split_status", splitStatusQueued).Error; err != nil {
+		return nil, err
+	}
+	return remaining, nil
 }

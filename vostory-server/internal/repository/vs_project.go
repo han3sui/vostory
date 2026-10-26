@@ -15,6 +15,7 @@ type VsProjectRepository interface {
 	FindWithPagination(ctx context.Context, query *v1.VsProjectListQuery) ([]*model.VsProject, int64, error)
 	FindByWorkspaceID(ctx context.Context, workspaceID uint64) ([]*model.VsProject, error)
 	CountByLLMModelID(ctx context.Context, modelID uint64) (int64, error)
+	FindByStatus(ctx context.Context, status string) ([]*model.VsProject, error)
 }
 
 func NewVsProjectRepository(repository *Repository) VsProjectRepository {
@@ -94,6 +95,14 @@ func (r *vsProjectRepository) FindByWorkspaceID(ctx context.Context, workspaceID
 		Where("workspace_id = ?", workspaceID).
 		Scopes(model.WithDataScope(ctx)).
 		Order("project_id DESC").Find(&projects).Error; err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
+func (r *vsProjectRepository) FindByStatus(ctx context.Context, status string) ([]*model.VsProject, error) {
+	var projects []*model.VsProject
+	if err := r.db.WithContext(ctx).Where("status = ?", status).Find(&projects).Error; err != nil {
 		return nil, err
 	}
 	return projects, nil

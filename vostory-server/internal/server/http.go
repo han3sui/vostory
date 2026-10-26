@@ -276,6 +276,7 @@ func NewHTTPServer(
 				chapterRouter.POST("/:chapter_id/align", vsPreciseFillHandler.AlignChapter)
 				chapterRouter.POST("/:chapter_id/split", vsChapterSplitHandler.Split)
 				chapterRouter.POST("/batch-split", vsChapterSplitHandler.BatchSplit)
+				chapterRouter.POST("/batch-split/:project_id/cancel", vsChapterSplitHandler.CancelBatchSplit)
 			}
 
 			scriptSegmentRouter := strictAuthRouter.Group("/script-segment")
