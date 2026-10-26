@@ -816,6 +816,11 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
 }
 
 function handleSegmentEvent(evt: TTSSegmentEvent) {
+    // 项目级「全部取消」由详情页广播，当前章节的排队/合成中片段同步标为已取消
+    if (evt.type === "queue_cancelled") {
+        markQueueCancelled();
+        return;
+    }
     if (evt.chapter_id !== selectedChapterId.value) return;
 
     const seg = segmentById.value.get(evt.segment_id);
@@ -913,12 +918,17 @@ async function handleBatchUnlock() {
     Message.success(`已解锁 ${res.affected_count} 个片段`);
 }
 
+// 与后端取消逻辑一致：排队中和合成中的片段都标为已取消，正在合成的那条完成后会由推送事件更新为最终状态
+function markQueueCancelled() {
+    segments.value.forEach((s) => {
+        if (s.status === "queued" || s.status === "processing") s.status = "cancelled";
+    });
+}
+
 async function handleCancelQueue() {
     if (!selectedChapterId.value) return;
     const res = await cancelChapterQueue(selectedChapterId.value);
-    segments.value.forEach((s) => {
-        if (s.status === "queued") s.status = "cancelled";
-    });
+    markQueueCancelled();
     Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
 }
 

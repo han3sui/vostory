@@ -21,6 +21,7 @@ type VsGenerationTaskRepository interface {
 	SetStarted(ctx context.Context, id uint64) error
 	SetCompleted(ctx context.Context, id uint64) error
 	SetFailed(ctx context.Context, id uint64, errMsg string) error
+	SetCancelled(ctx context.Context, id uint64, errMsg string) error
 	IncrementCompleted(ctx context.Context, id uint64) (int64, error)
 	IncrementFailed(ctx context.Context, id uint64) (int64, error)
 	ReduceTotalBatches(ctx context.Context, id uint64, count int) error
@@ -137,6 +138,17 @@ func (r *vsGenerationTaskRepository) SetFailed(ctx context.Context, id uint64, e
 		Where("task_id = ?", id).
 		Updates(map[string]interface{}{
 			"status":        "failed",
+			"error_message": errMsg,
+			"completed_at":  &now,
+		}).Error
+}
+
+func (r *vsGenerationTaskRepository) SetCancelled(ctx context.Context, id uint64, errMsg string) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Model(&model.VsGenerationTask{}).
+		Where("task_id = ?", id).
+		Updates(map[string]interface{}{
+			"status":        "cancelled",
 			"error_message": errMsg,
 			"completed_at":  &now,
 		}).Error

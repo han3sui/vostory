@@ -132,7 +132,8 @@ function handleSSEEvent(evt: TTSSegmentEvent) {
 
     const map = new Map(activeTasks.value);
 
-    if (evt.task_done) {
+    // 已结束/取消的任务不再回写到语音队列，避免取消后被 SSE 重新点亮
+    if (evt.task_done || ["cancelled", "completed", "failed"].includes(evt.task_status)) {
         map.delete(evt.task_id);
         activeTasks.value = map;
         return;
@@ -188,6 +189,20 @@ async function handleCancelAll() {
         const res = await cancelProjectQueue(projectId.value);
         Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
         activeTasks.value = new Map();
+        const evt: TTSSegmentEvent = {
+            type: "queue_cancelled",
+            task_id: 0,
+            chapter_id: 0,
+            segment_id: 0,
+            status: "cancelled",
+            progress: 0,
+            completed: 0,
+            failed: 0,
+            total: 0,
+            task_done: false,
+            task_status: "cancelled"
+        };
+        ttsEventHandlers.value.forEach((fn) => fn(evt));
     } catch {
         Message.error("取消失败");
     }

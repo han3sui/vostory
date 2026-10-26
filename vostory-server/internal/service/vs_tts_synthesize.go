@@ -631,37 +631,65 @@ func (s *vsTTSSynthesizeService) CancelProjectQueue(ctx context.Context, project
 	return totalAffected, nil
 }
 
-// cancelTaskQueuedSegments 按 task.SegmentIDs 精确取消 queued 片段，并重算任务终态。
+// cancelTaskQueuedSegments 结束任务、取消排队片段并清掉 Redis 中的残留消息。
+// 先把任务标为 cancelled：worker 处理每条消息前都会检查任务状态，这样取消过程中不会再有片段被计入进度、
+// 也不会推送 running 状态把任务重新显示到队列里。
 func (s *vsTTSSynthesizeService) cancelTaskQueuedSegments(ctx context.Context, task *model.VsGenerationTask) (int64, error) {
 	if task.TaskType != "tts_generate" {
 		return 0, nil
 	}
-	if len(task.SegmentIDs) == 0 {
-		return 0, nil
-	}
-	affected, err := s.segmentRepo.BatchUpdateStatus(ctx, []uint64(task.SegmentIDs), "queued", "cancelled")
-	if err != nil {
+	if err := s.taskRepo.SetCancelled(ctx, task.TaskID, "cancelled by user"); err != nil {
 		return 0, err
 	}
-	if affected > 0 {
-		_ = s.taskRepo.ReduceTotalBatches(ctx, task.TaskID, int(affected))
-	}
 
-	// 重新读取 task，判断是否已全部处理完毕
-	updated, err := s.taskRepo.FindByID(ctx, task.TaskID)
-	if err != nil {
-		return affected, nil
-	}
-	processed := updated.CompletedBatches + updated.FailedBatches
-	if processed >= updated.TotalBatches {
-		if updated.FailedBatches > 0 {
-			_ = s.taskRepo.SetFailed(ctx, task.TaskID,
-				fmt.Sprintf("%d/%d segments failed", updated.FailedBatches, updated.TotalBatches))
-		} else {
-			_ = s.taskRepo.SetCompleted(ctx, task.TaskID)
+	// processing 也一并标为 cancelled：正在合成的片段完成后会被 SynthesizeSegment 改写为最终状态；
+	// 若 worker 已经退出（如服务重启），片段不会永远卡在 processing，之后还能重新生成
+	var affected int64
+	if len(task.SegmentIDs) > 0 {
+		n, err := s.segmentRepo.BatchUpdateStatus(ctx, []uint64(task.SegmentIDs), "queued", "cancelled")
+		if err != nil {
+			return 0, err
 		}
+		affected = n
+		_, _ = s.segmentRepo.BatchUpdateStatus(ctx, []uint64(task.SegmentIDs), "processing", "cancelled")
+	} else if task.ChapterID != nil {
+		n, err := s.segmentRepo.BatchUpdateStatusByChapter(ctx, *task.ChapterID, "queued", "cancelled")
+		if err != nil {
+			return 0, err
+		}
+		affected = n
+		_, _ = s.segmentRepo.BatchUpdateStatusByChapter(ctx, *task.ChapterID, "processing", "cancelled")
+	}
+	if err := s.removeQueueMessagesByTask(ctx, task.TaskID); err != nil {
+		// 清理失败不影响取消结果，残留消息会被 worker 按任务状态跳过
+		s.logger.Warn(fmt.Sprintf("清理任务 %d 的队列消息失败: %v", task.TaskID, err))
 	}
 	return affected, nil
+}
+
+// removeQueueScript 一次性移除队列中指定前缀的消息，并保持其余消息的顺序。
+// 逐条 LREM 是 O(N²)，队列有几千条时会长时间阻塞 Redis。
+var removeQueueScript = redis.NewScript(`
+local items = redis.call('LRANGE', KEYS[1], 0, -1)
+local prefix = ARGV[1]
+local kept = {}
+for _, v in ipairs(items) do
+	if string.sub(v, 1, #prefix) ~= prefix then
+		kept[#kept + 1] = v
+	end
+end
+local removed = #items - #kept
+if removed > 0 then
+	redis.call('DEL', KEYS[1])
+	for i = 1, #kept, 1000 do
+		redis.call('RPUSH', KEYS[1], unpack(kept, i, math.min(i + 999, #kept)))
+	end
+end
+return removed
+`)
+
+func (s *vsTTSSynthesizeService) removeQueueMessagesByTask(ctx context.Context, taskID uint64) error {
+	return removeQueueScript.Run(ctx, s.rdb, []string{"vs:tts:queue"}, fmt.Sprintf("%d:", taskID)).Err()
 }
 
 func (s *vsTTSSynthesizeService) RegenerateByVoiceProfile(ctx context.Context, voiceProfileID uint64) (*v1.BatchGenerateResponse, error) {

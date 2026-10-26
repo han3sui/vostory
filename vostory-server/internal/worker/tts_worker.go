@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
 	"iot-alert-center/internal/service"
 	"iot-alert-center/pkg/log"
@@ -151,8 +152,15 @@ func (w *TTSWorker) recoverTasks(ctx context.Context) {
 	w.logger.Info("recovering interrupted tasks", zap.Int("count", len(tasks)))
 
 	for _, task := range tasks {
-		if task.ChapterID == nil {
-			w.logger.Warn("recover: task chapter_id is nil, skipping", zap.Uint64("task_id", task.TaskID))
+		remaining, err := w.collectRecoverableSegments(ctx, task)
+		if err != nil {
+			w.logger.Error("recover: collect segments failed",
+				zap.Uint64("task_id", task.TaskID), zap.Error(err))
+			continue
+		}
+		// 没有可恢复片段时直接收口，避免旧任务被反复捞起来
+		if len(remaining) == 0 {
+			w.finalizeStaleTask(ctx, task)
 			continue
 		}
 
@@ -163,37 +171,57 @@ func (w *TTSWorker) recoverTasks(ctx context.Context) {
 				continue
 			}
 		}
-
 		_ = w.taskRepo.SetStarted(ctx, task.TaskID)
 
-		segments, err := w.segmentRepo.FindByChapterIDAndStatus(ctx, *task.ChapterID, "queued")
-		if err != nil || len(segments) == 0 {
-			allSegs, _ := w.segmentRepo.FindByChapterID(ctx, *task.ChapterID)
-			for _, seg := range allSegs {
-				if seg.CharacterID == nil {
-					continue
-				}
-			if seg.Status == "queued" || seg.Status == "processing" {
-				_ = w.segmentRepo.UpdateStatus(ctx, seg.SegmentID, "queued")
-				msg := fmt.Sprintf("%d:%d", task.TaskID, seg.SegmentID)
-				_ = w.rdb.LRem(ctx, redisQueueKey, 0, msg).Err()
-				if err := w.rdb.LPush(ctx, redisQueueKey, msg).Err(); err != nil {
-					w.logger.Error("recover: enqueue segment failed",
-						zap.Uint64("task_id", task.TaskID), zap.Uint64("segment_id", seg.SegmentID), zap.Error(err))
-				}
-			}
-			}
-		} else {
-		for _, seg := range segments {
-			msg := fmt.Sprintf("%d:%d", task.TaskID, seg.SegmentID)
+		for _, segID := range remaining {
+			_ = w.segmentRepo.UpdateStatus(ctx, segID, "queued")
+			msg := fmt.Sprintf("%d:%d", task.TaskID, segID)
 			_ = w.rdb.LRem(ctx, redisQueueKey, 0, msg).Err()
 			if err := w.rdb.LPush(ctx, redisQueueKey, msg).Err(); err != nil {
 				w.logger.Error("recover: enqueue segment failed",
-					zap.Uint64("task_id", task.TaskID), zap.Uint64("segment_id", seg.SegmentID), zap.Error(err))
+					zap.Uint64("task_id", task.TaskID), zap.Uint64("segment_id", segID), zap.Error(err))
 			}
 		}
-		}
 	}
+}
+
+func (w *TTSWorker) collectRecoverableSegments(ctx context.Context, task *model.VsGenerationTask) ([]uint64, error) {
+	idSet := make(map[uint64]struct{}, len(task.SegmentIDs))
+	for _, id := range task.SegmentIDs {
+		idSet[id] = struct{}{}
+	}
+
+	var candidates []*model.VsScriptSegment
+	if task.ChapterID != nil {
+		segs, err := w.segmentRepo.FindByChapterID(ctx, *task.ChapterID)
+		if err != nil {
+			return nil, err
+		}
+		candidates = segs
+	}
+
+	var remaining []uint64
+	for _, seg := range candidates {
+		if seg.Status != "queued" && seg.Status != "processing" {
+			continue
+		}
+		if len(idSet) > 0 {
+			if _, ok := idSet[seg.SegmentID]; !ok {
+				continue
+			}
+		}
+		remaining = append(remaining, seg.SegmentID)
+	}
+	return remaining, nil
+}
+
+func (w *TTSWorker) finalizeStaleTask(ctx context.Context, task *model.VsGenerationTask) {
+	if task.FailedBatches > 0 {
+		_ = w.taskRepo.SetFailed(ctx, task.TaskID,
+			fmt.Sprintf("%d/%d segments failed", task.FailedBatches, task.TotalBatches))
+		return
+	}
+	_ = w.taskRepo.SetCompleted(ctx, task.TaskID)
 }
 
 func (w *TTSWorker) resolveProviderID(ctx context.Context, taskID uint64) uint64 {
@@ -250,7 +278,21 @@ func (w *TTSWorker) consumeLoop(ctx context.Context) {
 	}
 }
 
+func (w *TTSWorker) isTaskCancelled(ctx context.Context, taskID uint64) bool {
+	task, err := w.taskRepo.FindByID(ctx, taskID)
+	if err != nil {
+		return false
+	}
+	return task.Status == "cancelled"
+}
+
 func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64) {
+	if w.isTaskCancelled(ctx, taskID) {
+		w.logger.Info("task cancelled, skipping segment",
+			zap.Uint64("task_id", taskID), zap.Uint64("segment_id", segmentID))
+		return
+	}
+
 	seg, err := w.segmentRepo.FindByID(ctx, segmentID)
 	if err != nil {
 		w.logger.Warn("segment not found, skipping", zap.Uint64("segment_id", segmentID))
@@ -258,6 +300,7 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 		return
 	}
 	if seg.Status == "cancelled" {
+		// 任务仍在进行但片段已被取消（例如取消逻辑调整前遗留的数据），按失败计入，保证任务能收口
 		w.logger.Info("segment cancelled, skipping", zap.Uint64("segment_id", segmentID))
 		w.incrementFailedAndPublish(ctx, taskID, segmentID, "cancelled", "")
 		return
@@ -270,26 +313,35 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 	var segStatus, segErrMsg string
 	var clipID *uint64
 	var audioURL string
-
 	if synthErr != nil {
 		w.logger.Warn("segment synthesis failed",
 			zap.Uint64("task_id", taskID), zap.Uint64("segment_id", segmentID), zap.Error(synthErr))
-
-		if _, err := w.taskRepo.IncrementFailed(ctx, taskID); err != nil {
-			w.logger.Error("increment failed count error", zap.Uint64("task_id", taskID), zap.Error(err))
-		}
 		segStatus = "failed"
 		segErrMsg = synthErr.Error()
 	} else {
-		if _, err := w.taskRepo.IncrementCompleted(ctx, taskID); err != nil {
-			w.logger.Error("increment completed failed", zap.Uint64("task_id", taskID), zap.Error(err))
-			return
-		}
 		segStatus = "generated"
 		if synthResult != nil {
 			clipID = &synthResult.ClipID
 			audioURL = synthResult.AudioURL
 		}
+	}
+
+	// 合成期间任务被取消：结果已经落库，不再计入任务进度，但仍推送片段事件，
+	// 否则前端会一直把这个片段显示为「生成中」
+	if w.isTaskCancelled(ctx, taskID) {
+		w.logger.Info("task cancelled during synthesis, publish segment result only",
+			zap.Uint64("task_id", taskID), zap.Uint64("segment_id", segmentID))
+		w.publishCancelledSegment(ctx, taskID, seg, segStatus, segErrMsg, clipID, audioURL)
+		return
+	}
+
+	if synthErr != nil {
+		if _, err := w.taskRepo.IncrementFailed(ctx, taskID); err != nil {
+			w.logger.Error("increment failed count error", zap.Uint64("task_id", taskID), zap.Error(err))
+		}
+	} else if _, err := w.taskRepo.IncrementCompleted(ctx, taskID); err != nil {
+		w.logger.Error("increment completed failed", zap.Uint64("task_id", taskID), zap.Error(err))
+		return
 	}
 
 	task, err := w.taskRepo.FindByID(ctx, taskID)
@@ -348,6 +400,29 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID uint64
 		Total:        task.TotalBatches,
 		TaskDone:     taskDone,
 		TaskStatus:   taskStatus,
+	}, task.ProjectID)
+}
+
+// publishCancelledSegment 推送已取消任务中片段的最终结果，task_status 为 cancelled，前端据此移出队列
+func (w *TTSWorker) publishCancelledSegment(ctx context.Context, taskID uint64, seg *model.VsScriptSegment, status, errMsg string, clipID *uint64, audioURL string) {
+	task, err := w.taskRepo.FindByID(ctx, taskID)
+	if err != nil {
+		return
+	}
+	w.publishEvent(ctx, TTSEvent{
+		Type:       "segment_done",
+		TaskID:     taskID,
+		ChapterID:  seg.ChapterID,
+		SegmentID:  seg.SegmentID,
+		Status:     status,
+		ErrorMsg:   errMsg,
+		ClipID:     clipID,
+		AudioURL:   audioURL,
+		Progress:   task.Progress,
+		Completed:  task.CompletedBatches,
+		Failed:     task.FailedBatches,
+		Total:      task.TotalBatches,
+		TaskStatus: task.Status,
 	}, task.ProjectID)
 }
 
