@@ -17,19 +17,12 @@
             <template #previewSlot>
                 <a-table-column title="参考音频">
                     <template #cell="{ record }">
-                        <a-button
-                            v-if="record.reference_audio_url"
-                            type="text"
-                            size="mini"
-                            @click="togglePreview(record)"
-                        >
-                            <template #icon>
-                                <icon-play-arrow v-if="previewingId !== record.id" />
-                                <icon-pause v-else />
-                            </template>
-                            {{ previewingId === record.id ? "停止" : "试听" }}
-                        </a-button>
-                        <span v-else style="color: var(--color-text-3)">未上传</span>
+                        <audio-preview-button
+                            :id="record.id"
+                            :available="!!record.reference_audio_url"
+                            :preview="audioPreview"
+                            :load="() => fetchReferenceAudioBlob('voice-profile', record.id)"
+                        />
                     </template>
                 </a-table-column>
             </template>
@@ -70,7 +63,8 @@ import { getVoiceAssetList, VoiceAssetDetailType } from "@/config/apis/voice-ass
 import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceAudioBlob } from "@/config/apis/upload";
 import { regenerateByVoiceProfile } from "@/config/apis/tts";
 import { hasPermission, PageTableConfig } from "@/views/utils";
-import { IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
+import { useAudioPreview } from "@/hooks/useAudioPreview";
+import AudioPreviewButton from "@/views/components/audio-preview-button/index.vue";
 import { cloneDeep } from "lodash-es";
 import VoiceEmotionManager from "@/views/voice-emotion/index.vue";
 
@@ -315,59 +309,7 @@ function handleOpenImport() {
     });
 }
 
-const previewingId = ref<number | null>(null);
-const previewLoadingId = ref<number | null>(null);
-let previewAudioEl: HTMLAudioElement | null = null;
-let previewBlobURL: string | null = null;
-
-function stopPreview() {
-    if (previewAudioEl) {
-        previewAudioEl.pause();
-        previewAudioEl = null;
-    }
-    if (previewBlobURL) {
-        URL.revokeObjectURL(previewBlobURL);
-        previewBlobURL = null;
-    }
-    previewingId.value = null;
-    previewLoadingId.value = null;
-}
-
-async function togglePreview(row: VoiceProfileDetailType) {
-    if (previewingId.value === row.id) {
-        stopPreview();
-        return;
-    }
-
-    stopPreview();
-    previewLoadingId.value = row.id;
-
-    try {
-        const blobURL = await fetchReferenceAudioBlob("voice-profile", row.id);
-        if (previewLoadingId.value !== row.id) {
-            URL.revokeObjectURL(blobURL);
-            return;
-        }
-
-        previewBlobURL = blobURL;
-        const audio = new Audio(blobURL);
-        previewAudioEl = audio;
-        previewingId.value = row.id;
-        previewLoadingId.value = null;
-
-        audio.addEventListener("ended", () => stopPreview());
-        audio.addEventListener("error", () => {
-            Message.warning("音频播放失败");
-            stopPreview();
-        });
-        await audio.play();
-    } catch {
-        Message.warning("音频加载失败");
-        stopPreview();
-    }
-}
-
-onUnmounted(stopPreview);
+const audioPreview = useAudioPreview();
 
 async function handleToggleStatus(record: VoiceProfileDetailType, enabled: boolean) {
     if (enabled) {

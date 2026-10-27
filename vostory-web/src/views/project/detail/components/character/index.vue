@@ -36,20 +36,13 @@
             <template #previewSlot>
                 <a-table-column title="试听">
                     <template #cell="{ record }">
-                        <a-button
-                            v-if="record.voice_profile_id"
-                            type="text"
-                            size="mini"
-                            :loading="previewLoadingId === record.voice_profile_id"
-                            @click="togglePreview(record)"
-                        >
-                            <template #icon>
-                                <icon-play-arrow v-if="previewingId !== record.voice_profile_id" />
-                                <icon-pause v-else />
-                            </template>
-                            {{ previewButtonText(record.voice_profile_id) }}
-                        </a-button>
-                        <span v-else style="color: var(--color-text-3)">-</span>
+                        <audio-preview-button
+                            :id="record.voice_profile_id"
+                            :available="!!record.voice_profile_id"
+                            :preview="audioPreview"
+                            :load="() => loadCharacterPreview(record)"
+                            empty-text="-"
+                        />
                     </template>
                 </a-table-column>
             </template>
@@ -117,7 +110,8 @@ import {
 import { getVoiceProfilesByProject, VoiceProfileOptionType } from "@/config/apis/voice-profile";
 import { fetchReferenceAudioBlob } from "@/config/apis/upload";
 import { regenerateByCharacter } from "@/config/apis/tts";
-import { IconPlayArrow, IconPause } from "@arco-design/web-vue/es/icon";
+import { useAudioPreview } from "@/hooks/useAudioPreview";
+import AudioPreviewButton from "@/views/components/audio-preview-button/index.vue";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
 import MergeModal from "./merge-modal.vue";
@@ -488,72 +482,12 @@ async function handleSmartImport() {
     }
 }
 
-const previewingId = ref<number | null>(null);
-const previewLoadingId = ref<number | null>(null);
-let previewAudioEl: HTMLAudioElement | null = null;
-let previewBlobURL: string | null = null;
+const audioPreview = useAudioPreview();
 
-function stopPreview() {
-    if (previewAudioEl) {
-        previewAudioEl.pause();
-        previewAudioEl = null;
-    }
-    if (previewBlobURL) {
-        URL.revokeObjectURL(previewBlobURL);
-        previewBlobURL = null;
-    }
-    previewingId.value = null;
-    previewLoadingId.value = null;
+function loadCharacterPreview(row: CharacterDetailType) {
+    if (!row.voice_profile_id) return Promise.reject(new Error("no voice profile"));
+    return fetchReferenceAudioBlob("voice-profile", row.voice_profile_id);
 }
-
-function previewButtonText(vpId: number) {
-    if (previewLoadingId.value === vpId) return "加载中";
-    if (previewingId.value === vpId) return "停止";
-    return "试听";
-}
-
-async function togglePreview(row: CharacterDetailType) {
-    const vpId = row.voice_profile_id;
-    if (!vpId) return;
-
-    // 正在播放或加载同一条时，再次点击取消
-    if (previewingId.value === vpId || previewLoadingId.value === vpId) {
-        stopPreview();
-        return;
-    }
-
-    stopPreview();
-    previewLoadingId.value = vpId;
-
-    try {
-        const blobURL = await fetchReferenceAudioBlob("voice-profile", vpId);
-        if (previewLoadingId.value !== vpId) {
-            URL.revokeObjectURL(blobURL);
-            return;
-        }
-
-        previewBlobURL = blobURL;
-        const audio = new Audio(blobURL);
-        previewAudioEl = audio;
-
-        audio.addEventListener("ended", () => stopPreview());
-        audio.addEventListener("error", () => {
-            Message.warning("音频播放失败");
-            stopPreview();
-        });
-
-        // 等音频真正开始播放后再切到停止态
-        await audio.play();
-        if (previewLoadingId.value !== vpId) return;
-        previewingId.value = vpId;
-        previewLoadingId.value = null;
-    } catch {
-        Message.warning("音频加载失败");
-        stopPreview();
-    }
-}
-
-onUnmounted(stopPreview);
 
 function handleRegenerate(row: Record<string, any>) {
     Modal.confirm({

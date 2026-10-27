@@ -93,10 +93,10 @@
                                             <a-space v-if="item.status === 'draft'" size="mini">
                                                 <a-button
                                                     size="mini"
-                                                    :loading="audioLoadingId === item.item_id"
+                                                    :loading="audioPreview.isLoading(item.item_id)"
                                                     @click="togglePlay(item)"
                                                 >
-                                                    {{ playingId === item.item_id ? "停止" : "试听" }}
+                                                    {{ audioPreview.buttonText(item.item_id) }}
                                                 </a-button>
                                                 <a-button
                                                     size="mini"
@@ -182,6 +182,7 @@ import {
     VoiceDesignBatchItemStatus,
     VoiceDesignBatchResult
 } from "@/config/apis/character";
+import { useAudioPreview } from "@/hooks/useAudioPreview";
 
 const props = defineProps<{
     projectId: number;
@@ -229,6 +230,7 @@ const starting = ref(false);
 const cancelling = ref(false);
 const matching = ref(false);
 const actingIds = ref<Set<number>>(new Set());
+const audioPreview = useAudioPreview();
 
 function isActing(id: number) {
     return actingIds.value.has(id);
@@ -394,7 +396,7 @@ async function onOpen() {
 
 function onClose() {
     stopPolling();
-    stopAudio();
+    audioPreview.stop();
 }
 
 onBeforeUnmount(onClose);
@@ -428,7 +430,7 @@ async function cancelBatch() {
 }
 
 async function backToSelect() {
-    stopAudio();
+    audioPreview.stop();
     view.value = "select";
     await loadCandidates();
 }
@@ -437,7 +439,7 @@ async function apply(item: VoiceDesignBatchItem) {
     if (isActing(item.item_id)) return;
     beginAct(item.item_id);
     try {
-        if (playingId.value === item.item_id) stopAudio();
+        if (audioPreview.isPlaying(item.item_id)) audioPreview.stop();
         await applyVoiceDesignItem(item.item_id);
         Message.success(`已为「${item.character_name}」保存音色`);
         await refreshBatch();
@@ -450,7 +452,7 @@ async function regenerate(item: VoiceDesignBatchItem) {
     if (isActing(item.item_id)) return;
     beginAct(item.item_id);
     try {
-        if (playingId.value === item.item_id) stopAudio();
+        if (audioPreview.isPlaying(item.item_id)) audioPreview.stop();
         await regenerateVoiceDesignItem(item.item_id);
         item.status = "queued";
         item.error_message = "";
@@ -463,48 +465,13 @@ async function regenerate(item: VoiceDesignBatchItem) {
 }
 
 async function discard(item: VoiceDesignBatchItem) {
-    if (playingId.value === item.item_id) stopAudio();
+    if (audioPreview.isPlaying(item.item_id)) audioPreview.stop();
     await discardVoiceDesignItem(item.item_id);
     await refreshBatch();
 }
 
-const playingId = ref<number | null>(null);
-const audioLoadingId = ref<number | null>(null);
-let audioEl: HTMLAudioElement | null = null;
-let audioURL: string | null = null;
-
-function stopAudio() {
-    audioEl?.pause();
-    audioEl = null;
-    if (audioURL) URL.revokeObjectURL(audioURL);
-    audioURL = null;
-    playingId.value = null;
-    audioLoadingId.value = null;
-}
-
-async function togglePlay(item: VoiceDesignBatchItem) {
-    if (playingId.value === item.item_id) {
-        stopAudio();
-        return;
-    }
-    stopAudio();
-    audioLoadingId.value = item.item_id;
-    try {
-        const url = await fetchVoiceDesignItemAudio(item.item_id);
-        if (audioLoadingId.value !== item.item_id) {
-            URL.revokeObjectURL(url);
-            return;
-        }
-        audioURL = url;
-        audioEl = new Audio(url);
-        audioEl.addEventListener("ended", stopAudio);
-        playingId.value = item.item_id;
-        audioLoadingId.value = null;
-        await audioEl.play();
-    } catch {
-        Message.warning("音频加载失败");
-        stopAudio();
-    }
+function togglePlay(item: VoiceDesignBatchItem) {
+    audioPreview.toggle(item.item_id, () => fetchVoiceDesignItemAudio(item.item_id));
 }
 
 async function runMatch() {

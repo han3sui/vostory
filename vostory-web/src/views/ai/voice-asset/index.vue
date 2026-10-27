@@ -30,14 +30,12 @@
             <template #audioSlot>
                 <a-table-column title="参考音频">
                     <template #cell="{ record }">
-                        <a-button v-if="record.reference_audio_url" type="text" size="mini" @click="playAudio(record)">
-                            <template #icon>
-                                <icon-play-arrow v-if="playingId !== record.id" />
-                                <icon-pause v-else />
-                            </template>
-                            {{ playingId === record.id ? "停止" : "试听" }}
-                        </a-button>
-                        <span v-else style="color: var(--color-text-3)">未上传</span>
+                        <audio-preview-button
+                            :id="record.id"
+                            :available="!!record.reference_audio_url"
+                            :preview="audioPreview"
+                            :load="() => fetchReferenceAudioBlob('voice-asset', record.id)"
+                        />
                     </template>
                 </a-table-column>
             </template>
@@ -139,6 +137,8 @@ import {
     VoiceAssetDetailType
 } from "@/config/apis/voice-asset";
 import { uploadReferenceAudio, extractUploadUrl, pathToFileList, fetchReferenceAudioBlob } from "@/config/apis/upload";
+import { useAudioPreview } from "@/hooks/useAudioPreview";
+import AudioPreviewButton from "@/views/components/audio-preview-button/index.vue";
 import request from "@/packages/request";
 import { cloneDeep } from "lodash-es";
 import { hasPermission, PageTableConfig } from "@/views/utils";
@@ -152,48 +152,10 @@ const GENDERS = [
 
 const table = ref();
 const filterData = ref({});
-const playingId = ref<number>(0);
+const audioPreview = useAudioPreview();
 const emotionDrawerVisible = ref(false);
 const emotionDrawerAssetId = ref<number>(0);
 const emotionDrawerAssetName = ref("");
-let currentAudio: HTMLAudioElement | null = null;
-
-let currentBlobURL = "";
-
-async function playAudio(record: VoiceAssetDetailType) {
-    if (playingId.value === record.id) {
-        currentAudio?.pause();
-        currentAudio = null;
-        playingId.value = 0;
-        if (currentBlobURL) {
-            URL.revokeObjectURL(currentBlobURL);
-            currentBlobURL = "";
-        }
-        return;
-    }
-    currentAudio?.pause();
-    if (currentBlobURL) {
-        URL.revokeObjectURL(currentBlobURL);
-        currentBlobURL = "";
-    }
-    try {
-        playingId.value = record.id;
-        currentBlobURL = await fetchReferenceAudioBlob("voice-asset", record.id);
-        currentAudio = new Audio(currentBlobURL);
-        currentAudio.play();
-        currentAudio.onended = () => {
-            playingId.value = 0;
-            currentAudio = null;
-            if (currentBlobURL) {
-                URL.revokeObjectURL(currentBlobURL);
-                currentBlobURL = "";
-            }
-        };
-    } catch {
-        playingId.value = 0;
-        Message.error("播放失败");
-    }
-}
 
 const getFilterConfig = computed(() => {
     return [
