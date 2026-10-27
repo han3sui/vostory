@@ -44,7 +44,6 @@ import { hasPermission, PageTableConfig } from "@/views/utils";
 const TEMPLATE_TYPES = [
     { label: "角色抽取", value: "character_extract" },
     { label: "对白解析", value: "dialogue_parse" },
-    { label: "情绪标注", value: "emotion_tag" },
     { label: "场景切分", value: "scene_split" },
     { label: "文本校正", value: "text_correct" },
     { label: "声音匹配", value: "voice_match" },

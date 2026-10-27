@@ -36,7 +36,7 @@ VoStory 通过 HTTP 协议对接自部署的 Breeze-TTS-2 服务，实现三件�
 
 | 模式 | 字段 | VoStory 用途 |
 |------|------|-------------|
-| Voice Clone | `ref_audio` + `ref_text` + `text` | 演绎指令为空的片段（平静/自动情绪） |
+| Voice Clone | `ref_audio` + `ref_text` + `text` | 演绎指令为空的片段（按文本自然演绎） |
 | Voice Direction | `ref_audio` + `ref_text` + `text` + `instruction` | 带演绎指令的片段 |
 | Voice Design | `text` + `instruction` | 为角色生成基础音色 |
 
@@ -54,9 +54,8 @@ sequenceDiagram
 
     FE->>API: 批量/单句生成（入 Redis 队列）
     API->>API: Segment → Character → VoiceProfile
-    API->>API: 可选：按情绪类型+强度匹配 VoiceEmotion 参考音频
     API->>API: 发音词典替换文本
-    API->>API: 演绎指令 = segment.instruction，为空时按情绪+强度兜底
+    API->>API: 演绎指令 = segment.instruction（为空则不传）
     API->>TTS: POST /v1/audio/speech（ref_audio + ref_text + text + instruction + seed）
     TTS-->>API: PCM 流
     API->>API: 封装 WAV → 响度归一化 → 保存 AudioClip
@@ -66,25 +65,14 @@ sequenceDiagram
 `VsTTSSynthesizeService.SynthesizeSegment` 的步骤：
 
 1. **查片段 / 角色 / 声音配置**，角色未绑定声音配置时报错
-2. **选择参考音频**：命中 `VoiceEmotion`（且有参考文本）时用情绪参考音频，否则用声音配置的基础音色
+2. **参考音频**：使用声音配置的基础音色，整本书固定，不按情绪切换
 3. **校验参考文本**：Breeze 克隆需要参考音频的逐字转写，缺失时报错
 4. **发音词典替换**：把词替换为词典里的"替换读法"（同音字）
-5. **演绎指令**：`segment.instruction` 优先；为空时按下表兜底
+5. **演绎指令**：直接使用 `segment.instruction`；为空时不下发指令，按参考音色原样克隆，由模型根据文本把握语气
 6. **固定种子**：`tts_params.seed`（音色设计时记录），否则用声音配置 ID，保证同一角色各句音色稳定
 7. **合成并保存**：对象 Key `audio/{chapterID}/{segmentID}_v{version}.wav`（local 落在 `storage/` 下，oss 写入对象存储），标记旧版本为非当前
 
-### 情绪 → 兜底演绎指令
-
-| 情绪 | light | medium | strong |
-|------|-------|--------|--------|
-| happy | 语气轻快，略带笑意 | 语气愉快，带着笑意 | 非常开心，语调上扬，充满兴奋 |
-| sad | 语气略显低落 | 语气悲伤，语速稍慢 | 极度悲伤，带着哭腔，声音哽咽 |
-| angry | 语气不满，略带怒意 | 语气愤怒，语速加快 | 暴怒，大声呵斥 |
-| fear | 语气有些不安 | 语气紧张害怕，声音发颤 | 极度恐惧，声音颤抖急促 |
-| surprise | 语气略带惊讶 | 语气惊讶 | 非常震惊，脱口而出 |
-| disgust | 语气略带嫌弃 | 语气厌恶 | 极度厌恶，语带鄙夷 |
-
-`neutral` 与 `auto` 不下发指令，按参考音色原样克隆，由模型根据文本把握语气。
+早期版本片段上还有情绪类型 + 强度，指令为空时按它们兜底生成指令，另有可选的情绪参考音频。迁移时会把旧片段的情绪按原兜底规则写进 `instruction`，再删除情绪字段和 `vs_voice_emotion` 表。
 
 ---
 

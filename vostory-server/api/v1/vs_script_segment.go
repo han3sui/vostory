@@ -15,30 +15,26 @@ type VsScriptSegmentListQuery struct {
 
 // VsScriptSegmentCreateRequest 创建脚本片段请求
 type VsScriptSegmentCreateRequest struct {
-	ProjectID       uint64  `json:"project_id" binding:"required"`     // 所属项目
-	SceneID         uint64  `json:"scene_id" binding:"required"`       // 所属场景
-	ChapterID       uint64  `json:"chapter_id" binding:"required"`     // 所属章节
-	SegmentNum      int     `json:"segment_num" binding:"required"`    // 片段序号
-	SegmentType     string  `json:"segment_type" binding:"required"`   // 片段类型
-	Content         string  `json:"content" binding:"required"`        // 片段文本
-	OriginalContent string  `json:"original_content"`                  // 原始文本
-	CharacterID     *uint64 `json:"character_id"`                      // 说话人角色ID
-	EmotionType     string  `json:"emotion_type"`                      // 情绪类型
-	EmotionStrength string  `json:"emotion_strength"`                  // 情绪强度
-	Instruction     string  `json:"instruction"`                       // 演绎指令
+	ProjectID       uint64  `json:"project_id" binding:"required"`   // 所属项目
+	SceneID         uint64  `json:"scene_id" binding:"required"`     // 所属场景
+	ChapterID       uint64  `json:"chapter_id" binding:"required"`   // 所属章节
+	SegmentNum      int     `json:"segment_num" binding:"required"`  // 片段序号
+	SegmentType     string  `json:"segment_type" binding:"required"` // 片段类型
+	Content         string  `json:"content" binding:"required"`      // 片段文本
+	OriginalContent string  `json:"original_content"`                // 原始文本
+	CharacterID     *uint64 `json:"character_id"`                    // 说话人角色ID
+	Instruction     string  `json:"instruction"`                     // 演绎指令
 }
 
 // VsScriptSegmentUpdateRequest 更新脚本片段请求
 type VsScriptSegmentUpdateRequest struct {
-	ID              uint64  `json:"id" binding:"required"`
-	SegmentNum      int     `json:"segment_num"`       // 片段序号
-	SegmentType     string  `json:"segment_type"`      // 片段类型
-	Content         string  `json:"content"`           // 片段文本
-	CharacterID     *uint64 `json:"character_id"`      // 说话人角色ID
-	EmotionType     string  `json:"emotion_type"`      // 情绪类型
-	EmotionStrength string  `json:"emotion_strength"`  // 情绪强度
-	Instruction     *string `json:"instruction"`       // 演绎指令（nil 表示不修改）
-	Status          string  `json:"status"`            // 片段状态
+	ID          uint64  `json:"id" binding:"required"`
+	SegmentNum  int     `json:"segment_num"`  // 片段序号
+	SegmentType string  `json:"segment_type"` // 片段类型
+	Content     string  `json:"content"`      // 片段文本
+	CharacterID *uint64 `json:"character_id"` // 说话人角色ID
+	Instruction *string `json:"instruction"`  // 演绎指令（nil 表示不修改）
+	Status      string  `json:"status"`       // 片段状态
 }
 
 // VsScriptSegmentInsertRequest 在指定片段之后插入新片段
@@ -59,8 +55,6 @@ type VsScriptSegmentDetailResponse struct {
 	OriginalContent string    `json:"original_content"`
 	CharacterID     *uint64   `json:"character_id"`
 	CharacterName   string    `json:"character_name"`
-	EmotionType     string    `json:"emotion_type"`
-	EmotionStrength string    `json:"emotion_strength"`
 	Instruction     string    `json:"instruction"`
 	Status          string    `json:"status"`
 	ErrorMessage    string    `json:"error_message,omitempty"`

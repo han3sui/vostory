@@ -44,8 +44,6 @@ func (s *vsScriptSegmentService) Create(ctx context.Context, request *v1.VsScrip
 		Content:         request.Content,
 		OriginalContent: request.OriginalContent,
 		CharacterID:     request.CharacterID,
-		EmotionType:     request.EmotionType,
-		EmotionStrength: request.EmotionStrength,
 		Instruction:     request.Instruction,
 		Status:          "raw",
 		Version:         1,
@@ -75,12 +73,6 @@ func (s *vsScriptSegmentService) Update(ctx context.Context, request *v1.VsScrip
 		existing.Version++
 	}
 	existing.CharacterID = request.CharacterID
-	if request.EmotionType != "" {
-		existing.EmotionType = request.EmotionType
-	}
-	if request.EmotionStrength != "" {
-		existing.EmotionStrength = request.EmotionStrength
-	}
 	if request.Instruction != nil {
 		existing.Instruction = strings.TrimSpace(*request.Instruction)
 	}
@@ -205,8 +197,6 @@ func (s *vsScriptSegmentService) convertToDetailResponse(seg *model.VsScriptSegm
 		Content:         seg.Content,
 		OriginalContent: seg.OriginalContent,
 		CharacterID:     seg.CharacterID,
-		EmotionType:     seg.EmotionType,
-		EmotionStrength: seg.EmotionStrength,
 		Instruction:     seg.Instruction,
 		Status:          seg.Status,
 		ErrorMessage:    seg.ErrorMessage,

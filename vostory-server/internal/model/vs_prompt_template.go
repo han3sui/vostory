@@ -5,7 +5,7 @@ type VsPromptTemplate struct {
 	BaseModel
 	TemplateID   uint64 `json:"template_id" gorm:"primaryKey;autoIncrement;comment:模板ID"`
 	Name         string `json:"name" gorm:"size:100;not null;uniqueIndex:uk_template_type_name;comment:模板名称"`
-	TemplateType string `json:"template_type" gorm:"size:30;not null;uniqueIndex:uk_template_type_name;comment:模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct/voice_match/voice_design）"`
+	TemplateType string `json:"template_type" gorm:"size:30;not null;uniqueIndex:uk_template_type_name;comment:模板类型（character_extract/dialogue_parse/scene_split/text_correct/voice_match/voice_design）"`
 	Content      string `json:"content" gorm:"type:text;not null;comment:Prompt内容"`
 	Description  string `json:"description" gorm:"size:500;comment:模板描述"`
 	IsSystem     string `json:"is_system" gorm:"size:1;default:'0';comment:是否系统内置（1是 0否）"`
@@ -56,33 +56,18 @@ var DefaultPromptTemplateSeeds = []PromptTemplateSeed{
 3. 每个片段标注类型：dialogue(对白)、narration(旁白)、monologue(独白)、description(描述)
 4. 对白和独白片段需识别说话人名称，并根据上下文推断该角色的性别和固有特征描述
 5. 说话人名称必须优先使用下方【已知角色表】中的标准名，昵称、尊称、代称也要还原为标准名；没有名字的泛称角色使用【路人池】中的名称，不要新建角色
-6. character_description只描述角色固有特征（身份、外貌、性格、年龄等），不要包含当前情绪状态，情绪由emotion字段单独表达
-7. 标注每个片段的情绪：neutral/happy/sad/angry/fear/surprise/disgust
-8. 标注情绪强度：light/medium/strong
-9. 标注演绎指令 instruction：结合场景上下文，用一句不超过20字的中文描述这句话该怎么演绎（语气、语速、音量、停顿等，如"压低声音，急促地"、"冷笑着，慢条斯理"），不要描述音色和性别；平铺直叙的旁白可为空字符串
-10. content字段中的特殊字符（引号、反斜杠、换行等）必须按照JSON标准进行转义
+6. character_description只描述角色固有特征（身份、外貌、性格、年龄等），不要包含当前情绪状态
+7. 标注演绎指令 instruction：结合场景上下文，用一句不超过20字的中文描述这句话该怎么演绎（语气、语速、音量、停顿等，如"压低声音，急促地"、"冷笑着，慢条斯理"），不要描述音色和性别；平铺直叙的旁白可为空字符串
+8. content字段中的特殊字符（引号、反斜杠、换行等）必须按照JSON标准进行转义
 
 请严格以JSON格式返回，不要包含任何其他文字，不要使用markdown代码块包裹，结构如下：
-{"scenes":[{"title":"场景标题","description":"场景简述","segments":[{"type":"dialogue|narration|monologue|description","content":"片段文本内容","character":"说话人名称（非对白/独白时为空字符串）","character_gender":"male|female|unknown（根据上下文推断，非对白/独白时为空字符串）","character_description":"角色固有特征描述，如身份、外貌、性格、年龄等，不要包含当前情绪状态（非对白/独白时为空字符串）","emotion":"neutral|happy|sad|angry|fear|surprise|disgust","emotion_strength":"light|medium|strong","instruction":"演绎指令"}]}]}
+{"scenes":[{"title":"场景标题","description":"场景简述","segments":[{"type":"dialogue|narration|monologue|description","content":"片段文本内容","character":"说话人名称（非对白/独白时为空字符串）","character_gender":"male|female|unknown（根据上下文推断，非对白/独白时为空字符串）","character_description":"角色固有特征描述，如身份、外貌、性格、年龄等，不要包含当前情绪状态（非对白/独白时为空字符串）","instruction":"演绎指令"}]}]}
 
 {{known_characters}}
 
 ---
 {{content}}`,
-		Description: "将章节文本按场景和片段进行结构化切分，识别类型、说话人和情绪",
-	},
-	{
-		Name:         "默认情绪标注",
-		TemplateType: "emotion_tag",
-		Content: `请为以下对白/独白片段标注情绪。对于每个片段，请提供：
-1. 情绪类型：happy/sad/angry/fear/surprise/neutral/disgust/contempt
-2. 情绪强度：light/medium/strong
-
-请严格以JSON数组格式返回结果，不要包含任何其他文字，不要使用markdown代码块包裹。
-
----
-{{segments}}`,
-		Description: "为脚本片段自动标注情绪类型和强度",
+		Description: "将章节文本按场景和片段进行结构化切分，识别类型、说话人和演绎指令",
 	},
 	{
 		Name:         "默认场景切分",

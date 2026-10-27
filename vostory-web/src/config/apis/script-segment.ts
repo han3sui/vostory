@@ -10,8 +10,6 @@ export type ScriptSegmentDetailType = {
     original_content: string;
     character_id: number | null;
     character_name: string;
-    emotion_type: string;
-    emotion_strength: string;
     instruction: string;
     status: string;
     error_message: string;

@@ -13,17 +13,6 @@
                     </template>
                 </a-table-column>
             </template>
-            <template #emotionSlot>
-                <a-table-column title="情绪">
-                    <template #cell="{ record }">
-                        <span v-if="record.emotion_type">
-                            {{ record.emotion_type }}
-                            <a-tag size="small" color="arcoblue">{{ record.emotion_strength }}</a-tag>
-                        </span>
-                        <span v-else class="text-gray-400">—</span>
-                    </template>
-                </a-table-column>
-            </template>
         </arco-table>
     </div>
 </template>
@@ -55,19 +44,6 @@ const TYPE_MAP: Record<string, { label: string; color: string }> = {
 };
 
 const SEGMENT_TYPES = Object.entries(TYPE_MAP).map(([k, v]) => ({ label: v.label, value: k }));
-const EMOTION_TYPES = [
-    { label: "开心", value: "happy" },
-    { label: "悲伤", value: "sad" },
-    { label: "愤怒", value: "angry" },
-    { label: "恐惧", value: "fear" },
-    { label: "惊讶", value: "surprise" },
-    { label: "中性", value: "neutral" }
-];
-const EMOTION_STRENGTHS = [
-    { label: "轻", value: "light" },
-    { label: "中", value: "medium" },
-    { label: "强", value: "strong" }
-];
 
 function typeLabel(t: string) {
     return TYPE_MAP[t]?.label || t;
@@ -115,7 +91,6 @@ const tableConfig = computed(() => {
             tableHelper.slot("typeSlot"),
             tableHelper.default("内容", "content"),
             tableHelper.default("角色", "character_name"),
-            tableHelper.slot("emotionSlot"),
             tableHelper.default("演绎指令", "instruction"),
             tableHelper.default("版本", "version"),
             tableHelper.btns("操作", [
@@ -164,11 +139,9 @@ function onEdit(v: Record<string, any> | null) {
             formHelper.textarea("片段内容", "content", {
                 rules: [ruleHelper.require("请输入内容")]
             }),
-            formHelper.select("情绪类型", "emotion_type", EMOTION_TYPES),
-            formHelper.select("情绪强度", "emotion_strength", EMOTION_STRENGTHS),
             formHelper.input("演绎指令", "instruction", {
                 maxLength: 40,
-                placeholder: "如：压低声音，急促地（留空则按情绪推断）"
+                placeholder: "如：压低声音，急促地（留空则按文本自然演绎）"
             }),
             formHelper.inputNumber("片段序号", "segment_num")
         ],

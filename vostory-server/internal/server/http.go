@@ -53,7 +53,6 @@ func NewHTTPServer(
 	vsPreciseFillHandler *handler.VsPreciseFillHandler,
 	vsChapterSplitHandler *handler.VsChapterSplitHandler,
 	vsCharacterExtractHandler *handler.VsCharacterExtractHandler,
-	vsVoiceEmotionHandler *handler.VsVoiceEmotionHandler,
 	vsTTSSynthesizeHandler *handler.VsTTSSynthesizeHandler,
 	vsVoiceAssetHandler *handler.VsVoiceAssetHandler,
 	vsCommonUploadHandler *handler.VsCommonUploadHandler,
@@ -122,8 +121,6 @@ func NewHTTPServer(
 			noStrictAuthRouter.GET("/common/script-segment/chapter/:chapter_id", vsScriptSegmentHandler.GetByChapter)
 			noStrictAuthRouter.GET("/common/character/project/:project_id", vsCharacterHandler.GetByProject)
 			noStrictAuthRouter.GET("/common/voice-profile/project/:project_id", vsVoiceProfileHandler.GetByProject)
-			noStrictAuthRouter.GET("/common/voice-emotion/profile/:voice_profile_id", vsVoiceEmotionHandler.GetByVoiceProfile)
-			noStrictAuthRouter.GET("/common/voice-emotion/asset/:voice_asset_id", vsVoiceEmotionHandler.GetByVoiceAsset)
 			noStrictAuthRouter.GET("/common/voice-asset/options", vsVoiceAssetHandler.GetAllEnabled)
 			noStrictAuthRouter.POST("/common/upload/reference-audio", vsCommonUploadHandler.UploadReferenceAudio)
 			noStrictAuthRouter.GET("/common/reference-audio/stream", vsCommonUploadHandler.StreamReferenceAudio)
@@ -346,15 +343,6 @@ func NewHTTPServer(
 				voiceAssetRouter.DELETE("/:id", vsVoiceAssetHandler.Delete)
 				voiceAssetRouter.PUT("/:id/enable", vsVoiceAssetHandler.Enable)
 				voiceAssetRouter.PUT("/:id/disable", vsVoiceAssetHandler.Disable)
-			}
-
-			voiceEmotionRouter := strictAuthRouter.Group("/voice-emotion")
-			{
-				voiceEmotionRouter.GET("/:id", vsVoiceEmotionHandler.Get)
-				voiceEmotionRouter.GET("/list", vsVoiceEmotionHandler.List)
-				voiceEmotionRouter.POST("", vsVoiceEmotionHandler.Create)
-				voiceEmotionRouter.PUT("/:id", vsVoiceEmotionHandler.Update)
-				voiceEmotionRouter.DELETE("/:id", vsVoiceEmotionHandler.Delete)
 			}
 
 			ttsRouter := strictAuthRouter.Group("/tts")

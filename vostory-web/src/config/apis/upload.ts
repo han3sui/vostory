@@ -56,7 +56,7 @@ export function pathToFileList(storedPath: string): any[] {
     ];
 }
 
-export type ReferenceAudioSource = "voice-asset" | "voice-profile" | "voice-emotion";
+export type ReferenceAudioSource = "voice-asset" | "voice-profile";
 
 /**
  * 获取参考音频流播放 URL。

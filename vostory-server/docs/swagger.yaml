@@ -52,6 +52,31 @@ definitions:
         description: 权限标识
         type: string
     type: object
+  iot-alert-center_api_v1.OSSConfigUpdateRequest:
+    properties:
+      ak:
+        type: string
+      bucket:
+        type: string
+      cdn_base:
+        type: string
+      endpoint:
+        type: string
+      prefix:
+        type: string
+      sk:
+        type: string
+      type:
+        type: string
+      use_ssl:
+        type: string
+    required:
+    - ak
+    - bucket
+    - endpoint
+    - sk
+    - type
+    type: object
   iot-alert-center_api_v1.Response:
     properties:
       code:
@@ -980,7 +1005,7 @@ definitions:
         description: 状态（0正常 1停用）
         type: string
       template_type:
-        description: 模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）
+        description: 模板类型（character_extract/dialogue_parse/scene_split/text_correct）
         type: string
     required:
     - content
@@ -1008,7 +1033,7 @@ definitions:
         description: 状态（0正常 1停用）
         type: string
       template_type:
-        description: 模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）
+        description: 模板类型（character_extract/dialogue_parse/scene_split/text_correct）
         type: string
     required:
     - content
@@ -1062,12 +1087,6 @@ definitions:
       content:
         description: 片段文本
         type: string
-      emotion_strength:
-        description: 情绪强度
-        type: string
-      emotion_type:
-        description: 情绪类型
-        type: string
       instruction:
         description: 演绎指令
         type: string
@@ -1110,12 +1129,6 @@ definitions:
         type: integer
       content:
         description: 片段文本
-        type: string
-      emotion_strength:
-        description: 情绪强度
-        type: string
-      emotion_type:
-        description: 情绪类型
         type: string
       id:
         type: integer
@@ -1274,47 +1287,6 @@ definitions:
     required:
     - id
     - name
-    type: object
-  iot-alert-center_api_v1.VsVoiceEmotionCreateRequest:
-    properties:
-      emotion_strength:
-        type: string
-      emotion_type:
-        type: string
-      reference_audio_url:
-        type: string
-      reference_text:
-        type: string
-      voice_asset_id:
-        type: integer
-      voice_profile_id:
-        type: integer
-    required:
-    - emotion_strength
-    - emotion_type
-    - reference_audio_url
-    type: object
-  iot-alert-center_api_v1.VsVoiceEmotionUpdateRequest:
-    properties:
-      emotion_strength:
-        type: string
-      emotion_type:
-        type: string
-      id:
-        type: integer
-      reference_audio_url:
-        type: string
-      reference_text:
-        type: string
-      voice_asset_id:
-        type: integer
-      voice_profile_id:
-        type: integer
-    required:
-    - emotion_strength
-    - emotion_type
-    - id
-    - reference_audio_url
     type: object
   iot-alert-center_api_v1.VsVoiceProfileCreateRequest:
     properties:
@@ -3756,7 +3728,7 @@ paths:
       description: 根据来源类型和ID以流的方式返回参考音频文件
       operationId: common:referenceAudio:stream
       parameters:
-      - description: 来源类型（voice-asset/voice-profile/voice-emotion）
+      - description: 来源类型（voice-asset/voice-profile）
         in: query
         name: source
         required: true
@@ -3925,40 +3897,6 @@ paths:
       summary: 获取所有启用的声音资产（下拉选择用）
       tags:
       - 声音资产
-  /api/v1/common/voice-emotion/asset/{voice_asset_id}:
-    get:
-      operationId: common:voice-emotion:asset
-      parameters:
-      - description: 音色资产ID
-        in: path
-        name: voice_asset_id
-        required: true
-        type: integer
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/iot-alert-center_api_v1.Response'
-      summary: 获取音色资产下的情绪音频列表
-      tags:
-      - 情绪音频
-  /api/v1/common/voice-emotion/profile/{voice_profile_id}:
-    get:
-      operationId: common:voice-emotion:profile
-      parameters:
-      - description: 声音配置ID
-        in: path
-        name: voice_profile_id
-        required: true
-        type: integer
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/iot-alert-center_api_v1.Response'
-      summary: 获取声音配置下的情绪音频列表
-      tags:
-      - 情绪音频
   /api/v1/common/voice-profile/project/{project_id}:
     get:
       description: 获取指定项目下启用的声音配置列表（下拉选择用）
@@ -5886,6 +5824,62 @@ paths:
       summary: 获取操作日志列表
       tags:
       - 操作日志
+  /api/v1/system/oss-config:
+    get:
+      operationId: system:oss-config:view
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 获取对象存储配置
+      tags:
+      - 对象存储配置
+    put:
+      consumes:
+      - application/json
+      operationId: system:oss-config:update
+      parameters:
+      - description: 配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.OSSConfigUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 保存对象存储配置
+      tags:
+      - 对象存储配置
+  /api/v1/system/oss-config/test:
+    post:
+      consumes:
+      - application/json
+      operationId: system:oss-config:test
+      parameters:
+      - description: 配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/iot-alert-center_api_v1.OSSConfigUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/iot-alert-center_api_v1.Response'
+      summary: 测试对象存储连接
+      tags:
+      - 对象存储配置
   /api/v1/system/post:
     post:
       consumes:
@@ -7494,115 +7488,6 @@ paths:
       summary: 获取声音资产列表
       tags:
       - 声音资产
-  /api/v1/voice-emotion:
-    post:
-      consumes:
-      - application/json
-      operationId: voice-emotion:add
-      parameters:
-      - description: 情绪音频信息
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceEmotionCreateRequest'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/iot-alert-center_api_v1.Response'
-      summary: 创建情绪音频
-      tags:
-      - 情绪音频
-  /api/v1/voice-emotion/{id}:
-    delete:
-      operationId: voice-emotion:remove
-      parameters:
-      - description: 情绪音频ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/iot-alert-center_api_v1.Response'
-      summary: 删除情绪音频
-      tags:
-      - 情绪音频
-    get:
-      operationId: voice-emotion:detail
-      parameters:
-      - description: 情绪音频ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/iot-alert-center_api_v1.Response'
-      summary: 获取情绪音频详情
-      tags:
-      - 情绪音频
-    put:
-      consumes:
-      - application/json
-      operationId: voice-emotion:edit
-      parameters:
-      - description: 情绪音频ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: 情绪音频信息
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/iot-alert-center_api_v1.VsVoiceEmotionUpdateRequest'
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/iot-alert-center_api_v1.Response'
-      summary: 更新情绪音频
-      tags:
-      - 情绪音频
-  /api/v1/voice-emotion/list:
-    get:
-      operationId: voice-emotion:list
-      parameters:
-      - description: 当前页
-        in: query
-        name: page
-        type: integer
-      - description: 每页数量
-        in: query
-        name: size
-        type: integer
-      - description: 声音配置ID
-        in: query
-        name: voice_profile_id
-        type: integer
-      - description: 情绪类型
-        in: query
-        name: emotion_type
-        type: string
-      - description: 情绪强度
-        in: query
-        name: emotion_strength
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/iot-alert-center_api_v1.Response'
-      summary: 获取情绪音频列表
-      tags:
-      - 情绪音频
   /api/v1/voice-profile:
     post:
       consumes:

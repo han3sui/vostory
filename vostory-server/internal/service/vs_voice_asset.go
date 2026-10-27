@@ -23,15 +23,13 @@ type VsVoiceAssetService interface {
 func NewVsVoiceAssetService(
 	service *Service,
 	repo repository.VsVoiceAssetRepository,
-	voiceEmotionRepo repository.VsVoiceEmotionRepository,
 ) VsVoiceAssetService {
-	return &vsVoiceAssetService{Service: service, repo: repo, voiceEmotionRepo: voiceEmotionRepo}
+	return &vsVoiceAssetService{Service: service, repo: repo}
 }
 
 type vsVoiceAssetService struct {
 	*Service
-	repo             repository.VsVoiceAssetRepository
-	voiceEmotionRepo repository.VsVoiceEmotionRepository
+	repo repository.VsVoiceAssetRepository
 }
 
 func (s *vsVoiceAssetService) Create(ctx context.Context, request *v1.VsVoiceAssetCreateRequest) error {
@@ -75,7 +73,6 @@ func (s *vsVoiceAssetService) Update(ctx context.Context, request *v1.VsVoiceAss
 }
 
 func (s *vsVoiceAssetService) Delete(ctx context.Context, id uint64) error {
-	_ = s.voiceEmotionRepo.DeleteByVoiceAssetID(ctx, id)
 	return s.repo.Delete(ctx, id)
 }
 

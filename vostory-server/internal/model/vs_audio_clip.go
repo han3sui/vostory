@@ -12,8 +12,6 @@ type VsAudioClip struct {
 	Format          string  `json:"format" gorm:"size:10;comment:音频格式（wav/mp3/flac）"`
 	TTSProviderID   *uint64 `json:"tts_provider_id" gorm:"comment:使用的TTS提供商"`
 	VoiceProfileID  *uint64 `json:"voice_profile_id" gorm:"comment:使用的声音配置"`
-	EmotionType     string  `json:"emotion_type" gorm:"size:50;comment:生成时的情绪类型"`
-	EmotionStrength string  `json:"emotion_strength" gorm:"size:20;comment:生成时的情绪强度"`
 	Version         int     `json:"version" gorm:"default:1;comment:版本号"`
 	IsCurrent       string  `json:"is_current" gorm:"size:1;default:'1';comment:是否当前版本（1是 0否）"`
 

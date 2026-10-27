@@ -105,8 +105,6 @@ type llmSegment struct {
 	Character            string `json:"character"`
 	CharacterGender      string `json:"character_gender"`
 	CharacterDescription string `json:"character_description"`
-	Emotion              string `json:"emotion"`
-	EmotionStrength      string `json:"emotion_strength"`
 	Instruction          string `json:"instruction"`
 }
 
@@ -297,8 +295,6 @@ func (s *vsChapterSplitService) doSplitChapter(ctx context.Context, chapterID ui
 					Content:         seg.Content,
 					OriginalContent: seg.Content,
 					CharacterID:     charID,
-					EmotionType:     normalizeEmotion(seg.Emotion),
-					EmotionStrength: normalizeStrength(seg.EmotionStrength),
 					Instruction:     normalizeInstruction(seg.Instruction),
 					Status:          "raw",
 					Version:         1,
@@ -515,16 +511,6 @@ func normalizeSegmentType(t string) string {
 	}
 }
 
-func normalizeEmotion(e string) string {
-	e = strings.ToLower(strings.TrimSpace(e))
-	switch e {
-	case "neutral", "happy", "sad", "angry", "fear", "surprise", "disgust":
-		return e
-	default:
-		return "neutral"
-	}
-}
-
 // normalizeInstruction 演绎指令只保留一句短描述，超长截断，避免把整段分析塞给 TTS
 func normalizeInstruction(s string) string {
 	runes := []rune(strings.TrimSpace(s))
@@ -532,16 +518,6 @@ func normalizeInstruction(s string) string {
 		runes = runes[:maxInstructionRunes]
 	}
 	return string(runes)
-}
-
-func normalizeStrength(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	switch s {
-	case "light", "medium", "strong":
-		return s
-	default:
-		return "medium"
-	}
 }
 
 func truncate(s string, maxRunes int) string {

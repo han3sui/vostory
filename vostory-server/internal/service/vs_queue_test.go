@@ -104,7 +104,7 @@ func chapterSplitStatus(t *testing.T, db *gorm.DB, id uint64) string {
 	return ch.SplitStatus
 }
 
-const fakeSplitResult = `{"scenes":[{"title":"场景","description":"","segments":[{"type":"narration","content":"天亮了。","character":"","emotion":"neutral","emotion_strength":"light"}]}]}`
+const fakeSplitResult = `{"scenes":[{"title":"场景","description":"","segments":[{"type":"narration","content":"天亮了。","character":""}]}]}`
 
 func TestBatchSplitRejectsChaptersAlreadyQueued(t *testing.T) {
 	db, rdb, repo := newQueueTestEnv(t)

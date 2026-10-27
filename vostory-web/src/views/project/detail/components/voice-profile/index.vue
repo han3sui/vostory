@@ -27,15 +27,6 @@
                 </a-table-column>
             </template>
         </arco-table>
-
-        <a-drawer
-            v-model:visible="emotionDrawerVisible"
-            :title="`情绪音频 - ${emotionDrawerProfileName}`"
-            :width="600"
-            :footer="false"
-        >
-            <VoiceEmotionManager v-if="emotionDrawerProfileId" :voice-profile-id="emotionDrawerProfileId" />
-        </a-drawer>
     </div>
 </template>
 <script lang="ts" setup>
@@ -66,15 +57,11 @@ import { hasPermission, PageTableConfig } from "@/views/utils";
 import { useAudioPreview } from "@/hooks/useAudioPreview";
 import AudioPreviewButton from "@/views/components/audio-preview-button/index.vue";
 import { cloneDeep } from "lodash-es";
-import VoiceEmotionManager from "@/views/voice-emotion/index.vue";
 
 const props = defineProps<{ projectId: number }>();
 
 const table = ref();
 const filterData = ref<Record<string, any>>({});
-const emotionDrawerVisible = ref(false);
-const emotionDrawerProfileId = ref<number>(0);
-const emotionDrawerProfileName = ref("");
 
 const getFilterConfig = computed(() => {
     return [formHelper.input("名称", "name", { span: 6, debounce: 500 })];
@@ -117,12 +104,6 @@ const tableConfig = computed(() => {
             tableHelper.btns(
                 "操作",
                 [
-                    {
-                        label: "情绪音频",
-                        handler(row: Record<string, any>) {
-                            handleEmotionDrawer(row as VoiceProfileDetailType);
-                        }
-                    },
                     {
                         label: "重新生成",
                         if: () => hasPermission("tts:synthesize"),
@@ -246,12 +227,6 @@ function handleRegenerate(row: VoiceProfileDetailType) {
             }
         }
     });
-}
-
-function handleEmotionDrawer(row: VoiceProfileDetailType) {
-    emotionDrawerProfileId.value = row.id;
-    emotionDrawerProfileName.value = row.name;
-    emotionDrawerVisible.value = true;
 }
 
 function handleOpenImport() {

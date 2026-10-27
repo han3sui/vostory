@@ -14,7 +14,7 @@ type VsPromptTemplateListQuery struct {
 // VsPromptTemplateCreateRequest 创建Prompt模板请求
 type VsPromptTemplateCreateRequest struct {
 	Name         string `json:"name" binding:"required"`          // 模板名称
-	TemplateType string `json:"template_type" binding:"required"` // 模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）
+	TemplateType string `json:"template_type" binding:"required"` // 模板类型（character_extract/dialogue_parse/scene_split/text_correct）
 	Content      string `json:"content" binding:"required"`       // Prompt内容
 	Description  string `json:"description"`                      // 模板描述
 	SortOrder    int    `json:"sort_order"`                       // 排序

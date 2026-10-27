@@ -98,7 +98,7 @@ func (e *LLMEngine) ChatCompletion(prompt string) (string, error) {
 }
 ```
 
-- 所有业务场景（章节解析、角色抽取、情绪标注等）统一通过此引擎调用
+- 所有业务场景（章节解析、角色抽取、音色设计等）统一通过此引擎调用
 - 每次调用记录到 `vs_llm_log` 表（Prompt 版本、模型、耗时、输入输出摘要）
 - 长文分批处理：按可配置字数上限切块，每块独立调用，支持单批次重试
 
@@ -106,6 +106,6 @@ func (e *LLMEngine) ChatCompletion(prompt string) (string, error) {
 
 TTS 厂商协议差异较大，不像 LLM 有统一标准，需要设计适配层接口：
 
-- 统一接口：`Synthesize(text, voiceProfile, emotion) -> audioBytes`
+- 统一接口：`Synthesize(text, voiceProfile, instruction) -> audioBytes`
 - 按 `provider_type` 分发到不同实现
-- 情绪 + 强度双维度传参：通过 `VoiceEmotion` 表查找对应情绪的参考音频
+- 语气通过演绎指令（instruction）传参，参考音频固定为声音配置的基础音色

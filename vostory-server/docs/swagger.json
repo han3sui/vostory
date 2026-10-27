@@ -3513,7 +3513,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "来源类型（voice-asset/voice-profile/voice-emotion）",
+                        "description": "来源类型（voice-asset/voice-profile）",
                         "name": "source",
                         "in": "query",
                         "required": true
@@ -3751,58 +3751,6 @@
                 ],
                 "summary": "获取所有启用的声音资产（下拉选择用）",
                 "operationId": "common:voice-asset:options",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/common/voice-emotion/asset/{voice_asset_id}": {
-            "get": {
-                "tags": [
-                    "情绪音频"
-                ],
-                "summary": "获取音色资产下的情绪音频列表",
-                "operationId": "common:voice-emotion:asset",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "音色资产ID",
-                        "name": "voice_asset_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/common/voice-emotion/profile/{voice_profile_id}": {
-            "get": {
-                "tags": [
-                    "情绪音频"
-                ],
-                "summary": "获取声音配置下的情绪音频列表",
-                "operationId": "common:voice-emotion:profile",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "声音配置ID",
-                        "name": "voice_profile_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -6705,6 +6653,92 @@
                 }
             }
         },
+        "/api/v1/system/oss-config": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "对象存储配置"
+                ],
+                "summary": "获取对象存储配置",
+                "operationId": "system:oss-config:view",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "对象存储配置"
+                ],
+                "summary": "保存对象存储配置",
+                "operationId": "system:oss-config:update",
+                "parameters": [
+                    {
+                        "description": "配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.OSSConfigUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/oss-config/test": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "对象存储配置"
+                ],
+                "summary": "测试对象存储连接",
+                "operationId": "system:oss-config:test",
+                "parameters": [
+                    {
+                        "description": "配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.OSSConfigUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/system/post": {
             "post": {
                 "description": "创建新的岗位",
@@ -9126,172 +9160,6 @@
                 }
             }
         },
-        "/api/v1/voice-emotion": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "情绪音频"
-                ],
-                "summary": "创建情绪音频",
-                "operationId": "voice-emotion:add",
-                "parameters": [
-                    {
-                        "description": "情绪音频信息",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceEmotionCreateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/voice-emotion/list": {
-            "get": {
-                "tags": [
-                    "情绪音频"
-                ],
-                "summary": "获取情绪音频列表",
-                "operationId": "voice-emotion:list",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "当前页",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "每页数量",
-                        "name": "size",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "声音配置ID",
-                        "name": "voice_profile_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "情绪类型",
-                        "name": "emotion_type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "情绪强度",
-                        "name": "emotion_strength",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/voice-emotion/{id}": {
-            "get": {
-                "tags": [
-                    "情绪音频"
-                ],
-                "summary": "获取情绪音频详情",
-                "operationId": "voice-emotion:detail",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "情绪音频ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "情绪音频"
-                ],
-                "summary": "更新情绪音频",
-                "operationId": "voice-emotion:edit",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "情绪音频ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "情绪音频信息",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.VsVoiceEmotionUpdateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "情绪音频"
-                ],
-                "summary": "删除情绪音频",
-                "operationId": "voice-emotion:remove",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "情绪音频ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/iot-alert-center_api_v1.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/voice-profile": {
             "post": {
                 "description": "创建新的声音配置",
@@ -10031,6 +9899,42 @@
                 },
                 "perms": {
                     "description": "权限标识",
+                    "type": "string"
+                }
+            }
+        },
+        "iot-alert-center_api_v1.OSSConfigUpdateRequest": {
+            "type": "object",
+            "required": [
+                "ak",
+                "bucket",
+                "endpoint",
+                "sk",
+                "type"
+            ],
+            "properties": {
+                "ak": {
+                    "type": "string"
+                },
+                "bucket": {
+                    "type": "string"
+                },
+                "cdn_base": {
+                    "type": "string"
+                },
+                "endpoint": {
+                    "type": "string"
+                },
+                "prefix": {
+                    "type": "string"
+                },
+                "sk": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "use_ssl": {
                     "type": "string"
                 }
             }
@@ -11319,7 +11223,7 @@
                     "type": "string"
                 },
                 "template_type": {
-                    "description": "模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）",
+                    "description": "模板类型（character_extract/dialogue_parse/scene_split/text_correct）",
                     "type": "string"
                 }
             }
@@ -11358,7 +11262,7 @@
                     "type": "string"
                 },
                 "template_type": {
-                    "description": "模板类型（character_extract/dialogue_parse/emotion_tag/scene_split/text_correct）",
+                    "description": "模板类型（character_extract/dialogue_parse/scene_split/text_correct）",
                     "type": "string"
                 }
             }
@@ -11434,14 +11338,6 @@
                     "description": "片段文本",
                     "type": "string"
                 },
-                "emotion_strength": {
-                    "description": "情绪强度",
-                    "type": "string"
-                },
-                "emotion_type": {
-                    "description": "情绪类型",
-                    "type": "string"
-                },
                 "instruction": {
                     "description": "演绎指令",
                     "type": "string"
@@ -11493,14 +11389,6 @@
                 },
                 "content": {
                     "description": "片段文本",
-                    "type": "string"
-                },
-                "emotion_strength": {
-                    "description": "情绪强度",
-                    "type": "string"
-                },
-                "emotion_type": {
-                    "description": "情绪类型",
                     "type": "string"
                 },
                 "id": {
@@ -11719,66 +11607,6 @@
                     }
                 },
                 "tts_provider_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "iot-alert-center_api_v1.VsVoiceEmotionCreateRequest": {
-            "type": "object",
-            "required": [
-                "emotion_strength",
-                "emotion_type",
-                "reference_audio_url"
-            ],
-            "properties": {
-                "emotion_strength": {
-                    "type": "string"
-                },
-                "emotion_type": {
-                    "type": "string"
-                },
-                "reference_audio_url": {
-                    "type": "string"
-                },
-                "reference_text": {
-                    "type": "string"
-                },
-                "voice_asset_id": {
-                    "type": "integer"
-                },
-                "voice_profile_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "iot-alert-center_api_v1.VsVoiceEmotionUpdateRequest": {
-            "type": "object",
-            "required": [
-                "emotion_strength",
-                "emotion_type",
-                "id",
-                "reference_audio_url"
-            ],
-            "properties": {
-                "emotion_strength": {
-                    "type": "string"
-                },
-                "emotion_type": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "reference_audio_url": {
-                    "type": "string"
-                },
-                "reference_text": {
-                    "type": "string"
-                },
-                "voice_asset_id": {
-                    "type": "integer"
-                },
-                "voice_profile_id": {
                     "type": "integer"
                 }
             }

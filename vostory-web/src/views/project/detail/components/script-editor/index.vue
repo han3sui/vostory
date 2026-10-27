@@ -185,37 +185,6 @@
                                             </span>
                                         </a-button>
 
-                                        <a-select
-                                            v-model="seg.emotion_type"
-                                            size="mini"
-                                            style="width: 120px"
-                                            placeholder="情绪"
-                                            allow-clear
-                                            @change="() => saveSegment(seg)"
-                                        >
-                                            <a-option value="auto">自动(文本推断)</a-option>
-                                            <a-option value="neutral">平静</a-option>
-                                            <a-option value="happy">开心</a-option>
-                                            <a-option value="sad">悲伤</a-option>
-                                            <a-option value="angry">愤怒</a-option>
-                                            <a-option value="fear">恐惧</a-option>
-                                            <a-option value="surprise">惊讶</a-option>
-                                            <a-option value="disgust">厌恶</a-option>
-                                        </a-select>
-
-                                        <a-select
-                                            v-if="seg.emotion_type !== 'auto'"
-                                            v-model="seg.emotion_strength"
-                                            size="mini"
-                                            style="width: 80px"
-                                            placeholder="强度"
-                                            @change="() => saveSegment(seg)"
-                                        >
-                                            <a-option value="light">轻</a-option>
-                                            <a-option value="medium">中</a-option>
-                                            <a-option value="strong">强</a-option>
-                                        </a-select>
-
                                         <a-tooltip
                                             :content="seg.error_message"
                                             :disabled="seg.status !== 'failed' || !seg.error_message"
@@ -321,7 +290,7 @@
                                         size="mini"
                                         allow-clear
                                         :max-length="40"
-                                        placeholder="演绎指令，如：压低声音，急促地（留空则按情绪推断）"
+                                        placeholder="演绎指令，如：压低声音，急促地（留空则按文本自然演绎）"
                                         @change="() => saveSegment(seg)"
                                         @clear="() => saveSegment(seg)"
                                     >
@@ -552,8 +521,6 @@ function handleEditContent(seg: ScriptSegmentDetailType) {
                 segment_type: seg.segment_type,
                 content: data.content,
                 character_id: seg.character_id,
-                emotion_type: seg.emotion_type,
-                emotion_strength: seg.emotion_strength,
                 instruction: seg.instruction ?? "",
                 status: "edited"
             });
@@ -572,8 +539,6 @@ async function saveSegment(seg: ScriptSegmentDetailType) {
                 segment_type: seg.segment_type,
                 content: seg.content,
                 character_id: seg.character_id,
-                emotion_type: seg.emotion_type,
-                emotion_strength: seg.emotion_strength,
                 instruction: seg.instruction ?? "",
                 status: "edited"
             });

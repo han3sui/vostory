@@ -660,7 +660,7 @@ function handleAudioUpload(option: RequestOption): any {
 **试听播放（通过流接口）：**
 
 ```typescript
-// source: "voice-asset" | "voice-profile" | "voice-emotion"
+// source: "voice-asset" | "voice-profile"
 const blobURL = await fetchReferenceAudioBlob("voice-asset", record.id);
 const audio = new Audio(blobURL);
 audio.play();

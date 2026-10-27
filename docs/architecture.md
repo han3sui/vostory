@@ -81,7 +81,7 @@
 - **文本分析**：章节切分、段落识别
 - **人物抽取**：角色识别、别名归并
 - **台词归属**：说话人判定
-- **情绪标签**：情绪类型 + 情绪强度双维度标注
+- **演绎指令**：切分时按场景为每个片段生成语气/语速描述
 - **TTS 引擎**：基于 Breeze-TTS-2（自部署），Go 后端通过 HTTP 协议调用；音色设计（Voice Design）与按场景演绎（Voice Direction）
 - **精准填充**：LLM 输出对齐回原文
 
@@ -106,9 +106,9 @@
 | `Project` | 一本书或一个制作项目 |
 | `Chapter` | 章节 |
 | `Scene` | 场景 |
-| `ScriptSegment` | 脚本片段（旁白/对白/独白），含情绪类型和情绪强度 |
+| `ScriptSegment` | 脚本片段（旁白/对白/独白），含演绎指令 |
 | `Character` | 项目内角色，支持别名、层级（主角/配角/路人） |
-| `VoiceProfile` | 声音配置，绑定角色与音色，支持多情绪参考音频 |
+| `VoiceProfile` | 声音配置，绑定角色与音色 |
 | `VoiceAsset` | 全局可复用声音资产 |
 | `PronunciationDictionary` | 发音词典（项目级 + 全局级） |
 | `AudioClip` | 生成后的音频片段 |
@@ -127,7 +127,7 @@
 |------|------|
 | `LLMProvider` | LLM 服务商配置（API 地址、密钥、模型列表、自定义参数） |
 | `TTSProvider` | TTS 服务商配置（API 地址、密钥、能力列表） |
-| `PromptTemplate` | Prompt 模板（类型：character_extract / dialogue_parse / emotion_tag 等），支持版本 |
+| `PromptTemplate` | Prompt 模板（类型：character_extract / dialogue_parse / voice_design 等），支持版本 |
 | `LLMLog` | LLM 调用日志（Prompt 版本、模型、耗时、输入输出摘要） |
 
 ## 关键技术设计
@@ -170,7 +170,7 @@ Breeze-TTS-2 HTTP 端点：
 - `VoiceProfile` 保存角色的基础音色：参考音频 + 逐字转写 + 固定种子（`tts_params.seed`）
 - 基础音色可由 Voice Design 自动生成：LLM 根据角色信息写音色描述 → 只传 `instruction` 生成参考音频
 - `ScriptSegment.instruction` 是该句的演绎指令，由切分时 LLM 结合场景生成，可人工修改
-- 合成时以 Voice Direction 模式传入参考音频 + 演绎指令；指令为空时按 `emotion_type` + `emotion_strength` 生成兜底指令
+- 合成时以 Voice Direction 模式传入参考音频 + 演绎指令；指令为空时只传参考音频，按文本自然演绎
 
 详见 [tts-design.md](./tts-design.md)。
 
@@ -227,7 +227,6 @@ SSE 优势：基于标准 HTTP 长连接，Gin 原生支持（`c.Stream` + `c.SS
 VoiceAsset（全局声音资产库）
     └── VoiceProfile（项目内声音配置）
             ├── 默认参考音频
-            ├── 多情绪参考音频（开心/悲伤/愤怒/...）
             └── Character（角色绑定）
 ```
 
@@ -241,7 +240,6 @@ VoiceAsset（全局声音资产库）
 PromptTemplate
     ├── type: character_extract    # 角色抽取
     ├── type: dialogue_parse       # 对白识别
-    ├── type: emotion_tag          # 情绪标注
     ├── type: scene_split          # 场景切分
     └── type: text_correct         # 文本精准填充
 ```
@@ -291,7 +289,7 @@ PromptTemplate
 
 推荐采用"本地模型 + 在线模型"的混合方案：
 
-- **本地模型**（Ollama 等）适合：人物抽取、对白分类、别名归并、情绪初标、高频局部修正。成本可控、响应快、数据不出境。
+- **本地模型**（Ollama 等）适合：人物抽取、对白分类、别名归并、高频局部修正。成本可控、响应快、数据不出境。
 - **在线模型**（OpenAI / DeepSeek 等）适合：复杂语义判断、最终成品精修。效果更强、可快速接入。
 - 通过 LLMProvider 配置灵活切换，无需改代码。
 
@@ -318,7 +316,7 @@ PromptTemplate
 
 ```text
 AnalyzeText(input) -> structured_result
-GenerateSpeech(segment, voice_profile, emotion) -> audio_clip
+GenerateSpeech(segment, voice_profile, instruction) -> audio_clip
 PostProcessAudio(clips) -> final_audio
 ```
 

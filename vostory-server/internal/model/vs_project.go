@@ -5,7 +5,7 @@ import (
 )
 
 // PromptTemplateIDMap 项目绑定的各类型 Prompt 模板ID映射
-// key: template_type (character_extract/dialogue_parse/emotion_tag/scene_split/text_correct)
+// key: template_type (character_extract/dialogue_parse/scene_split/text_correct)
 // value: template_id
 type PromptTemplateIDMap map[string]uint64
 

@@ -45,7 +45,7 @@
 | `Project` | 一本书或一个制作项目 |
 | `Chapter` | 章节 |
 | `Scene` | 场景 |
-| `ScriptSegment` | 脚本片段（旁白、对白、独白），含情绪类型、情绪强度和演绎指令 |
+| `ScriptSegment` | 脚本片段（旁白、对白、独白），含演绎指令 |
 | `Character` | 项目内角色，支持别名、合并（`merged_into_id`）与路人池 |
 | `VoiceProfile` | 声音配置：参考音频 + 逐字转写 + 固定种子，即角色的基础音色 |
 | `VoiceAsset` | 全局可复用声音资产 |
@@ -56,7 +56,7 @@
 | `ExportJob` | 章节导出任务 |
 | `LLMProvider` | LLM 服务商配置（API 地址、密钥、模型列表） |
 | `TTSProvider` | TTS 服务商配置（API 地址、密钥、能力列表） |
-| `PromptTemplate` | Prompt 模板（角色抽取、对白识别、情绪标注等） |
+| `PromptTemplate` | Prompt 模板（角色抽取、对白识别、音色设计等） |
 | `LLMLog` | LLM 调用日志审计 |
 
 ## MVP 链路
@@ -77,12 +77,12 @@
 
 - **数据库表设计**：全部核心领域对象的表结构
 - **AI 服务配置模块**：LLMProvider / TTSProvider 的 CRUD 和连通性测试
-- **Prompt 模板管理**：内置默认模板 + 用户自定义，按类型分（角色抽取、对白识别、情绪标注等）
+- **Prompt 模板管理**：内置默认模板 + 用户自定义，按类型分（角色抽取、对白识别、音色设计等）
 - **LLM 调用日志**：记录每次调用的 Prompt 版本、模型、耗时、结果
 
 ### 第 2 阶段：可编辑
 
-- 脚本编辑页（片段级编辑、修正说话人、调整类型/情绪/强度/演绎指令）
+- 脚本编辑页（片段级编辑、修正说话人、调整类型/演绎指令）
 - 角色编辑页（绑定声音配置、编辑别名、合并角色、归入路人池）
 - 发音词典（项目级 + 全局级）
 - 精准填充：LLM 拆分台词后自动对齐回原文，确保不丢字不加字
@@ -91,8 +91,7 @@
 
 - Breeze-TTS-2 对接（自部署，`POST /v1/audio/speech`）
 - 音色设计：LLM 撰写音色描述 → Voice Design 生成参考音频 → 保存为角色的基础音色
-- 场景演绎：切分时 LLM 为每个片段生成演绎指令，合成时以 Voice Direction 模式传入（为空时按情绪+强度兜底）
-- 可选的多情绪参考音频：同一角色特定情绪使用单独的参考音
+- 场景演绎：切分时 LLM 为每个片段生成演绎指令，合成时以 Voice Direction 模式传入
 - 任务队列（Redis，异步生成、重试、超时、状态追踪）
 - SSE 实时推送任务进度
 - 音频缓存与版本管理
@@ -137,7 +136,7 @@ VoiceAsset（全局）→ VoiceProfile（项目内绑定）→ Character（角�
 
 ### 6. Prompt 模板可配置
 
-角色抽取、对白识别、情绪标注等 Prompt 分开管理，支持版本记录。项目可绑定不同的 Prompt 模板，便于针对不同类型小说调优。
+角色抽取、对白识别、音色设计等 Prompt 分开管理，支持版本记录。项目可绑定不同的 Prompt 模板，便于针对不同类型小说调优。
 
 ## 最大技术难点
 
@@ -168,8 +167,6 @@ VoiceAsset（全局）→ VoiceProfile（项目内绑定）→ Character（角�
 | LLM 多厂商 Provider 策略映射 | AI-NovelFlow | LLMProvider 设计 |
 | Prompt 模板管理系统 | AI-NovelFlow | PromptTemplate 模块 |
 | LLM 调用日志审计 | AI-NovelFlow | LLMLog 模块 |
-| 情绪 + 强度双维度 | SonicVale | ScriptSegment / VoiceProfile |
-| 多情绪参考音频 | SonicVale | VoiceProfile 设计 |
 | 实时推送任务进度（原 WebSocket，改用 SSE） | SonicVale | 任务系统 |
 | 精准填充 / 文本对齐 | SonicVale | 第 2 阶段脚本编辑 |
 | 长文分批处理 + 子任务追踪 | AI-NovelSpeaker-V2 | GenerationTask / TaskBatch |

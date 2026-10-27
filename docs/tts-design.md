@@ -21,12 +21,6 @@
                     │ .tts_params  │             │
                     └──────┬───────┘             │
                            │                     │
-                    ┌──────▼───────┐             │
-                    │ VoiceEmotion │             │
-                    │ (按情绪+强度  │             │
-                    │  查参考音频)  │             │
-                    └──────┬───────┘             │
-                           │                     │
                     ┌──────▼─────────────────────▼──┐
                     │   Breeze-TTS-2 Voice Direction │
                     │  (参考音色 + 演绎指令)          │
@@ -41,7 +35,7 @@
 合成一个脚本片段时，分两条线并行准备：
 
 - **文本侧**：片段原文 → 经发音词典纠音 → 得到可发音文本
-- **音频侧**：片段角色 → 声音配置（基础音色）→ 可选的情绪参考音频 → 演绎指令（片段 instruction 或情绪兜底）
+- **音频侧**：片段角色 → 声音配置（基础音色）+ 片段演绎指令（instruction）
 
 两侧汇合后交给 TTS 适配层，生成 AudioClip。
 
@@ -95,8 +89,9 @@ Breeze-TTS-2 不支持拼音标注，词典的 `phoneme` 字段改为「替换�
 ```
 VoiceAsset（工作空间级，全局声音资产库，跨项目复用）
     └── VoiceProfile（项目级，声音配置，绑定到角色）
-         └── VoiceEmotion（情绪级，不同情绪+强度的参考音频）
 ```
+
+每个声音配置只有一条基础参考音频。不同情绪靠片段的演绎指令表达，不再为情绪单独准备参考音频：换参考音频会让同一角色的音色漂移，也会让 TTS 端的参考音频缓存失效。
 
 ### VoiceAsset — 声音资产
 
@@ -126,20 +121,6 @@ VoiceAsset（工作空间级，全局声音资产库，跨项目复用）
 | `tts_provider_id` | 可选，指定 TTS 引擎（覆盖项目默认） |
 | `tts_params` | JSON，引擎特定参数（语速、音调等） |
 
-### VoiceEmotion — 情绪参考音频
-
-为同一个声音配置提供不同情绪下的参考音频样本。
-
-| 字段 | 说明 |
-|------|------|
-| `voice_profile_id` | 所属声音配置 |
-| `emotion_type` | 情绪类型（neutral / happy / sad / angry / fear / surprise / disgust） |
-| `emotion_strength` | 强度（light / medium / strong） |
-| `reference_audio_url` | 该情绪的参考音频 |
-| `reference_text` | 参考文本 |
-
-唯一约束：`(voice_profile_id, emotion_type, emotion_strength)`，即同一配置下每种情绪+强度组合只有一条参考音频。
-
 ### 角色与声音配置的关联
 
 ```
@@ -152,7 +133,6 @@ Character.voice_profile_id → VoiceProfile
 
 - ✅ VoiceProfile — 后端 CRUD + 前端管理页面（表单未暴露 tts_provider_id / tts_params）
 - ✅ VoiceAsset — 模型已建 + 迁移
-- ⬜ VoiceEmotion — 仅模型和迁移，无 CRUD / 前端页面
 - ⬜ 角色绑定声音配置 — 后端 API 已支持，前端编辑页未做绑定 UI
 
 ---
@@ -185,14 +165,8 @@ Voice Design 每次生成的音色都不同，所以只在设计时调用一次�
 
 - 章节切分时 LLM 已有整章上下文，为每个片段输出一句 ≤20 字的演绎描述（语气、语速、音量、停顿）
 - 不描述音色、性别，避免指令把音色带偏
-- 为空时按情绪类型 + 强度生成兜底指令（见 [tts-integration.md](./tts-integration.md)）；`neutral` / `auto` 不下发指令
-
-### 情绪类型 × 强度的作用
-
-| 维度 | 可选值 | 作用 |
-|------|--------|------|
-| emotion_type | auto, neutral, happy, sad, angry, fear, surprise, disgust | 演绎指令为空时的兜底；匹配可选的情绪参考音频；筛选统计 |
-| emotion_strength | light, medium, strong | 同上 |
+- 为空时不下发指令，按参考音色原样克隆，由模型根据文本自行把握语气
+- 早期版本的情绪类型 + 强度已在迁移时转写为演绎指令后删除
 
 ### 音色稳定性
 
@@ -210,19 +184,13 @@ Voice Design 每次生成的音色都不同，所以只在设计时调用一次�
 1. 输入：ScriptSegment
    ├── content          → 原始文本
    ├── character_id     → 角色 ID
-   ├── instruction      → 演绎指令
-   ├── emotion_type     → 情绪类型
-   └── emotion_strength → 情绪强度
+   └── instruction      → 演绎指令
 
 2. 文本处理：
    └── 项目发音词典：词 → 替换读法（同音字）
 
 3. 声音查找：
-   ├── Character → voice_profile_id → VoiceProfile
-   ├── VoiceEmotion WHERE voice_profile_id = X
-   │     AND emotion_type = 片段.emotion_type AND emotion_strength = 片段.emotion_strength
-   ├── 找到且有参考文本 → 用情绪参考音频
-   └── 否则 → 用 VoiceProfile 的基础音色
+   └── Character → voice_profile_id → VoiceProfile（基础音色）
 
 4. 引擎：Project.tts_provider_id
 
@@ -230,13 +198,13 @@ Voice Design 每次生成的音色都不同，所以只在设计时调用一次�
    ├── text:        纠音后的文本
    ├── ref_audio:   参考音频
    ├── ref_text:    参考音频逐字转写（必填）
-   ├── instruction: 片段演绎指令 / 情绪兜底指令 / 空
+   ├── instruction: 片段演绎指令（为空则不传）
    ├── cfg_scale:   tts_params.cfg_scale，默认 4
    └── seed:        tts_params.seed，默认声音配置 ID
 
 6. 输出：AudioClip
    ├── audio_url, duration, file_size, format
-   ├── voice_profile_id, emotion_type, emotion_strength
+   ├── voice_profile_id
    └── tts_provider_id, version, is_current
 ```
 
@@ -268,7 +236,6 @@ VsProject
     ├── VsChapter → VsScriptSegment (脚本片段)
     ├── VsCharacter (角色, 持有 voice_profile_id)
     ├── VsVoiceProfile (声音配置)
-    │     └── VsVoiceEmotion (情绪参考音频)
     ├── VsPronunciationDict (项目级词典)
     └── VsGenerationTask (生成任务)
           └── VsAudioClip (音频结果)

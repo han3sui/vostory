@@ -53,7 +53,6 @@ func (m *MigrateServer) Start(ctx context.Context) error {
 		&model.VsCharacter{},
 		&model.VsVoiceAsset{},
 		&model.VsVoiceProfile{},
-		&model.VsVoiceEmotion{},
 		&model.VsVoiceDesignItem{},
 		&model.VsPronunciationDict{},
 		&model.VsGenerationTask{},
@@ -76,6 +75,13 @@ func (m *MigrateServer) Start(ctx context.Context) error {
 		return err
 	}
 	m.dropLegacyLLMColumns()
+
+	if err := m.backfillInstructionFromEmotion(); err != nil {
+		m.log.Error("按情绪回填演绎指令失败", zap.Error(err))
+		return err
+	}
+	m.dropLegacyEmotion()
+	m.stripEmotionFromPromptTemplates()
 
 	// 步骤 2: 重置序列
 	m.log.Info("步骤 2/3: 重置序列...")
@@ -108,7 +114,6 @@ func (m *MigrateServer) resetSequences() error {
 		"vs_voice_design_item":  "item_id",
 		"vs_voice_asset":        "voice_asset_id",
 		"vs_voice_profile":      "voice_profile_id",
-		"vs_voice_emotion":      "voice_emotion_id",
 		"vs_pronunciation_dict": "dict_id",
 		"vs_generation_task":    "task_id",
 		"vs_task_batch":         "batch_id",
@@ -255,6 +260,139 @@ func (m *MigrateServer) dropLegacyLLMColumns() {
 		} else {
 			m.log.Info("已删除旧列 vs_project.llm_provider_id")
 		}
+	}
+}
+
+// legacyEmotionInstructions 旧版情绪类型+强度 → 演绎指令，仅用于把旧片段的情绪回填为 instruction
+var legacyEmotionInstructions = map[string]map[string]string{
+	"happy": {
+		"light":  "语气轻快，略带笑意",
+		"medium": "语气愉快，带着笑意",
+		"strong": "非常开心，语调上扬，充满兴奋",
+	},
+	"sad": {
+		"light":  "语气略显低落",
+		"medium": "语气悲伤，语速稍慢",
+		"strong": "极度悲伤，带着哭腔，声音哽咽",
+	},
+	"angry": {
+		"light":  "语气不满，略带怒意",
+		"medium": "语气愤怒，语速加快",
+		"strong": "暴怒，大声呵斥",
+	},
+	"fear": {
+		"light":  "语气有些不安",
+		"medium": "语气紧张害怕，声音发颤",
+		"strong": "极度恐惧，声音颤抖急促",
+	},
+	"surprise": {
+		"light":  "语气略带惊讶",
+		"medium": "语气惊讶",
+		"strong": "非常震惊，脱口而出",
+	},
+	"disgust": {
+		"light":  "语气略带嫌弃",
+		"medium": "语气厌恶",
+		"strong": "极度厌恶，语带鄙夷",
+	},
+}
+
+// backfillInstructionFromEmotion 演绎指令为空的旧片段按原情绪兜底规则写入 instruction，删列后合成效果不变
+func (m *MigrateServer) backfillInstructionFromEmotion() error {
+	if !m.db.Migrator().HasColumn(&model.VsScriptSegment{}, "emotion_type") {
+		return nil
+	}
+	var total int64
+	for emotion, byStrength := range legacyEmotionInstructions {
+		for strength, inst := range byStrength {
+			cond := "emotion_strength = ?"
+			args := []interface{}{inst, emotion, strength}
+			// 旧逻辑：强度缺失或不认识时按 medium 处理
+			if strength == "medium" {
+				cond = "(emotion_strength = ? OR emotion_strength IS NULL OR emotion_strength NOT IN ('light', 'medium', 'strong'))"
+			}
+			res := m.db.Exec(
+				`UPDATE vs_script_segment SET instruction = ?
+				 WHERE emotion_type = ? AND `+cond+`
+				   AND (instruction IS NULL OR TRIM(instruction) = '')`,
+				args...,
+			)
+			if res.Error != nil {
+				return fmt.Errorf("回填 %s/%s 失败: %w", emotion, strength, res.Error)
+			}
+			total += res.RowsAffected
+		}
+	}
+	if total > 0 {
+		m.log.Info("已按情绪回填片段演绎指令", zap.Int64("count", total))
+	}
+	return nil
+}
+
+// dropLegacyEmotion 删除情绪参考音频表，以及片段/音频版本上的情绪类型、强度列。
+// 用 Migrator 判断列（兼容 SQLite / Postgres），删列用原生 DROP COLUMN：SQLite 的 Migrator().DropColumn 会重建表并丢掉索引。
+func (m *MigrateServer) dropLegacyEmotion() {
+	if m.db.Migrator().HasTable("vs_voice_emotion") {
+		if err := m.db.Migrator().DropTable("vs_voice_emotion"); err != nil {
+			m.log.Warn("删除旧表 vs_voice_emotion 失败", zap.Error(err))
+		} else {
+			m.log.Info("已删除旧表 vs_voice_emotion")
+		}
+	}
+	tables := map[string]interface{}{
+		"vs_script_segment": &model.VsScriptSegment{},
+		"vs_audio_clip":     &model.VsAudioClip{},
+	}
+	for table, mdl := range tables {
+		for _, col := range []string{"emotion_type", "emotion_strength"} {
+			if !m.db.Migrator().HasColumn(mdl, col) {
+				continue
+			}
+			if err := m.db.Exec(fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, table, col)).Error; err != nil {
+				m.log.Warn("删除旧列失败", zap.String("table", table), zap.String("column", col), zap.Error(err))
+			} else {
+				m.log.Info("已删除旧列", zap.String("table", table), zap.String("column", col))
+			}
+		}
+	}
+}
+
+// legacyEmotionPromptFragments 旧版切分模板中要求输出情绪的片段 → 替换内容；自定义过的模板只要不含这些原文就不受影响
+var legacyEmotionPromptFragments = []struct{ old, new string }{
+	{"，不要包含当前情绪状态，情绪由emotion字段单独表达", "，不要包含当前情绪状态"},
+	{"7. 标注每个片段的情绪：neutral/happy/sad/angry/fear/surprise/disgust\n8. 标注情绪强度：light/medium/strong\n9. 标注演绎指令", "7. 标注演绎指令"},
+	{"\n10. content字段中的特殊字符", "\n8. content字段中的特殊字符"},
+	{`,"emotion":"neutral|happy|sad|angry|fear|surprise|disgust","emotion_strength":"light|medium|strong"`, ""},
+}
+
+// stripEmotionFromPromptTemplates 去掉切分模板里的情绪输出要求，并删除不再使用的 emotion_tag 模板
+func (m *MigrateServer) stripEmotionFromPromptTemplates() {
+	var templates []model.VsPromptTemplate
+	if err := m.db.Where("template_type = ?", "dialogue_parse").Find(&templates).Error; err != nil {
+		m.log.Warn("读取切分模板失败", zap.Error(err))
+	}
+	for _, t := range templates {
+		content := t.Content
+		for _, f := range legacyEmotionPromptFragments {
+			content = strings.ReplaceAll(content, f.old, f.new)
+		}
+		description := strings.ReplaceAll(t.Description, "识别类型、说话人和情绪", "识别类型、说话人和演绎指令")
+		if content == t.Content && description == t.Description {
+			continue
+		}
+		if err := m.db.Model(&model.VsPromptTemplate{}).Where("template_id = ?", t.TemplateID).
+			Updates(map[string]interface{}{"content": content, "description": description}).Error; err != nil {
+			m.log.Warn("更新切分模板失败", zap.Uint64("template_id", t.TemplateID), zap.Error(err))
+		} else {
+			m.log.Info("已移除切分模板中的情绪要求", zap.Uint64("template_id", t.TemplateID), zap.String("name", t.Name))
+		}
+	}
+
+	res := m.db.Where("template_type = ?", "emotion_tag").Delete(&model.VsPromptTemplate{})
+	if res.Error != nil {
+		m.log.Warn("删除 emotion_tag 模板失败", zap.Error(res.Error))
+	} else if res.RowsAffected > 0 {
+		m.log.Info("已删除 emotion_tag 模板", zap.Int64("count", res.RowsAffected))
 	}
 }
 

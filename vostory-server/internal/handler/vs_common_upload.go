@@ -20,7 +20,6 @@ type VsCommonUploadHandler struct {
 	*Handler
 	voiceAssetRepo   repository.VsVoiceAssetRepository
 	voiceProfileRepo repository.VsVoiceProfileRepository
-	voiceEmotionRepo repository.VsVoiceEmotionRepository
 	fileStorage      filestorage.FileStorage
 }
 
@@ -28,14 +27,12 @@ func NewVsCommonUploadHandler(
 	handler *Handler,
 	voiceAssetRepo repository.VsVoiceAssetRepository,
 	voiceProfileRepo repository.VsVoiceProfileRepository,
-	voiceEmotionRepo repository.VsVoiceEmotionRepository,
 	fileStorage filestorage.FileStorage,
 ) *VsCommonUploadHandler {
 	return &VsCommonUploadHandler{
 		Handler:          handler,
 		voiceAssetRepo:   voiceAssetRepo,
 		voiceProfileRepo: voiceProfileRepo,
-		voiceEmotionRepo: voiceEmotionRepo,
 		fileStorage:      fileStorage,
 	}
 }
@@ -107,7 +104,7 @@ func (h *VsCommonUploadHandler) UploadReferenceAudio(ctx *gin.Context) {
 // @Summary      流式获取参考音频
 // @Description  根据来源类型和ID以流的方式返回参考音频文件
 // @Tags         通用上传
-// @Param        source  query  string  true  "来源类型（voice-asset/voice-profile/voice-emotion）"
+// @Param        source  query  string  true  "来源类型（voice-asset/voice-profile）"
 // @Param        id      query  int     true  "资源ID"
 // @Produce      application/octet-stream
 // @Success      200  {file}  audio
@@ -139,13 +136,6 @@ func (h *VsCommonUploadHandler) StreamReferenceAudio(ctx *gin.Context) {
 			return
 		}
 		storedPath = profile.ReferenceAudioURL
-	case "voice-emotion":
-		emotion, err := h.voiceEmotionRepo.FindByID(ctx, id)
-		if err != nil {
-			v1.HandleError(ctx, http.StatusNotFound, v1.NewError(404, "情绪音频不存在"), nil)
-			return
-		}
-		storedPath = emotion.ReferenceAudioURL
 	default:
 		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "不支持的 source 类型"), nil)
 		return
