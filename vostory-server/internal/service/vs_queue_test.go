@@ -517,3 +517,31 @@ func TestBatchGenerateChaptersSkipsBusyChapters(t *testing.T) {
 		t.Fatalf("err=%v, want conflict when every chapter is busy", err)
 	}
 }
+
+func TestGetActiveTasksByProjectReturnsProgressOnly(t *testing.T) {
+	db, _, repo := newQueueTestEnv(t)
+	svc := &vsTTSSynthesizeService{taskRepo: repository.NewVsGenerationTaskRepository(repo)}
+	chapters := createTestChapters(t, db, "第一章")
+	chID := chapters[0].ChapterID
+	db.Create(&model.VsGenerationTask{ProjectID: 1, ChapterID: &chID, TaskType: "tts_generate", Status: "running",
+		TotalBatches: 5, CompletedBatches: 2, FailedBatches: 1, SegmentIDs: model.Uint64Array{1, 2, 3, 4, 5}})
+	db.Create(&model.VsGenerationTask{ProjectID: 1, TaskType: "tts_generate", Status: "pending", TotalBatches: 3})
+	db.Create(&model.VsGenerationTask{ProjectID: 1, ChapterID: &chID, TaskType: "tts_generate", Status: "completed"})
+	db.Create(&model.VsGenerationTask{ProjectID: 2, ChapterID: &chID, TaskType: "tts_generate", Status: "running"})
+
+	res, err := svc.GetActiveTasksByProject(context.Background(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 2 {
+		t.Fatalf("len=%d, want 2 active tasks of project 1", len(res))
+	}
+	got := res[0]
+	if got.ChapterID == nil || *got.ChapterID != chID || got.ChapterTitle != "第一章" || got.Status != "running" ||
+		got.TotalCount != 5 || got.CompletedCount != 2 || got.FailedCount != 1 {
+		t.Fatalf("res[0]=%+v", got)
+	}
+	if res[1].ChapterID != nil || res[1].ChapterTitle != "" || res[1].TotalCount != 3 {
+		t.Fatalf("res[1]=%+v, want task without chapter", res[1])
+	}
+}

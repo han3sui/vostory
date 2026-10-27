@@ -7,12 +7,26 @@ import (
 	"iot-alert-center/internal/model"
 )
 
+// TaskProgressRow 项目活跃任务进度，只含进度展示需要的列（不带 segment_ids、章节正文）
+type TaskProgressRow struct {
+	TaskID           uint64
+	ChapterID        *uint64
+	ChapterTitle     string
+	TaskType         string
+	Status           string
+	Progress         int
+	TotalBatches     int
+	CompletedBatches int
+	FailedBatches    int
+}
+
 type VsGenerationTaskRepository interface {
 	Create(ctx context.Context, task *model.VsGenerationTask) error
 	FindByID(ctx context.Context, id uint64) (*model.VsGenerationTask, error)
 	FindActiveByChapterID(ctx context.Context, chapterID uint64) (*model.VsGenerationTask, error)
 	FindActiveListByChapterID(ctx context.Context, chapterID uint64) ([]*model.VsGenerationTask, error)
 	FindActiveByProjectID(ctx context.Context, projectID uint64) ([]*model.VsGenerationTask, error)
+	FindActiveProgressByProjectID(ctx context.Context, projectID uint64) ([]*TaskProgressRow, error)
 	FindAllByStatuses(ctx context.Context, statuses []string) ([]*model.VsGenerationTask, error)
 	FindAllByStatusesAndType(ctx context.Context, statuses []string, taskType string) ([]*model.VsGenerationTask, error)
 	UpdateProgress(ctx context.Context, id uint64, completed int, progress int) error
@@ -186,11 +200,23 @@ func (r *vsGenerationTaskRepository) IncrementCompleted(ctx context.Context, id 
 func (r *vsGenerationTaskRepository) FindActiveByProjectID(ctx context.Context, projectID uint64) ([]*model.VsGenerationTask, error) {
 	var tasks []*model.VsGenerationTask
 	err := r.db.WithContext(ctx).
-		Preload("Chapter").
 		Where("project_id = ? AND status IN ?", projectID, []string{"pending", "running"}).
 		Order("task_id ASC").
 		Find(&tasks).Error
 	return tasks, err
+}
+
+func (r *vsGenerationTaskRepository) FindActiveProgressByProjectID(ctx context.Context, projectID uint64) ([]*TaskProgressRow, error) {
+	var rows []*TaskProgressRow
+	err := r.db.WithContext(ctx).
+		Table("vs_generation_task AS t").
+		Select("t.task_id, t.chapter_id, COALESCE(c.title, '') AS chapter_title, t.task_type, t.status, t.progress, "+
+			"t.total_batches, t.completed_batches, t.failed_batches").
+		Joins("LEFT JOIN vs_chapter AS c ON c.chapter_id = t.chapter_id").
+		Where("t.project_id = ? AND t.status IN ? AND t.deleted_at IS NULL", projectID, []string{"pending", "running"}).
+		Order("t.task_id ASC").
+		Scan(&rows).Error
+	return rows, err
 }
 
 func (r *vsGenerationTaskRepository) ReduceTotalBatches(ctx context.Context, id uint64, count int) error {

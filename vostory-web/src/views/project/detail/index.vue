@@ -8,7 +8,8 @@
                     </a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_chapters }} 章</a-tag>
                     <a-tag size="small" color="arcoblue">{{ project.total_characters }} 角色</a-tag>
-                    <template v-if="ttsQueueList.length > 0">
+                    <a-tag v-if="activeTasksLoading" size="small" color="orange">语音队列 加载中...</a-tag>
+                    <template v-else-if="ttsQueueList.length > 0">
                         <a-tag size="small" color="orange">语音队列 {{ ttsProcessedCount }}/{{ ttsTotalCount }}</a-tag>
                         <a-popconfirm content="确认取消所有排队中的生成任务？" @ok="handleCancelAll">
                             <a-button type="text" size="mini" status="danger">取消全部队列</a-button>
@@ -60,7 +61,13 @@ import { Message } from "@arco-design/web-vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchEventSource } from "@fortaine/fetch-event-source";
 import { getProject, ProjectDetailType } from "@/config/apis/project";
-import { getProjectEventsURL, cancelProjectQueue, getActiveTasksByProject, TTSSegmentEvent, ProjectTaskProgress } from "@/config/apis/tts";
+import {
+    getProjectEventsURL,
+    cancelProjectQueue,
+    getActiveTasksByProject,
+    TTSSegmentEvent,
+    ProjectTaskProgress
+} from "@/config/apis/tts";
 import { cancelBatchSplit } from "@/config/apis/script-segment";
 import storage from "@/utils/tools/storage";
 import ProjectImport from "./components/import/index.vue";
@@ -111,7 +118,14 @@ type TTSEventHandler = (evt: TTSSegmentEvent) => void;
 
 const ttsEventHandlers = ref<Set<TTSEventHandler>>(new Set());
 const activeTasks = ref<Map<number, ProjectTaskProgress>>(new Map());
+const activeTasksLoading = ref(false);
 let sseController: AbortController | null = null;
+// 任务快照加载期间被 SSE 更新过、已结束的任务。快照是查询那一刻的数据，合并时以 SSE 为准
+let sseTouchedIds = new Set<number>();
+let sseEndedIds = new Set<number>();
+let loadSeq = 0;
+
+class SSEFatalError extends Error {}
 
 const ttsQueueList = computed(() =>
     Array.from(activeTasks.value.values()).filter((t) => t.task_type !== "chapter_split")
@@ -141,10 +155,12 @@ function handleSSEEvent(evt: TTSSegmentEvent) {
 
     // 已结束/取消的任务不再回写到语音队列，避免取消后被 SSE 重新点亮
     if (evt.task_done || ["cancelled", "completed", "failed"].includes(evt.task_status)) {
+        sseEndedIds.add(evt.task_id);
         map.delete(evt.task_id);
         activeTasks.value = map;
         return;
     }
+    sseTouchedIds.add(evt.task_id);
 
     map.set(evt.task_id, {
         task_id: evt.task_id,
@@ -165,21 +181,52 @@ function connectProjectSSE(pid: number) {
 
     const controller = new AbortController();
     sseController = controller;
-    const token = storage.getToken();
+    let opened = false;
+    let retryDelay = 1000;
 
     fetchEventSource(getProjectEventsURL(pid), {
-        headers: { Authorization: `Bearer ${token}` },
         openWhenHidden: true,
         signal: controller.signal,
+        // 每次（重）连都取最新 token
+        fetch: (input, init) =>
+            fetch(input, {
+                ...init,
+                headers: { ...(init?.headers as Record<string, string>), Authorization: `Bearer ${storage.getToken()}` }
+            }),
+        async onopen(res) {
+            const contentType = res.headers.get("content-type") || "";
+            if (res.ok && contentType.startsWith("text/event-stream")) {
+                retryDelay = 1000;
+                // 断线期间错过的进度靠重新拉快照补齐，首次连接时快照已在加载
+                if (opened) loadActiveTasks(pid);
+                opened = true;
+                return;
+            }
+            if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+                throw new SSEFatalError(`Project SSE rejected: ${res.status}`);
+            }
+            throw new Error(`Project SSE open failed: ${res.status}`);
+        },
         onmessage(event: any) {
             if (event.event === "segment") {
                 handleSSEEvent(JSON.parse(event.data));
             }
         },
+        onclose() {
+            // 服务端关闭连接（如重启）也要重连
+            throw new Error("Project SSE closed by server");
+        },
         onerror(error) {
-            console.error("Project SSE error", error);
-            throw error;
+            if (error instanceof SSEFatalError) {
+                console.error(error.message);
+                throw error;
+            }
+            const delay = retryDelay;
+            retryDelay = Math.min(retryDelay * 2, 30000);
+            return delay;
         }
+    }).catch(() => {
+        // 鉴权失败等不可重试错误，已在 onerror 记录
     });
 }
 
@@ -195,6 +242,9 @@ async function handleCancelAll() {
     try {
         const res = await cancelProjectQueue(projectId.value);
         Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
+        // 作废进行中的快照加载，避免把刚取消的任务加回来
+        loadSeq++;
+        activeTasksLoading.value = false;
         activeTasks.value = new Map();
         const evt: TTSSegmentEvent = {
             type: "queue_cancelled",
@@ -232,17 +282,39 @@ async function handleCancelSplit() {
     }
 }
 
+const processedOf = (t: ProjectTaskProgress) => t.completed_count + t.failed_count;
+
+// 拉取任务快照并与 SSE 已推送的进度合并：同一任务取已处理数多的那份，
+// 加载期间结束的任务不再加回，快照之后才出现的任务保留 SSE 的数据
 async function loadActiveTasks(pid: number) {
+    const seq = ++loadSeq;
+    sseTouchedIds = new Set();
+    sseEndedIds = new Set();
+    activeTasksLoading.value = true;
     try {
-        const tasks = await getActiveTasksByProject(pid);
-        if (!tasks || tasks.length === 0) return;
-        const map = new Map(activeTasks.value);
+        const tasks = (await getActiveTasksByProject(pid)) || [];
+        if (seq !== loadSeq || pid !== projectId.value) return;
+        const live = activeTasks.value;
+        const map = new Map<number, ProjectTaskProgress>();
         for (const t of tasks) {
-            map.set(t.task_id, t);
+            if (sseEndedIds.has(t.task_id)) continue;
+            const cur = live.get(t.task_id);
+            map.set(
+                t.task_id,
+                cur && processedOf(cur) >= processedOf(t)
+                    ? { ...cur, chapter_title: cur.chapter_title || t.chapter_title }
+                    : t
+            );
+        }
+        for (const id of sseTouchedIds) {
+            const cur = live.get(id);
+            if (cur && !map.has(id)) map.set(id, cur);
         }
         activeTasks.value = map;
     } catch {
         // 静默失败，SSE 后续会补充
+    } finally {
+        if (seq === loadSeq) activeTasksLoading.value = false;
     }
 }
 

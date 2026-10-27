@@ -541,27 +541,23 @@ func (s *vsTTSSynthesizeService) OpenAudioClip(ctx context.Context, clipID uint6
 }
 
 func (s *vsTTSSynthesizeService) GetActiveTasksByProject(ctx context.Context, projectID uint64) ([]*v1.ProjectTaskProgressResponse, error) {
-	tasks, err := s.taskRepo.FindActiveByProjectID(ctx, projectID)
+	rows, err := s.taskRepo.FindActiveProgressByProjectID(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
-	var result []*v1.ProjectTaskProgressResponse
-	for _, t := range tasks {
-		item := &v1.ProjectTaskProgressResponse{
+	result := make([]*v1.ProjectTaskProgressResponse, 0, len(rows))
+	for _, t := range rows {
+		result = append(result, &v1.ProjectTaskProgressResponse{
 			TaskID:         t.TaskID,
 			ChapterID:      t.ChapterID,
+			ChapterTitle:   t.ChapterTitle,
 			TaskType:       t.TaskType,
 			Status:         t.Status,
 			Progress:       t.Progress,
 			TotalCount:     t.TotalBatches,
 			CompletedCount: t.CompletedBatches,
 			FailedCount:    t.FailedBatches,
-			SegmentIDs:     []uint64(t.SegmentIDs),
-		}
-		if t.Chapter != nil {
-			item.ChapterTitle = t.Chapter.Title
-		}
-		result = append(result, item)
+		})
 	}
 	return result, nil
 }
