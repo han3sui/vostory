@@ -38,7 +38,13 @@ type TTSWorker struct {
 
 	gpuMu         sync.Mutex
 	gpuReleasedAt map[chan struct{}]time.Time // GPU 坑上一次释放的时间，用于统计 GPU 空闲
+
+	// persistSem 上传 + 收尾的并发上限，与 GPU、流水线坑分开，所有服务商共用
+	persistSem chan struct{}
 }
+
+// persistConcurrency 同时上传落库的片段数。推理结束就让出流水线坑，上传慢时片段在这里排队，不影响 GPU
+const persistConcurrency = 4
 
 func NewTTSWorker(
 	rdb *redis.Client,
@@ -62,6 +68,7 @@ func NewTTSWorker(
 		defaultSem:     make(chan struct{}, 1),
 		defaultPipeSem: make(chan struct{}, 2),
 		gpuReleasedAt:  make(map[chan struct{}]time.Time),
+		persistSem:     make(chan struct{}, persistConcurrency),
 	}
 }
 
@@ -389,16 +396,19 @@ func (w *TTSWorker) consumeLoop(ctx context.Context) {
 		}
 
 		providerID := w.resolveProviderID(ctx, taskID)
-		// 流水线坑比 GPU 多 1：当前条在推理时，下一条可以先下好参考音频
+		// 流水线坑比 GPU 多 1：当前条在推理时，下一条可以先准备好；推理一结束就让出坑位，
+		// 上传和收尾不再挡着后面片段的准备
 		pipe := w.getProviderPipe(providerID)
 		pipeStart := time.Now()
 		pipe <- struct{}{}
 		pipeWait := time.Since(pipeStart)
+		var releaseOnce sync.Once
+		releasePipe := func() { releaseOnce.Do(func() { <-pipe }) }
 		w.wg.Add(1)
 		go func(tID, sID, pID uint64) {
 			defer w.wg.Done()
-			defer func() { <-pipe }()
-			w.processSegment(ctx, tID, sID, pID, pipeWait)
+			defer releasePipe()
+			w.processSegment(ctx, tID, sID, pID, pipeWait, releasePipe)
 		}(taskID, segmentID, providerID)
 	}
 }
@@ -414,11 +424,12 @@ func (w *TTSWorker) isTaskCancelled(ctx context.Context, taskID uint64) bool {
 // segmentTiming 单条片段各阶段耗时，处理结束输出一行日志，用来判断瓶颈在准备、GPU 还是上传
 type segmentTiming struct {
 	start    time.Time
-	pipeWait time.Duration // 等流水线坑（上一批片段还没上传/收尾完）
+	pipeWait time.Duration // 等流水线坑（前面的片段还没推理完）
 	prepare  time.Duration // 查库 + 下载参考音频
 	gpuWait  time.Duration // 等 GPU 坑
 	gpuIdle  time.Duration // GPU 并发为 1 时，拿到坑前 GPU 已空闲的时长
 	infer    time.Duration // TTS 推理 HTTP
+	persistW time.Duration // 等上传并发名额
 	persist  time.Duration // 音量归一化 + 上传存储 + 写音频版本
 	finish   time.Duration // 更新任务进度 + 推送事件
 	textLen  int
@@ -437,6 +448,7 @@ func (w *TTSWorker) logSegmentTiming(taskID, segmentID, providerID uint64, t *se
 		zap.Int64("prepare_ms", t.prepare.Milliseconds()),
 		zap.Int64("gpu_wait_ms", t.gpuWait.Milliseconds()),
 		zap.Int64("infer_ms", t.infer.Milliseconds()),
+		zap.Int64("persist_wait_ms", t.persistW.Milliseconds()),
 		zap.Int64("persist_ms", t.persist.Milliseconds()),
 		zap.Int64("finish_ms", t.finish.Milliseconds()),
 		zap.Int64("total_ms", time.Since(t.start).Milliseconds()),
@@ -475,7 +487,8 @@ func (w *TTSWorker) releaseGPU(sem chan struct{}) {
 	<-sem
 }
 
-func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID, providerID uint64, pipeWait time.Duration) {
+// processSegment 处理一条片段。releasePipe 在推理结束后调用，让出流水线坑位给下一条片段准备
+func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID, providerID uint64, pipeWait time.Duration, releasePipe func()) {
 	t := &segmentTiming{start: time.Now(), pipeWait: pipeWait, gpuIdle: -1, result: "skipped"}
 	defer w.logSegmentTiming(taskID, segmentID, providerID, t)
 
@@ -541,12 +554,19 @@ func (w *TTSWorker) processSegment(ctx context.Context, taskID, segmentID, provi
 	audioData, synthErr := w.ttsSvc.RunPreparedSpeech(ctx, job)
 	t.infer = time.Since(stageStart)
 	w.releaseGPU(gpuSem)
+	releasePipe()
 	if synthErr != nil {
 		t.stage = "infer"
 		finish(seg, nil, synthErr)
 		return
 	}
 
+	stageStart = time.Now()
+	if w.persistSem != nil {
+		w.persistSem <- struct{}{}
+		defer func() { <-w.persistSem }()
+	}
+	t.persistW = time.Since(stageStart)
 	stageStart = time.Now()
 	synthResult, synthErr := w.ttsSvc.PersistPreparedSpeech(ctx, job, audioData)
 	t.persist = time.Since(stageStart)

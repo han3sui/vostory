@@ -5,7 +5,7 @@
 import json
 import sys
 
-FIELDS = ["pipe_wait_ms", "prepare_ms", "gpu_wait_ms", "gpu_idle_ms", "infer_ms", "persist_ms", "finish_ms", "total_ms"]
+FIELDS = ["pipe_wait_ms", "prepare_ms", "gpu_wait_ms", "gpu_idle_ms", "infer_ms", "persist_wait_ms", "persist_ms", "finish_ms", "total_ms"]
 
 
 def pct(values, p):

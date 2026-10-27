@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -89,6 +91,7 @@ func NewVsTTSSynthesizeService(
 		taskRepo:              taskRepo,
 		rdb:                   rdb,
 		fileStorage:           fileStorage,
+		refAudioCache:         newRefAudioCache(filepath.Join(os.TempDir(), "vostory-ref-audio")),
 	}
 }
 
@@ -105,6 +108,7 @@ type vsTTSSynthesizeService struct {
 	taskRepo              repository.VsGenerationTaskRepository
 	rdb                   *redis.Client
 	fileStorage           filestorage.FileStorage
+	refAudioCache         *refAudioCache // 为空时每次下载到临时文件
 }
 
 func (s *vsTTSSynthesizeService) failSegment(ctx context.Context, segmentID uint64, msg string) error {
@@ -163,7 +167,7 @@ func (s *vsTTSSynthesizeService) PrepareSegmentSpeech(ctx context.Context, segme
 
 	_ = s.segmentRepo.UpdateStatus(ctx, segmentID, "processing")
 
-	refPath, cleanup, err := s.fileStorage.DownloadToTemp(ctx, filestorage.NormalizeKey(referenceAudioURL))
+	refPath, cleanup, err := s.referenceAudioPath(ctx, filestorage.NormalizeKey(referenceAudioURL))
 	if err != nil {
 		return nil, s.failSegment(ctx, segmentID, fmt.Sprintf("参考音频不存在: %v", err))
 	}
@@ -182,6 +186,18 @@ func (s *vsTTSSynthesizeService) PrepareSegmentSpeech(ctx context.Context, segme
 		},
 		cleanup: cleanup,
 	}, nil
+}
+
+// referenceAudioPath 参考音频本地路径。走缓存时文件常驻，cleanup 为空操作
+func (s *vsTTSSynthesizeService) referenceAudioPath(ctx context.Context, key string) (string, func(), error) {
+	if s.refAudioCache == nil {
+		return s.fileStorage.DownloadToTemp(ctx, key)
+	}
+	path, err := s.refAudioCache.Path(ctx, s.fileStorage, key)
+	if err != nil {
+		return "", nil, err
+	}
+	return path, func() {}, nil
 }
 
 // RunPreparedSpeech 调用 TTS HTTP，这是唯一占用 GPU 的步骤。
