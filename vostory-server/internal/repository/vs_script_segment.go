@@ -34,6 +34,7 @@ type VsScriptSegmentRepository interface {
 	FindRegenerableByCharacterIDs(ctx context.Context, characterIDs []uint64) ([]SegmentRef, error)
 	CountByChapterIDs(ctx context.Context, projectID uint64, chapterIDs []uint64) (int64, error)
 	FindGeneratableByChapterIDs(ctx context.Context, projectID uint64, chapterIDs []uint64) ([]SegmentRef, error)
+	FindInQueueByChapterIDs(ctx context.Context, chapterIDs []uint64) ([]SegmentRef, error)
 	ClaimForGenerate(ctx context.Context, ids []uint64) ([]uint64, error)
 }
 
@@ -42,6 +43,7 @@ type SegmentRef struct {
 	SegmentID uint64
 	ProjectID uint64
 	ChapterID uint64
+	Status    string
 }
 
 // nonRegenerableStatuses 排队/合成中的片段再入队会被合成两次，锁定的片段不允许重新生成
@@ -286,6 +288,22 @@ func (r *vsScriptSegmentRepository) FindGeneratableByChapterIDs(ctx context.Cont
 		Select("segment_id", "project_id", "chapter_id").
 		Where("project_id = ? AND chapter_id IN ? AND character_id IS NOT NULL AND status NOT IN ? AND TRIM(content) <> ''",
 			projectID, chapterIDs, nonRegenerableStatuses).
+		Order("chapter_id ASC, segment_num ASC").
+		Scan(&refs).Error; err != nil {
+		return nil, err
+	}
+	return refs, nil
+}
+
+// FindInQueueByChapterIDs 排队中/合成中的片段，供服务重启后重建 TTS 队列
+func (r *vsScriptSegmentRepository) FindInQueueByChapterIDs(ctx context.Context, chapterIDs []uint64) ([]SegmentRef, error) {
+	if len(chapterIDs) == 0 {
+		return nil, nil
+	}
+	var refs []SegmentRef
+	if err := r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Select("segment_id", "project_id", "chapter_id", "status").
+		Where("chapter_id IN ? AND status IN ?", chapterIDs, []string{"queued", "processing"}).
 		Order("chapter_id ASC, segment_num ASC").
 		Scan(&refs).Error; err != nil {
 		return nil, err

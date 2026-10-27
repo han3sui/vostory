@@ -25,6 +25,7 @@ type VsGenerationTaskRepository interface {
 	IncrementCompleted(ctx context.Context, id uint64) (int64, error)
 	IncrementFailed(ctx context.Context, id uint64) (int64, error)
 	ReduceTotalBatches(ctx context.Context, id uint64, count int) error
+	SetTotalBatches(ctx context.Context, id uint64, total int) error
 }
 
 func NewVsGenerationTaskRepository(repository *Repository) VsGenerationTaskRepository {
@@ -196,4 +197,10 @@ func (r *vsGenerationTaskRepository) ReduceTotalBatches(ctx context.Context, id 
 	return r.db.WithContext(ctx).Model(&model.VsGenerationTask{}).
 		Where("task_id = ?", id).
 		Update("total_batches", r.db.Raw("GREATEST(total_batches - ?, 0)", count)).Error
+}
+
+func (r *vsGenerationTaskRepository) SetTotalBatches(ctx context.Context, id uint64, total int) error {
+	return r.db.WithContext(ctx).Model(&model.VsGenerationTask{}).
+		Where("task_id = ?", id).
+		Update("total_batches", total).Error
 }
