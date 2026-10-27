@@ -695,69 +695,103 @@ func (s *vsTTSSynthesizeService) RegenerateByCharacter(ctx context.Context, char
 	return s.regenerateByCharacterIDs(ctx, []uint64{characterID})
 }
 
+// regenerateByCharacterIDs 只查出可生成的片段就返回，逐章建任务、入队放到后台。
+// 旁白这类角色可能有几万个片段，同步做完要几十分钟；按章节有多个任务，所以不返回 TaskID
 func (s *vsTTSSynthesizeService) regenerateByCharacterIDs(ctx context.Context, characterIDs []uint64) (*v1.BatchGenerateResponse, error) {
-	segments, err := s.segmentRepo.FindByCharacterIDs(ctx, characterIDs)
+	refs, err := s.segmentRepo.FindRegenerableByCharacterIDs(ctx, characterIDs)
+	if err != nil {
+		return nil, fmt.Errorf("查询片段失败: %w", err)
+	}
+	if len(refs) == 0 {
+		return nil, fmt.Errorf("没有可重新生成的片段（所有片段可能已锁定、正在生成或为空）")
+	}
+	total, err := s.segmentRepo.CountByCharacterIDs(ctx, characterIDs)
 	if err != nil {
 		return nil, fmt.Errorf("查询片段失败: %w", err)
 	}
 
-	var eligible []*model.VsScriptSegment
-	for _, seg := range segments {
-		if seg.Status == "queued" || seg.Status == "processing" || seg.Status == "locked" {
-			continue
+	// gin 的 ctx 在请求结束后会被复用，后台只带走登录信息
+	go s.regenerateInBackground(refs, getLoginName(ctx), getDeptID(ctx))
+
+	return &v1.BatchGenerateResponse{
+		TotalCount:   len(refs),
+		SkippedCount: int(total) - len(refs),
+	}, nil
+}
+
+func (s *vsTTSSynthesizeService) regenerateInBackground(refs []repository.SegmentRef, loginName string, deptID uint) {
+	ctx := context.WithValue(context.Background(), "login_name", loginName)
+	ctx = context.WithValue(ctx, "dept_id", deptID)
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error(fmt.Sprintf("按角色重新生成入队时发生 panic: %v", r))
 		}
-		if seg.Content == "" {
-			continue
+	}()
+
+	// refs 已按章节排好序，按章节顺序入队，前面的章节先合成
+	var chapterOrder []uint64
+	chapterSegs := make(map[uint64][]uint64)
+	chapterProject := make(map[uint64]uint64)
+	for _, ref := range refs {
+		if _, ok := chapterSegs[ref.ChapterID]; !ok {
+			chapterOrder = append(chapterOrder, ref.ChapterID)
+			chapterProject[ref.ChapterID] = ref.ProjectID
 		}
-		eligible = append(eligible, seg)
+		chapterSegs[ref.ChapterID] = append(chapterSegs[ref.ChapterID], ref.SegmentID)
 	}
 
-	if len(eligible) == 0 {
-		return nil, fmt.Errorf("没有可重新生成的片段（所有片段可能已锁定或为空）")
-	}
-
-	chapterSegMap := make(map[uint64][]uint64)
-	for _, seg := range eligible {
-		chapterSegMap[seg.ChapterID] = append(chapterSegMap[seg.ChapterID], seg.SegmentID)
-	}
-
-	var totalCount int
-	var firstTaskID uint64
-	for chapterID, segIDs := range chapterSegMap {
-		projectID, err := s.getProjectIDByChapter(ctx, chapterID)
-		if err != nil {
-			continue
+	for _, chapterID := range chapterOrder {
+		if err := s.regenerateChapterSegments(ctx, chapterProject[chapterID], chapterID, chapterSegs[chapterID]); err != nil {
+			s.logger.Warn(fmt.Sprintf("章节 %d 重新生成入队失败: %v", chapterID, err))
 		}
-		task := &model.VsGenerationTask{
+	}
+}
+
+// regenerateChapterSegments 认领片段和建任务放在同一个事务里：已被别的请求认领的片段不会再认领，
+// 也就不会重复入队；服务若在入队前重启，worker 能按任务把已认领的片段恢复出来
+func (s *vsTTSSynthesizeService) regenerateChapterSegments(ctx context.Context, projectID, chapterID uint64, segmentIDs []uint64) error {
+	var task *model.VsGenerationTask
+	err := s.tm.Transaction(ctx, func(ctx context.Context) error {
+		claimed, err := s.segmentRepo.ClaimForGenerate(ctx, segmentIDs)
+		if err != nil || len(claimed) == 0 {
+			return err
+		}
+		task = &model.VsGenerationTask{
 			ProjectID:    projectID,
 			ChapterID:    &chapterID,
 			TaskType:     "tts_generate",
 			Status:       "running",
-			TotalBatches: len(segIDs),
-			SegmentIDs:   model.Uint64Array(segIDs),
+			TotalBatches: len(claimed),
+			SegmentIDs:   model.Uint64Array(claimed),
 		}
-		if err := s.taskRepo.Create(ctx, task); err != nil {
-			continue
-		}
-		if firstTaskID == 0 {
-			firstTaskID = task.TaskID
-		}
-		if err := s.enqueueSegments(ctx, task, segIDs); err != nil {
-			_ = s.taskRepo.UpdateStatus(ctx, task.TaskID, "failed", err.Error())
-			continue
-		}
-		totalCount += len(segIDs)
+		return s.taskRepo.Create(ctx, task)
+	})
+	if err != nil || task == nil {
+		return err
 	}
 
-	if totalCount == 0 {
-		return nil, fmt.Errorf("任务创建失败")
+	if err := s.pushSegmentMessages(ctx, task.TaskID, task.SegmentIDs); err != nil {
+		// 已认领的片段退回 cancelled，之后还能重新生成，不会一直卡在 queued
+		_, _ = s.cancelTaskQueuedSegments(ctx, task)
+		return err
 	}
+	return nil
+}
 
-	return &v1.BatchGenerateResponse{
-		TaskID:       firstTaskID,
-		TotalCount:   totalCount,
-		SkippedCount: len(segments) - len(eligible),
-	}, nil
+// pushSegmentMessages 分批 LPUSH，消费顺序与逐条 LPUSH 一致
+func (s *vsTTSSynthesizeService) pushSegmentMessages(ctx context.Context, taskID uint64, segmentIDs []uint64) error {
+	const batchSize = 500
+	for start := 0; start < len(segmentIDs); start += batchSize {
+		end := min(start+batchSize, len(segmentIDs))
+		msgs := make([]interface{}, 0, end-start)
+		for _, segID := range segmentIDs[start:end] {
+			msgs = append(msgs, fmt.Sprintf("%d:%d", taskID, segID))
+		}
+		if err := s.rdb.LPush(ctx, ttsQueueKey, msgs...).Err(); err != nil {
+			return fmt.Errorf("任务 %d 入队失败: %w", taskID, err)
+		}
+	}
+	return nil
 }
 
 func getLoginName(ctx context.Context) string {

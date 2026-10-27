@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"iot-alert-center/internal/filestorage"
 	"iot-alert-center/internal/model"
@@ -374,5 +375,87 @@ func TestSaveChaptersIsAtomic(t *testing.T) {
 	db.Model(&model.VsChapter{}).Count(&count)
 	if count != 1 {
 		t.Fatalf("chapters=%d, want 1 (no partial insert)", count)
+	}
+}
+
+func TestRegenerateByCharacterEnqueuesOnceInBackground(t *testing.T) {
+	db, rdb, repo := newQueueTestEnv(t)
+	svc := &vsTTSSynthesizeService{
+		Service:     &Service{logger: nopLogger(), tm: repository.NewTransaction(repo)},
+		segmentRepo: repository.NewVsScriptSegmentRepository(repo),
+		taskRepo:    repository.NewVsGenerationTaskRepository(repo),
+		rdb:         rdb,
+	}
+	ctx := context.Background()
+	narrator, other := uint64(1), uint64(2)
+	mk := func(chapterID uint64, charID *uint64, status, content string) uint64 {
+		seg := &model.VsScriptSegment{ProjectID: 1, SceneID: 1, ChapterID: chapterID, SegmentType: "narration", Content: content, CharacterID: charID, Status: status}
+		if err := db.Create(seg).Error; err != nil {
+			t.Fatal(err)
+		}
+		return seg.SegmentID
+	}
+	a := mk(1, &narrator, "generated", "x")
+	b := mk(1, &narrator, "raw", "x")
+	mk(1, &narrator, "locked", "x")
+	mk(1, &narrator, "queued", "x")
+	mk(1, &narrator, "raw", "")
+	c := mk(2, &narrator, "failed", "x")
+	mk(2, &other, "raw", "x")
+
+	res, err := svc.regenerateByCharacterIDs(ctx, []uint64{narrator})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.TotalCount != 3 || res.SkippedCount != 3 {
+		t.Fatalf("total=%d skipped=%d, want 3/3", res.TotalCount, res.SkippedCount)
+	}
+
+	// 入队在后台进行，等它把 3 个片段推完
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if n, _ := rdb.LLen(ctx, ttsQueueKey).Result(); n == 3 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("background enqueue did not finish")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	var tasks []model.VsGenerationTask
+	db.Order("task_id").Find(&tasks)
+	if len(tasks) != 2 {
+		t.Fatalf("tasks=%d, want one per chapter", len(tasks))
+	}
+	if fmt.Sprint(tasks[0].SegmentIDs) != fmt.Sprint([]uint64{a, b}) || tasks[0].TotalBatches != 2 {
+		t.Fatalf("chapter 1 task segments=%v total=%d", tasks[0].SegmentIDs, tasks[0].TotalBatches)
+	}
+	if fmt.Sprint(tasks[1].SegmentIDs) != fmt.Sprint([]uint64{c}) {
+		t.Fatalf("chapter 2 task segments=%v", tasks[1].SegmentIDs)
+	}
+	queue, _ := rdb.LRange(ctx, ttsQueueKey, 0, -1).Result()
+	want := []string{
+		fmt.Sprintf("%d:%d", tasks[1].TaskID, c),
+		fmt.Sprintf("%d:%d", tasks[0].TaskID, b),
+		fmt.Sprintf("%d:%d", tasks[0].TaskID, a),
+	}
+	if fmt.Sprint(queue) != fmt.Sprint(want) {
+		t.Fatalf("queue=%v, want %v (BRPOP 先取 a)", queue, want)
+	}
+
+	// 用同一批旧数据重复认领（模拟用户连点、上一次请求查询后片段已被认领）：不应再入队
+	svc.regenerateInBackground([]repository.SegmentRef{
+		{SegmentID: a, ProjectID: 1, ChapterID: 1},
+		{SegmentID: b, ProjectID: 1, ChapterID: 1},
+		{SegmentID: c, ProjectID: 1, ChapterID: 2},
+	}, "", 0)
+	if n, _ := rdb.LLen(ctx, ttsQueueKey).Result(); n != 3 {
+		t.Fatalf("queue len=%d after duplicate submit, want 3", n)
+	}
+	var taskCount int64
+	db.Model(&model.VsGenerationTask{}).Count(&taskCount)
+	if taskCount != 2 {
+		t.Fatalf("tasks=%d after duplicate submit, want 2", taskCount)
 	}
 }

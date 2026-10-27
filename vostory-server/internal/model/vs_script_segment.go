@@ -11,7 +11,7 @@ type VsScriptSegment struct {
 	SegmentType     string  `json:"segment_type" gorm:"size:20;not null;comment:片段类型（dialogue/narration/monologue/description）"`
 	Content         string  `json:"content" gorm:"type:text;not null;comment:片段文本内容"`
 	OriginalContent string  `json:"original_content" gorm:"type:text;comment:原始文本（精准填充对齐前）"`
-	CharacterID     *uint64 `json:"character_id" gorm:"comment:说话人角色ID（旁白/描述时为空）"`
+	CharacterID     *uint64 `json:"character_id" gorm:"index;comment:说话人角色ID（旁白/描述时为空）"`
 	Instruction     string  `json:"instruction" gorm:"size:200;comment:演绎指令（语气/语速/音量等，传给 TTS 的 instruction）"`
 	Status          string  `json:"status" gorm:"size:20;default:'raw';comment:片段状态（raw/edited/queued/processing/generated/failed/locked/cancelled）"`
 	ErrorMessage    string  `json:"error_message" gorm:"size:2000;comment:失败原因"`

@@ -36,7 +36,7 @@ type vsGenerationTaskRepository struct {
 }
 
 func (r *vsGenerationTaskRepository) Create(ctx context.Context, task *model.VsGenerationTask) error {
-	return r.db.WithContext(ctx).Create(task).Error
+	return r.DB(ctx).Create(task).Error
 }
 
 func (r *vsGenerationTaskRepository) FindByID(ctx context.Context, id uint64) (*model.VsGenerationTask, error) {

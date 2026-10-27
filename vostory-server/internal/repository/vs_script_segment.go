@@ -7,6 +7,7 @@ import (
 	"iot-alert-center/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type VsScriptSegmentRepository interface {
@@ -28,7 +29,20 @@ type VsScriptSegmentRepository interface {
 	IncrementSegmentNumAfter(ctx context.Context, chapterID uint64, afterNum int) error
 	ReorderSegmentNums(ctx context.Context, chapterID uint64) error
 	FindByCharacterIDs(ctx context.Context, characterIDs []uint64) ([]*model.VsScriptSegment, error)
+	CountByCharacterIDs(ctx context.Context, characterIDs []uint64) (int64, error)
+	FindRegenerableByCharacterIDs(ctx context.Context, characterIDs []uint64) ([]SegmentRef, error)
+	ClaimForGenerate(ctx context.Context, ids []uint64) ([]uint64, error)
 }
+
+// SegmentRef 入队只需要的几列，不拉正文
+type SegmentRef struct {
+	SegmentID uint64
+	ProjectID uint64
+	ChapterID uint64
+}
+
+// nonRegenerableStatuses 排队/合成中的片段再入队会被合成两次，锁定的片段不允许重新生成
+var nonRegenerableStatuses = []string{"queued", "processing", "locked"}
 
 func NewVsScriptSegmentRepository(repository *Repository) VsScriptSegmentRepository {
 	return &vsScriptSegmentRepository{Repository: repository}
@@ -212,4 +226,54 @@ func (r *vsScriptSegmentRepository) FindByCharacterIDs(ctx context.Context, char
 		return nil, err
 	}
 	return segments, nil
+}
+
+func (r *vsScriptSegmentRepository) CountByCharacterIDs(ctx context.Context, characterIDs []uint64) (int64, error) {
+	if len(characterIDs) == 0 {
+		return 0, nil
+	}
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Where("character_id IN ?", characterIDs).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (r *vsScriptSegmentRepository) FindRegenerableByCharacterIDs(ctx context.Context, characterIDs []uint64) ([]SegmentRef, error) {
+	if len(characterIDs) == 0 {
+		return nil, nil
+	}
+	var refs []SegmentRef
+	if err := r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Select("segment_id", "project_id", "chapter_id").
+		Where("character_id IN ? AND status NOT IN ? AND content <> ''", characterIDs, nonRegenerableStatuses).
+		Order("chapter_id ASC, segment_num ASC").
+		Scan(&refs).Error; err != nil {
+		return nil, err
+	}
+	return refs, nil
+}
+
+// ClaimForGenerate 把可生成的片段原子地标为 queued，只返回本次真正改到的片段。
+// 并发的两次认领不会拿到同一个片段，调用方只入队返回的这些，就不会重复合成
+func (r *vsScriptSegmentRepository) ClaimForGenerate(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var claimed []model.VsScriptSegment
+	if err := r.DB(ctx).Model(&claimed).
+		Clauses(clause.Returning{Columns: []clause.Column{{Name: "segment_id"}}}).
+		Where("segment_id IN ? AND status NOT IN ?", ids, nonRegenerableStatuses).
+		Updates(map[string]interface{}{
+			"status":        "queued",
+			"error_message": "",
+		}).Error; err != nil {
+		return nil, err
+	}
+	claimedIDs := make([]uint64, len(claimed))
+	for i, seg := range claimed {
+		claimedIDs[i] = seg.SegmentID
+	}
+	return claimedIDs, nil
 }
