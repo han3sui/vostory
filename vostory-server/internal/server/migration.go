@@ -76,10 +76,6 @@ func (m *MigrateServer) Start(ctx context.Context) error {
 	}
 	m.dropLegacyLLMColumns()
 
-	if err := m.backfillInstructionFromEmotion(); err != nil {
-		m.log.Error("按情绪回填演绎指令失败", zap.Error(err))
-		return err
-	}
 	m.dropLegacyEmotion()
 	m.stripEmotionFromPromptTemplates()
 
@@ -261,72 +257,6 @@ func (m *MigrateServer) dropLegacyLLMColumns() {
 			m.log.Info("已删除旧列 vs_project.llm_provider_id")
 		}
 	}
-}
-
-// legacyEmotionInstructions 旧版情绪类型+强度 → 演绎指令，仅用于把旧片段的情绪回填为 instruction
-var legacyEmotionInstructions = map[string]map[string]string{
-	"happy": {
-		"light":  "语气轻快，略带笑意",
-		"medium": "语气愉快，带着笑意",
-		"strong": "非常开心，语调上扬，充满兴奋",
-	},
-	"sad": {
-		"light":  "语气略显低落",
-		"medium": "语气悲伤，语速稍慢",
-		"strong": "极度悲伤，带着哭腔，声音哽咽",
-	},
-	"angry": {
-		"light":  "语气不满，略带怒意",
-		"medium": "语气愤怒，语速加快",
-		"strong": "暴怒，大声呵斥",
-	},
-	"fear": {
-		"light":  "语气有些不安",
-		"medium": "语气紧张害怕，声音发颤",
-		"strong": "极度恐惧，声音颤抖急促",
-	},
-	"surprise": {
-		"light":  "语气略带惊讶",
-		"medium": "语气惊讶",
-		"strong": "非常震惊，脱口而出",
-	},
-	"disgust": {
-		"light":  "语气略带嫌弃",
-		"medium": "语气厌恶",
-		"strong": "极度厌恶，语带鄙夷",
-	},
-}
-
-// backfillInstructionFromEmotion 演绎指令为空的旧片段按原情绪兜底规则写入 instruction，删列后合成效果不变
-func (m *MigrateServer) backfillInstructionFromEmotion() error {
-	if !m.db.Migrator().HasColumn(&model.VsScriptSegment{}, "emotion_type") {
-		return nil
-	}
-	var total int64
-	for emotion, byStrength := range legacyEmotionInstructions {
-		for strength, inst := range byStrength {
-			cond := "emotion_strength = ?"
-			args := []interface{}{inst, emotion, strength}
-			// 旧逻辑：强度缺失或不认识时按 medium 处理
-			if strength == "medium" {
-				cond = "(emotion_strength = ? OR emotion_strength IS NULL OR emotion_strength NOT IN ('light', 'medium', 'strong'))"
-			}
-			res := m.db.Exec(
-				`UPDATE vs_script_segment SET instruction = ?
-				 WHERE emotion_type = ? AND `+cond+`
-				   AND (instruction IS NULL OR TRIM(instruction) = '')`,
-				args...,
-			)
-			if res.Error != nil {
-				return fmt.Errorf("回填 %s/%s 失败: %w", emotion, strength, res.Error)
-			}
-			total += res.RowsAffected
-		}
-	}
-	if total > 0 {
-		m.log.Info("已按情绪回填片段演绎指令", zap.Int64("count", total))
-	}
-	return nil
 }
 
 // dropLegacyEmotion 删除情绪参考音频表，以及片段/音频版本上的情绪类型、强度列。
