@@ -8,6 +8,8 @@ import (
 	v1 "iot-alert-center/api/v1"
 	"iot-alert-center/internal/model"
 	"iot-alert-center/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 type VsScriptSegmentService interface {
@@ -57,31 +59,31 @@ func (s *vsScriptSegmentService) Create(ctx context.Context, request *v1.VsScrip
 }
 
 func (s *vsScriptSegmentService) Update(ctx context.Context, request *v1.VsScriptSegmentUpdateRequest) error {
-	existing, err := s.repo.FindByID(ctx, request.ID)
-	if err != nil {
-		return fmt.Errorf("片段不存在")
+	fields := map[string]interface{}{
+		"updated_by": ctx.Value("login_name").(string),
 	}
-
 	if request.SegmentNum > 0 {
-		existing.SegmentNum = request.SegmentNum
+		fields["segment_num"] = request.SegmentNum
 	}
 	if request.SegmentType != "" {
-		existing.SegmentType = request.SegmentType
+		fields["segment_type"] = request.SegmentType
 	}
 	if request.Content != "" {
-		existing.Content = request.Content
-		existing.Version++
+		fields["content"] = request.Content
+		fields["version"] = gorm.Expr("version + 1")
 	}
-	existing.CharacterID = request.CharacterID
+	if request.CharacterID != nil {
+		fields["character_id"] = request.CharacterID
+	}
+	// 指针非 nil 即写入，空字符串用于清空演绎指令
 	if request.Instruction != nil {
-		existing.Instruction = strings.TrimSpace(*request.Instruction)
+		fields["instruction"] = strings.TrimSpace(*request.Instruction)
 	}
 	if request.Status != "" {
-		existing.Status = request.Status
+		fields["status"] = request.Status
 	}
-	existing.UpdatedBy = ctx.Value("login_name").(string)
 
-	return s.repo.Update(ctx, existing)
+	return s.repo.UpdateFields(ctx, request.ID, fields)
 }
 
 func (s *vsScriptSegmentService) Delete(ctx context.Context, id uint64) error {

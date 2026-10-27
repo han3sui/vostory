@@ -14,6 +14,7 @@ type VsScriptSegmentRepository interface {
 	Create(ctx context.Context, segment *model.VsScriptSegment) error
 	BatchCreate(ctx context.Context, segments []*model.VsScriptSegment) error
 	Update(ctx context.Context, segment *model.VsScriptSegment) error
+	UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error
 	Delete(ctx context.Context, id uint64) error
 	FindByID(ctx context.Context, id uint64) (*model.VsScriptSegment, error)
 	FindWithPagination(ctx context.Context, query *v1.VsScriptSegmentListQuery) ([]*model.VsScriptSegment, int64, error)
@@ -65,6 +66,12 @@ func (r *vsScriptSegmentRepository) Update(ctx context.Context, segment *model.V
 		Where("segment_id = ?", segment.SegmentID).
 		Omit("created_by", "created_at", "segment_id", "project_id", "scene_id", "chapter_id").
 		Updates(segment).Error
+}
+
+func (r *vsScriptSegmentRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error {
+	return r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Where("segment_id = ?", id).
+		Updates(fields).Error
 }
 
 func (r *vsScriptSegmentRepository) Delete(ctx context.Context, id uint64) error {
