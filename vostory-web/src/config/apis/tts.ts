@@ -38,6 +38,21 @@ export function batchGenerate(chapterId: number): Promise<BatchGenerateResult> {
     return request({ url: "/api/v1/tts/batch-generate", method: "post", data: { chapter_id: chapterId } });
 }
 
+export type BatchGenerateChaptersResult = {
+    chapter_count: number;
+    total_count: number;
+    skipped_count: number;
+    skipped_chapters: number;
+};
+
+export function batchGenerateChapters(projectId: number, chapterIds: number[]): Promise<BatchGenerateChaptersResult> {
+    return request({
+        url: "/api/v1/tts/batch-generate-chapters",
+        method: "post",
+        data: { project_id: projectId, chapter_ids: chapterIds }
+    });
+}
+
 export function getTaskProgress(taskId: number): Promise<TaskProgressResult> {
     return request({ url: `/api/v1/tts/task/${taskId}` });
 }

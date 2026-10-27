@@ -108,6 +108,36 @@ func (h *VsTTSSynthesizeHandler) BatchGenerate(ctx *gin.Context) {
 	v1.HandleSuccess(ctx, result)
 }
 
+// BatchGenerateChapters godoc
+// @Summary      多章节批量生成语音
+// @Description  为选中的多个章节生成所有可生成片段的语音，入队在后台进行；已有生成任务在运行的章节会被跳过
+// @Tags         TTS合成
+// @Accept       json
+// @Param        body  body  v1.BatchGenerateChaptersRequest  true  "多章节批量生成请求"
+// @Success      200  {object}  v1.Response
+// @Failure      400  {object}  v1.Response
+// @Failure      500  {object}  v1.Response
+// @Router       /api/v1/tts/batch-generate-chapters [post]
+// @Id        tts:batchGenerateChapters
+func (h *VsTTSSynthesizeHandler) BatchGenerateChapters(ctx *gin.Context) {
+	var req v1.BatchGenerateChaptersRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		v1.HandleError(ctx, http.StatusBadRequest, v1.NewError(400, "参数错误: "+err.Error()), nil)
+		return
+	}
+
+	result, err := h.svc.BatchGenerateChapters(ctx, req.ProjectID, req.ChapterIDs)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "CONFLICT:") {
+			v1.HandleError(ctx, http.StatusConflict, v1.NewError(409, strings.TrimPrefix(err.Error(), "CONFLICT:")), nil)
+			return
+		}
+		v1.HandleError(ctx, http.StatusInternalServerError, v1.NewError(500, err.Error()), nil)
+		return
+	}
+	v1.HandleSuccess(ctx, result)
+}
+
 // GetTaskProgress godoc
 // @Summary      查询任务进度
 // @Description  查询异步生成任务的当前进度

@@ -17,6 +17,20 @@ type BatchGenerateRequest struct {
 	ChapterID uint64 `json:"chapter_id" binding:"required"`
 }
 
+// BatchGenerateChaptersRequest 多章节批量生成请求
+type BatchGenerateChaptersRequest struct {
+	ProjectID  uint64   `json:"project_id" binding:"required"`
+	ChapterIDs []uint64 `json:"chapter_ids" binding:"required,min=1"`
+}
+
+// BatchGenerateChaptersResponse 多章节批量生成响应（立即返回，入队在后台进行）
+type BatchGenerateChaptersResponse struct {
+	ChapterCount    int `json:"chapter_count"`    // 实际提交的章节数
+	TotalCount      int `json:"total_count"`      // 提交的片段数
+	SkippedCount    int `json:"skipped_count"`    // 不可生成的片段数（已锁定、排队/合成中、无内容或未指定说话人）
+	SkippedChapters int `json:"skipped_chapters"` // 已有生成任务在运行而跳过的章节数
+}
+
 // BatchGenerateResponse 批量生成响应（立即返回）
 type BatchGenerateResponse struct {
 	TaskID       uint64 `json:"task_id"`

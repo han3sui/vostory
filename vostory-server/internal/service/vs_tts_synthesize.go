@@ -47,6 +47,7 @@ type VsTTSSynthesizeService interface {
 	GetSegmentAudio(ctx context.Context, segmentID uint64) (*v1.TTSSynthesizeResponse, error)
 	SingleGenerate(ctx context.Context, segmentID uint64) (*v1.BatchGenerateResponse, error)
 	BatchGenerate(ctx context.Context, chapterID uint64) (*v1.BatchGenerateResponse, error)
+	BatchGenerateChapters(ctx context.Context, projectID uint64, chapterIDs []uint64) (*v1.BatchGenerateChaptersResponse, error)
 	GetTaskProgress(ctx context.Context, taskID uint64) (*v1.TaskProgressResponse, error)
 	GetActiveTaskByChapter(ctx context.Context, chapterID uint64) (*v1.TaskProgressResponse, error)
 	GetActiveTasksByProject(ctx context.Context, projectID uint64) ([]*v1.ProjectTaskProgressResponse, error)
@@ -711,7 +712,7 @@ func (s *vsTTSSynthesizeService) regenerateByCharacterIDs(ctx context.Context, c
 	}
 
 	// gin 的 ctx 在请求结束后会被复用，后台只带走登录信息
-	go s.regenerateInBackground(refs, getLoginName(ctx), getDeptID(ctx))
+	go s.enqueueInBackground(refs, getLoginName(ctx), getDeptID(ctx))
 
 	return &v1.BatchGenerateResponse{
 		TotalCount:   len(refs),
@@ -719,12 +720,72 @@ func (s *vsTTSSynthesizeService) regenerateByCharacterIDs(ctx context.Context, c
 	}, nil
 }
 
-func (s *vsTTSSynthesizeService) regenerateInBackground(refs []repository.SegmentRef, loginName string, deptID uint) {
+// BatchGenerateChapters 多章节批量生成：同步只查可生成片段，建任务、入队放到后台。
+// 已有生成任务在运行的章节整章跳过，与单章「批量生成」的冲突规则一致
+func (s *vsTTSSynthesizeService) BatchGenerateChapters(ctx context.Context, projectID uint64, chapterIDs []uint64) (*v1.BatchGenerateChaptersResponse, error) {
+	activeTasks, err := s.taskRepo.FindActiveByProjectID(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("查询生成任务失败: %w", err)
+	}
+	busy := make(map[uint64]struct{})
+	for _, t := range activeTasks {
+		if t.TaskType == "tts_generate" && t.ChapterID != nil {
+			busy[*t.ChapterID] = struct{}{}
+		}
+	}
+	var targets []uint64
+	seen := make(map[uint64]struct{}, len(chapterIDs))
+	skippedChapters := 0
+	for _, id := range chapterIDs {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		if _, ok := busy[id]; ok {
+			skippedChapters++
+			continue
+		}
+		targets = append(targets, id)
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("CONFLICT:所选章节都已有正在运行的生成任务，请等待完成")
+	}
+
+	refs, err := s.segmentRepo.FindGeneratableByChapterIDs(ctx, projectID, targets)
+	if err != nil {
+		return nil, fmt.Errorf("查询片段失败: %w", err)
+	}
+	if len(refs) == 0 {
+		return nil, fmt.Errorf("所选章节没有可生成的片段（请确保片段已关联角色且未锁定）")
+	}
+	total, err := s.segmentRepo.CountByChapterIDs(ctx, projectID, targets)
+	if err != nil {
+		return nil, fmt.Errorf("查询片段失败: %w", err)
+	}
+
+	chapterCount := 0
+	for i, ref := range refs {
+		if i == 0 || ref.ChapterID != refs[i-1].ChapterID {
+			chapterCount++
+		}
+	}
+
+	go s.enqueueInBackground(refs, getLoginName(ctx), getDeptID(ctx))
+
+	return &v1.BatchGenerateChaptersResponse{
+		ChapterCount:    chapterCount,
+		TotalCount:      len(refs),
+		SkippedCount:    int(total) - len(refs),
+		SkippedChapters: skippedChapters,
+	}, nil
+}
+
+func (s *vsTTSSynthesizeService) enqueueInBackground(refs []repository.SegmentRef, loginName string, deptID uint) {
 	ctx := context.WithValue(context.Background(), "login_name", loginName)
 	ctx = context.WithValue(ctx, "dept_id", deptID)
 	defer func() {
 		if r := recover(); r != nil {
-			s.logger.Error(fmt.Sprintf("按角色重新生成入队时发生 panic: %v", r))
+			s.logger.Error(fmt.Sprintf("后台批量入队时发生 panic: %v", r))
 		}
 	}()
 
@@ -741,15 +802,15 @@ func (s *vsTTSSynthesizeService) regenerateInBackground(refs []repository.Segmen
 	}
 
 	for _, chapterID := range chapterOrder {
-		if err := s.regenerateChapterSegments(ctx, chapterProject[chapterID], chapterID, chapterSegs[chapterID]); err != nil {
-			s.logger.Warn(fmt.Sprintf("章节 %d 重新生成入队失败: %v", chapterID, err))
+		if err := s.enqueueChapterSegments(ctx, chapterProject[chapterID], chapterID, chapterSegs[chapterID]); err != nil {
+			s.logger.Warn(fmt.Sprintf("章节 %d 入队失败: %v", chapterID, err))
 		}
 	}
 }
 
-// regenerateChapterSegments 认领片段和建任务放在同一个事务里：已被别的请求认领的片段不会再认领，
+// enqueueChapterSegments 认领片段和建任务放在同一个事务里：已被别的请求认领的片段不会再认领，
 // 也就不会重复入队；服务若在入队前重启，worker 能按任务把已认领的片段恢复出来
-func (s *vsTTSSynthesizeService) regenerateChapterSegments(ctx context.Context, projectID, chapterID uint64, segmentIDs []uint64) error {
+func (s *vsTTSSynthesizeService) enqueueChapterSegments(ctx context.Context, projectID, chapterID uint64, segmentIDs []uint64) error {
 	var task *model.VsGenerationTask
 	err := s.tm.Transaction(ctx, func(ctx context.Context) error {
 		claimed, err := s.segmentRepo.ClaimForGenerate(ctx, segmentIDs)

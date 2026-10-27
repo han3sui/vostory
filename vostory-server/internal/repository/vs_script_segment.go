@@ -32,6 +32,8 @@ type VsScriptSegmentRepository interface {
 	FindByCharacterIDs(ctx context.Context, characterIDs []uint64) ([]*model.VsScriptSegment, error)
 	CountByCharacterIDs(ctx context.Context, characterIDs []uint64) (int64, error)
 	FindRegenerableByCharacterIDs(ctx context.Context, characterIDs []uint64) ([]SegmentRef, error)
+	CountByChapterIDs(ctx context.Context, projectID uint64, chapterIDs []uint64) (int64, error)
+	FindGeneratableByChapterIDs(ctx context.Context, projectID uint64, chapterIDs []uint64) ([]SegmentRef, error)
 	ClaimForGenerate(ctx context.Context, ids []uint64) ([]uint64, error)
 }
 
@@ -255,6 +257,35 @@ func (r *vsScriptSegmentRepository) FindRegenerableByCharacterIDs(ctx context.Co
 	if err := r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
 		Select("segment_id", "project_id", "chapter_id").
 		Where("character_id IN ? AND status NOT IN ? AND content <> ''", characterIDs, nonRegenerableStatuses).
+		Order("chapter_id ASC, segment_num ASC").
+		Scan(&refs).Error; err != nil {
+		return nil, err
+	}
+	return refs, nil
+}
+
+func (r *vsScriptSegmentRepository) CountByChapterIDs(ctx context.Context, projectID uint64, chapterIDs []uint64) (int64, error) {
+	if len(chapterIDs) == 0 {
+		return 0, nil
+	}
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Where("project_id = ? AND chapter_id IN ?", projectID, chapterIDs).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// FindGeneratableByChapterIDs 条件与脚本编辑页「批量生成」一致：有内容、已指定说话人、不在排队/合成中且未锁定
+func (r *vsScriptSegmentRepository) FindGeneratableByChapterIDs(ctx context.Context, projectID uint64, chapterIDs []uint64) ([]SegmentRef, error) {
+	if len(chapterIDs) == 0 {
+		return nil, nil
+	}
+	var refs []SegmentRef
+	if err := r.db.WithContext(ctx).Model(&model.VsScriptSegment{}).
+		Select("segment_id", "project_id", "chapter_id").
+		Where("project_id = ? AND chapter_id IN ? AND character_id IS NOT NULL AND status NOT IN ? AND TRIM(content) <> ''",
+			projectID, chapterIDs, nonRegenerableStatuses).
 		Order("chapter_id ASC, segment_num ASC").
 		Scan(&refs).Error; err != nil {
 		return nil, err

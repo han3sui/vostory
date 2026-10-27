@@ -5,7 +5,7 @@
             <div class="chapter-batch-bar">
                 <div class="chapter-batch-top">
                     <a-checkbox
-                        v-if="chapters.length > 0 && hasPermission('chapter:split')"
+                        v-if="chapters.length > 0 && canBatchChapters"
                         :model-value="checkedChapterIds.size === chapters.length && chapters.length > 0"
                         :indeterminate="checkedChapterIds.size > 0 && checkedChapterIds.size < chapters.length"
                         @change="toggleAllChapters"
@@ -32,16 +32,34 @@
                     </a-space>
                 </div>
                 <transition name="batch-slide">
-                    <div
-                        v-if="checkedChapterIds.size > 0 && hasPermission('chapter:split')"
-                        class="chapter-batch-actions"
-                    >
-                        <span class="batch-hint">已选 {{ checkedChapterIds.size }} 章</span>
-                        <span class="batch-spacer" />
-                        <a-button size="mini" type="text" @click="clearCheckedChapters">清空</a-button>
-                        <a-button type="primary" size="mini" :loading="batchSplitting" @click="handleBatchSplit">
-                            批量切割
-                        </a-button>
+                    <div v-if="checkedChapterIds.size > 0 && canBatchChapters" class="chapter-batch-actions">
+                        <div class="batch-info">
+                            <span class="batch-hint">已选 {{ checkedChapterIds.size }} 章</span>
+                            <span class="batch-spacer" />
+                            <a-button size="mini" type="text" @click="clearCheckedChapters">清空</a-button>
+                        </div>
+                        <div class="batch-buttons">
+                            <a-button
+                                v-if="hasPermission('tts:synthesize')"
+                                class="batch-btn"
+                                type="outline"
+                                size="small"
+                                :loading="batchGeneratingChapters"
+                                @click="handleBatchGenerateChapters"
+                            >
+                                生成配音
+                            </a-button>
+                            <a-button
+                                v-if="hasPermission('chapter:split')"
+                                class="batch-btn"
+                                type="primary"
+                                size="small"
+                                :loading="batchSplitting"
+                                @click="handleBatchSplit"
+                            >
+                                批量切割
+                            </a-button>
+                        </div>
                     </div>
                 </transition>
             </div>
@@ -54,7 +72,7 @@
                     @click="selectChapter(ch)"
                 >
                     <a-checkbox
-                        v-if="hasPermission('chapter:split')"
+                        v-if="canBatchChapters"
                         :model-value="checkedChapterIds.has(ch.id)"
                         class="chapter-checkbox"
                         @change="
@@ -346,6 +364,7 @@ import {
 import {
     synthesizeSegment,
     batchGenerate,
+    batchGenerateChapters,
     getTTSStreamURL,
     TTSSegmentEvent,
     lockSegment,
@@ -373,6 +392,8 @@ const characterOptions = ref<CharacterOptionType[]>([]);
 const aligning = ref(false);
 const splitting = ref(false);
 const batchSplitting = ref(false);
+const batchGeneratingChapters = ref(false);
+const canBatchChapters = computed(() => hasPermission("chapter:split") || hasPermission("tts:synthesize"));
 const refreshingChapters = ref(false);
 const checkedChapterIds = ref<Set<number>>(new Set());
 const splittingChapterIds = ref<Set<number>>(new Set());
@@ -713,6 +734,39 @@ async function handleBatchSplit() {
                 Message.error(msg);
             } finally {
                 batchSplitting.value = false;
+            }
+        }
+    });
+}
+
+function handleBatchGenerateChapters() {
+    if (checkedChapterIds.value.size === 0) return;
+    const checkedArr = [...checkedChapterIds.value];
+
+    Modal.confirm({
+        title: "批量生成配音",
+        content: `将为 ${checkedArr.length} 个章节中所有可生成的片段生成配音（已锁定的片段不会被覆盖，已有生成任务的章节会跳过）。是否继续？`,
+        okText: "确认生成",
+        cancelText: "取消",
+        onOk: async () => {
+            batchGeneratingChapters.value = true;
+            try {
+                const res = await batchGenerateChapters(props.projectId, checkedArr);
+                // 入队在后台进行，当前章节先标为排队中，后续状态由 TTS 事件推送更新
+                if (selectedChapterId.value && checkedArr.includes(selectedChapterId.value)) {
+                    segments.value.forEach((seg) => {
+                        if (canGenerate(seg)) seg.status = "queued";
+                    });
+                }
+                checkedChapterIds.value = new Set();
+                const parts = [`已提交 ${res.chapter_count} 个章节、${res.total_count} 个片段`];
+                if (res.skipped_chapters > 0) parts.push(`跳过 ${res.skipped_chapters} 个生成中的章节`);
+                Message.success(parts.join("，"));
+            } catch (e: any) {
+                const msg = e?.response?.data?.message || e?.message || "批量生成提交失败";
+                Message.error(msg);
+            } finally {
+                batchGeneratingChapters.value = false;
             }
         }
     });
@@ -1204,11 +1258,26 @@ function statusLabel(status: string) {
 
 .chapter-batch-actions {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 12px 8px;
     background-color: rgb(var(--primary-1));
     border-top: 1px solid var(--color-border-2);
+}
+
+.batch-info {
+    display: flex;
+    align-items: center;
+}
+
+.batch-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.batch-btn {
+    flex: 1;
+    min-width: 0;
 }
 
 .batch-hint {
@@ -1238,7 +1307,7 @@ function statusLabel(status: string) {
 
 .batch-slide-enter-to,
 .batch-slide-leave-from {
-    max-height: 40px;
+    max-height: 80px;
     opacity: 1;
 }
 

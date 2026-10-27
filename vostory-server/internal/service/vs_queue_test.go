@@ -445,7 +445,7 @@ func TestRegenerateByCharacterEnqueuesOnceInBackground(t *testing.T) {
 	}
 
 	// 用同一批旧数据重复认领（模拟用户连点、上一次请求查询后片段已被认领）：不应再入队
-	svc.regenerateInBackground([]repository.SegmentRef{
+	svc.enqueueInBackground([]repository.SegmentRef{
 		{SegmentID: a, ProjectID: 1, ChapterID: 1},
 		{SegmentID: b, ProjectID: 1, ChapterID: 1},
 		{SegmentID: c, ProjectID: 1, ChapterID: 2},
@@ -457,5 +457,63 @@ func TestRegenerateByCharacterEnqueuesOnceInBackground(t *testing.T) {
 	db.Model(&model.VsGenerationTask{}).Count(&taskCount)
 	if taskCount != 2 {
 		t.Fatalf("tasks=%d after duplicate submit, want 2", taskCount)
+	}
+}
+
+func TestBatchGenerateChaptersSkipsBusyChapters(t *testing.T) {
+	db, rdb, repo := newQueueTestEnv(t)
+	svc := &vsTTSSynthesizeService{
+		Service:     &Service{logger: nopLogger(), tm: repository.NewTransaction(repo)},
+		segmentRepo: repository.NewVsScriptSegmentRepository(repo),
+		taskRepo:    repository.NewVsGenerationTaskRepository(repo),
+		rdb:         rdb,
+	}
+	ctx := context.Background()
+	charID := uint64(1)
+	mk := func(projectID, chapterID uint64, charID *uint64, status, content string) uint64 {
+		seg := &model.VsScriptSegment{ProjectID: projectID, SceneID: 1, ChapterID: chapterID, SegmentType: "dialogue", Content: content, CharacterID: charID, Status: status}
+		if err := db.Create(seg).Error; err != nil {
+			t.Fatal(err)
+		}
+		return seg.SegmentID
+	}
+	a := mk(1, 10, &charID, "raw", "x")
+	b := mk(1, 10, &charID, "generated", "x")
+	mk(1, 10, nil, "raw", "x")      // 未指定说话人
+	mk(1, 10, &charID, "raw", "  ") // 只有空白
+	mk(1, 10, &charID, "locked", "x")
+	c := mk(1, 11, &charID, "failed", "x")
+	mk(1, 12, &charID, "raw", "x") // 章节 12 已有任务在跑
+	mk(2, 13, &charID, "raw", "x") // 其他项目的章节
+
+	busyChapter := uint64(12)
+	db.Create(&model.VsGenerationTask{ProjectID: 1, ChapterID: &busyChapter, TaskType: "tts_generate", Status: "running", TotalBatches: 1})
+
+	res, err := svc.BatchGenerateChapters(ctx, 1, []uint64{10, 11, 12, 13, 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ChapterCount != 2 || res.TotalCount != 3 || res.SkippedCount != 3 || res.SkippedChapters != 1 {
+		t.Fatalf("res=%+v, want 2 chapters / 3 segments / 3 skipped / 1 busy chapter", res)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if n, _ := rdb.LLen(ctx, ttsQueueKey).Result(); n == 3 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("background enqueue did not finish")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	var tasks []model.VsGenerationTask
+	db.Where("chapter_id IN ?", []uint64{10, 11}).Order("task_id").Find(&tasks)
+	if len(tasks) != 2 || fmt.Sprint(tasks[0].SegmentIDs) != fmt.Sprint([]uint64{a, b}) || fmt.Sprint(tasks[1].SegmentIDs) != fmt.Sprint([]uint64{c}) {
+		t.Fatalf("tasks=%+v", tasks)
+	}
+
+	if _, err := svc.BatchGenerateChapters(ctx, 1, []uint64{12}); err == nil || !strings.HasPrefix(err.Error(), "CONFLICT:") {
+		t.Fatalf("err=%v, want conflict when every chapter is busy", err)
 	}
 }
