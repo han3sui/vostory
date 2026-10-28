@@ -36,10 +36,14 @@ type VsChapterListResponse struct {
 	Title        string    `json:"title"`
 	ChapterNum   int       `json:"chapter_num"`
 	WordCount    int       `json:"word_count"`
-	SegmentCount int       `json:"segment_count"`
-	Status       string    `json:"status"`
-	SplitStatus  string    `json:"split_status"` // 切割状态（空/queued/running/done/failed/cancelled）
-	Remark       string    `json:"remark"`
+	SegmentCount    int       `json:"segment_count"`
+	AudioCount      int       `json:"audio_count"`      // 已有当前音频的片段数
+	FailedCount     int       `json:"failed_count"`     // 配音失败的片段数
+	QueuedCount     int       `json:"queued_count"`     // 排队中的片段数
+	ProcessingCount int       `json:"processing_count"` // 正在生成的片段数
+	Status          string    `json:"status"`
+	SplitStatus     string    `json:"split_status"` // 切割状态（空/queued/running/done/failed/cancelled）
+	Remark          string    `json:"remark"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

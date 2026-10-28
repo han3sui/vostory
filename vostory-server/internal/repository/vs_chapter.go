@@ -90,12 +90,32 @@ func (r *vsChapterRepository) FindWithPagination(ctx context.Context, query *v1.
 }
 
 func (r *vsChapterRepository) FindByProjectID(ctx context.Context, projectID uint64) ([]*model.VsChapter, error) {
+	// 一次聚合出切割/配音进度，避免按章节多次子查询
+	stats := r.db.WithContext(ctx).
+		Table("vs_script_segment AS s").
+		Select(`s.chapter_id,
+			COUNT(*) AS segment_count,
+			COUNT(c.clip_id) AS audio_count,
+			COUNT(*) FILTER (WHERE s.status = 'failed') AS failed_count,
+			COUNT(*) FILTER (WHERE s.status = 'queued') AS queued_count,
+			COUNT(*) FILTER (WHERE s.status = 'processing') AS processing_count`).
+		Joins("LEFT JOIN vs_audio_clip c ON c.segment_id = s.segment_id AND c.deleted_at IS NULL AND c.is_current = '1'").
+		Where("s.deleted_at IS NULL AND s.project_id = ?", projectID).
+		Group("s.chapter_id")
+
 	var chapters []*model.VsChapter
 	if err := r.db.WithContext(ctx).
-		Select("vs_chapter.chapter_id, vs_chapter.project_id, vs_chapter.title, vs_chapter.chapter_num, vs_chapter.word_count, vs_chapter.status, vs_chapter.split_status, vs_chapter.remark, vs_chapter.created_by, vs_chapter.created_at, vs_chapter.updated_by, vs_chapter.updated_at, vs_chapter.dept_id, "+
-			"(SELECT COUNT(*) FROM vs_script_segment WHERE vs_script_segment.chapter_id = vs_chapter.chapter_id AND vs_script_segment.deleted_at IS NULL) AS segment_count").
-		Where("vs_chapter.project_id = ?", projectID).
-		Order("vs_chapter.chapter_num ASC").Find(&chapters).Error; err != nil {
+		Table("vs_chapter").
+		Select(`vs_chapter.chapter_id, vs_chapter.project_id, vs_chapter.title, vs_chapter.chapter_num, vs_chapter.word_count, vs_chapter.status, vs_chapter.split_status, vs_chapter.remark, vs_chapter.created_by, vs_chapter.created_at, vs_chapter.updated_by, vs_chapter.updated_at, vs_chapter.dept_id,
+			COALESCE(stats.segment_count, 0) AS segment_count,
+			COALESCE(stats.audio_count, 0) AS audio_count,
+			COALESCE(stats.failed_count, 0) AS failed_count,
+			COALESCE(stats.queued_count, 0) AS queued_count,
+			COALESCE(stats.processing_count, 0) AS processing_count`).
+		Joins("LEFT JOIN (?) AS stats ON stats.chapter_id = vs_chapter.chapter_id", stats).
+		Where("vs_chapter.project_id = ? AND vs_chapter.deleted_at IS NULL", projectID).
+		Order("vs_chapter.chapter_num ASC").
+		Find(&chapters).Error; err != nil {
 		return nil, err
 	}
 	return chapters, nil

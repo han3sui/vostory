@@ -8,6 +8,11 @@ export type ChapterDetailType = {
     content: string;
     word_count: number;
     segment_count: number;
+    audio_count: number;
+    failed_count: number;
+    queued_count: number;
+    processing_count: number;
+    split_status?: string;
     status: string;
     remark: string;
     created_at: string;

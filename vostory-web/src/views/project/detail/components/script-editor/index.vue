@@ -4,32 +4,69 @@
         <div class="chapter-sidebar">
             <div class="chapter-batch-bar">
                 <div class="chapter-batch-top">
-                    <a-checkbox
-                        v-if="chapters.length > 0 && canBatchChapters"
-                        :model-value="checkedChapterIds.size === chapters.length && chapters.length > 0"
-                        :indeterminate="checkedChapterIds.size > 0 && checkedChapterIds.size < chapters.length"
-                        @change="toggleAllChapters"
-                    >
-                        全选
-                    </a-checkbox>
-                    <a-space v-if="chapters.length > 0" size="mini">
-                        <a-tooltip v-if="hasPermission('chapter:split')" content="选中所有未切割的章节">
+                    <div class="chapter-batch-row">
+                        <a-checkbox
+                            v-if="chapters.length > 0 && canBatchChapters"
+                            :model-value="checkedChapterIds.size === chapters.length && chapters.length > 0"
+                            :indeterminate="checkedChapterIds.size > 0 && checkedChapterIds.size < chapters.length"
+                            @change="toggleAllChapters"
+                        >
+                            全选
+                        </a-checkbox>
+                        <span v-else />
+                        <a-tooltip v-if="chapters.length > 0" content="刷新章节列表">
                             <a-button
+                                class="icon-btn"
                                 size="mini"
-                                type="outline"
-                                :disabled="unsplitChapterIds.length === 0"
-                                @click="selectUnsplitChapters"
+                                type="text"
+                                :loading="refreshingChapters"
+                                @click="handleRefreshChapters"
                             >
-                                <template #icon><icon-filter /></template>
-                                {{ unsplitChapterIds.length }}
-                            </a-button>
-                        </a-tooltip>
-                        <a-tooltip content="刷新章节列表">
-                            <a-button size="mini" :loading="refreshingChapters" @click="handleRefreshChapters">
                                 <template #icon><icon-refresh /></template>
                             </a-button>
                         </a-tooltip>
-                    </a-space>
+                    </div>
+                    <div v-if="chapters.length > 0 && canBatchChapters" class="chapter-filter-row">
+                        <div v-if="hasPermission('chapter:split')" class="filter-chip-wrap">
+                            <a-tooltip content="选中所有未切割的章节">
+                                <button
+                                    type="button"
+                                    class="filter-chip"
+                                    :disabled="unsplitChapterIds.length === 0"
+                                    @click="selectUnsplitChapters"
+                                >
+                                    <icon-filter />
+                                    <span>{{ unsplitChapterIds.length }}</span>
+                                </button>
+                            </a-tooltip>
+                        </div>
+                        <div v-if="hasPermission('tts:synthesize')" class="filter-chip-wrap">
+                            <a-tooltip content="选中所有未配音的章节">
+                                <button
+                                    type="button"
+                                    class="filter-chip"
+                                    :disabled="undubbedChapterIds.length === 0"
+                                    @click="selectUndubbedChapters"
+                                >
+                                    <icon-sound />
+                                    <span>{{ undubbedChapterIds.length }}</span>
+                                </button>
+                            </a-tooltip>
+                        </div>
+                        <div v-if="hasPermission('tts:synthesize')" class="filter-chip-wrap">
+                            <a-tooltip content="选中所有配音有问题的章节">
+                                <button
+                                    type="button"
+                                    class="filter-chip is-danger"
+                                    :disabled="problemChapterIds.length === 0"
+                                    @click="selectProblemChapters"
+                                >
+                                    <icon-exclamation-circle />
+                                    <span>{{ problemChapterIds.length }}</span>
+                                </button>
+                            </a-tooltip>
+                        </div>
+                    </div>
                 </div>
                 <transition name="batch-slide">
                     <div v-if="checkedChapterIds.size > 0 && canBatchChapters" class="chapter-batch-actions">
@@ -87,6 +124,13 @@
                             <a-tag v-if="splittingChapterIds.has(ch.id)" size="small" color="orange">切割中</a-tag>
                             <a-tag v-else-if="ch.segment_count > 0" size="small" color="green">已切割</a-tag>
                             <a-tag v-else size="small" color="gray">未切割</a-tag>
+                            <a-tag
+                                v-if="chapterAudioStatus.get(ch.id)"
+                                size="small"
+                                :color="chapterAudioStatus.get(ch.id)!.color"
+                            >
+                                {{ chapterAudioStatus.get(ch.id)!.label }}
+                            </a-tag>
                         </div>
                     </div>
                 </div>
@@ -344,8 +388,11 @@ import {
     IconFilter,
     IconDownload,
     IconPlus,
-    IconDelete
+    IconDelete,
+    IconRefresh,
+    IconExclamationCircle
 } from "@arco-design/web-vue/es/icon";
+import { ChapterDetailType } from "@/config/apis/chapter";
 import {
     getSegmentsByChapter,
     updateScriptSegment,
@@ -385,8 +432,8 @@ const onTTSEvent = inject<(handler: (evt: TTSSegmentEvent) => void) => () => voi
 
 const segmentScrollRef = ref<HTMLElement>();
 const selectedChapterId = ref<number>();
-const currentChapter = ref<any>(null);
-const chapters = ref<any[]>([]);
+const currentChapter = ref<ChapterDetailType | null>(null);
+const chapters = ref<ChapterDetailType[]>([]);
 const segments = ref<ScriptSegmentDetailType[]>([]);
 const characterOptions = ref<CharacterOptionType[]>([]);
 const aligning = ref(false);
@@ -451,9 +498,64 @@ const segmentStats = computed(() => {
 
 const unsplitChapterIds = computed<number[]>(() =>
     chapters.value
-        .filter((ch: any) => Number(ch?.segment_count || 0) <= 0 && !splittingChapterIds.value.has(ch.id))
-        .map((ch: any) => ch.id)
+        .filter((ch) => Number(ch.segment_count || 0) <= 0 && !splittingChapterIds.value.has(ch.id))
+        .map((ch) => ch.id)
 );
+
+// 已切割、还没出齐音频，且当前不在排队/生成中、也没有失败
+const undubbedChapterIds = computed<number[]>(() =>
+    chapters.value.filter((ch) => audioSelectKind(ch) === "undubbed").map((ch) => ch.id)
+);
+
+// 已切割且存在配音失败的片段
+const problemChapterIds = computed<number[]>(() =>
+    chapters.value.filter((ch) => audioSelectKind(ch) === "problem").map((ch) => ch.id)
+);
+
+function chapterNum(ch: ChapterDetailType, key: keyof ChapterDetailType): number {
+    return Number(ch[key] || 0);
+}
+
+function isChapterSplit(ch: ChapterDetailType): boolean {
+    return chapterNum(ch, "segment_count") > 0 && !splittingChapterIds.value.has(ch.id);
+}
+
+function hasAudioStats(ch: ChapterDetailType): boolean {
+    return typeof ch.audio_count === "number";
+}
+
+// 配音标签：生成中 > 队列中 > 配音有问题 > 已配音 > 未配音
+function audioStatusMeta(ch: ChapterDetailType): { label: string; color: string } | null {
+    if (!isChapterSplit(ch) || !hasAudioStats(ch)) return null;
+    if (chapterNum(ch, "processing_count") > 0) return { label: "生成中", color: "orangered" };
+    if (chapterNum(ch, "queued_count") > 0) return { label: "队列中", color: "cyan" };
+    if (chapterNum(ch, "failed_count") > 0) return { label: "配音有问题", color: "red" };
+    if (chapterNum(ch, "audio_count") >= chapterNum(ch, "segment_count")) return { label: "已配音", color: "arcoblue" };
+    return { label: "未配音", color: "gray" };
+}
+
+function audioSelectKind(ch: ChapterDetailType): "undubbed" | "problem" | "" {
+    if (!isChapterSplit(ch) || !hasAudioStats(ch)) return "";
+    if (chapterNum(ch, "processing_count") > 0 || chapterNum(ch, "queued_count") > 0) return "";
+    if (chapterNum(ch, "failed_count") > 0) return "problem";
+    if (chapterNum(ch, "audio_count") < chapterNum(ch, "segment_count")) return "undubbed";
+    return "";
+}
+
+const chapterAudioStatus = computed(() => {
+    const map = new Map<number, { label: string; color: string }>();
+    for (const ch of chapters.value) {
+        const meta = audioStatusMeta(ch);
+        if (meta) map.set(ch.id, meta);
+    }
+    return map;
+});
+
+function bumpChapterCount(chapterId: number, key: "audio_count" | "failed_count" | "queued_count" | "processing_count", delta: number) {
+    const ch = chapters.value.find((c) => c.id === chapterId);
+    if (!ch) return;
+    ch[key] = Math.max(0, chapterNum(ch, key) + delta);
+}
 
 function canGenerate(seg: ScriptSegmentDetailType): boolean {
     return !disableReason(seg);
@@ -487,8 +589,8 @@ async function loadChapters() {
 // 以章节自身的切割状态为准：并发切割时完成顺序与任务里的章节顺序不一致，按已处理数量推算会标错章节
 async function syncSplittingChapterIds() {
     const ids = new Set<number>();
-    for (const ch of chapters.value as any[]) {
-        if (ch?.split_status === "queued" || ch?.split_status === "running") ids.add(ch.id);
+    for (const ch of chapters.value) {
+        if (ch.split_status === "queued" || ch.split_status === "running") ids.add(ch.id);
     }
     splittingChapterIds.value = ids;
 }
@@ -503,7 +605,7 @@ async function handleRefreshChapters() {
         });
         chapters.value = res || [];
         characterOptions.value = await getCharactersByProject(props.projectId);
-        if (prevSelectedId && chapters.value.some((ch: any) => ch.id === prevSelectedId)) {
+        if (prevSelectedId && chapters.value.some((ch) => ch.id === prevSelectedId)) {
             setSegments(await getSegmentsByChapter(prevSelectedId));
         }
         await syncSplittingChapterIds();
@@ -515,7 +617,7 @@ async function handleRefreshChapters() {
 onMounted(loadChapters);
 watch(() => props.projectId, loadChapters);
 
-async function selectChapter(ch: any) {
+async function selectChapter(ch: ChapterDetailType) {
     selectedChapterId.value = ch.id;
     currentChapter.value = ch;
     setSegments(await getSegmentsByChapter(ch.id));
@@ -687,7 +789,7 @@ async function handleSplit() {
 
 function toggleAllChapters(checked: boolean | (string | boolean | number)[]) {
     if (checked) {
-        checkedChapterIds.value = new Set(chapters.value.map((ch: any) => ch.id));
+        checkedChapterIds.value = new Set(chapters.value.map((ch) => ch.id));
     } else {
         checkedChapterIds.value = new Set();
     }
@@ -695,6 +797,14 @@ function toggleAllChapters(checked: boolean | (string | boolean | number)[]) {
 
 function selectUnsplitChapters() {
     checkedChapterIds.value = new Set(unsplitChapterIds.value);
+}
+
+function selectUndubbedChapters() {
+    checkedChapterIds.value = new Set(undubbedChapterIds.value);
+}
+
+function selectProblemChapters() {
+    checkedChapterIds.value = new Set(problemChapterIds.value);
 }
 
 function clearCheckedChapters() {
@@ -753,6 +863,13 @@ function handleBatchGenerateChapters() {
             try {
                 const res = await batchGenerateChapters(props.projectId, checkedArr);
                 // 入队在后台进行，当前章节先标为排队中，后续状态由 TTS 事件推送更新
+                checkedArr.forEach((id) => {
+                    const ch = chapters.value.find((c) => c.id === id);
+                    if (!ch) return;
+                    const pending = Math.max(0, chapterNum(ch, "segment_count") - chapterNum(ch, "audio_count"));
+                    ch.queued_count = pending;
+                    ch.failed_count = 0;
+                });
                 if (selectedChapterId.value && checkedArr.includes(selectedChapterId.value)) {
                     segments.value.forEach((seg) => {
                         if (canGenerate(seg)) seg.status = "queued";
@@ -788,9 +905,13 @@ function handleChapterSplitEvent(evt: any) {
         Message.success(
             `章节「${evt.chapter_title || evt.chapter_id}」切割完成：${evt.scene_count} 场景，${evt.segment_count} 片段`
         );
-        const ch = chapters.value.find((c: any) => c.id === evt.chapter_id);
+        const ch = chapters.value.find((c) => c.id === evt.chapter_id);
         if (ch) {
             ch.segment_count = evt.segment_count || 1;
+            ch.audio_count = 0;
+            ch.failed_count = 0;
+            ch.queued_count = 0;
+            ch.processing_count = 0;
         }
     } else {
         Message.warning(`章节「${evt.chapter_title || evt.chapter_id}」切割失败：${evt.error_message || "未知错误"}`);
@@ -831,13 +952,55 @@ async function handleGenerate(seg: ScriptSegmentDetailType) {
     }
 }
 
+function releaseInFlight(chapterId: number) {
+    const ch = chapters.value.find((c) => c.id === chapterId);
+    if (!ch) return;
+    if (chapterNum(ch, "processing_count") > 0) {
+        bumpChapterCount(chapterId, "processing_count", -1);
+        return;
+    }
+    bumpChapterCount(chapterId, "queued_count", -1);
+}
+
+function applyChapterAudioEvent(evt: TTSSegmentEvent) {
+    const prev = evt.chapter_id === selectedChapterId.value ? segmentById.value.get(evt.segment_id)?.status : "";
+    if (evt.status === "queued" && prev !== "queued") {
+        bumpChapterCount(evt.chapter_id, "queued_count", 1);
+        return;
+    }
+    if (evt.status === "processing" && prev !== "processing") {
+        bumpChapterCount(evt.chapter_id, "queued_count", -1);
+        bumpChapterCount(evt.chapter_id, "processing_count", 1);
+        return;
+    }
+    if (evt.status === "generated" && evt.clip_id) {
+        releaseInFlight(evt.chapter_id);
+        const hadAudio = !!segmentById.value.get(evt.segment_id)?.has_audio;
+        if (!hadAudio) bumpChapterCount(evt.chapter_id, "audio_count", 1);
+        return;
+    }
+    if (evt.status === "failed") {
+        releaseInFlight(evt.chapter_id);
+        if (prev !== "failed") bumpChapterCount(evt.chapter_id, "failed_count", 1);
+        return;
+    }
+    if (evt.status === "cancelled") {
+        releaseInFlight(evt.chapter_id);
+    }
+}
+
 function handleSegmentEvent(evt: TTSSegmentEvent) {
     // 项目级「全部取消」由详情页广播，当前章节的排队/合成中片段同步标为已取消
     if (evt.type === "queue_cancelled") {
         markQueueCancelled();
         return;
     }
-    if (evt.chapter_id !== selectedChapterId.value) return;
+
+    applyChapterAudioEvent(evt);
+
+    if (evt.chapter_id !== selectedChapterId.value) {
+        return;
+    }
 
     const seg = segmentById.value.get(evt.segment_id);
     if (seg) {
@@ -889,12 +1052,22 @@ async function handleBatchGenerate() {
         cancelText: "取消",
         onOk: async () => {
             todo.forEach((seg) => (seg.status = "queued"));
+            if (currentChapter.value) {
+                currentChapter.value.queued_count = chapterNum(currentChapter.value, "queued_count") + todo.length;
+                currentChapter.value.failed_count = 0;
+            }
             try {
                 await batchGenerate(selectedChapterId.value!);
             } catch (e: any) {
                 todo.forEach((seg) => {
                     if (seg.status === "queued") seg.status = "failed";
                 });
+                if (currentChapter.value) {
+                    currentChapter.value.queued_count = Math.max(
+                        0,
+                        chapterNum(currentChapter.value, "queued_count") - todo.length
+                    );
+                }
                 const msg = e?.response?.data?.message || e?.message || "";
                 if (msg.includes("已有正在运行的生成任务")) {
                     Message.warning("该章节已有正在运行的批量生成任务，请等待完成");
@@ -935,16 +1108,23 @@ async function handleBatchUnlock() {
 }
 
 // 与后端取消逻辑一致：排队中和合成中的片段都标为已取消，正在合成的那条完成后会由推送事件更新为最终状态
-function markQueueCancelled() {
-    segments.value.forEach((s) => {
-        if (s.status === "queued" || s.status === "processing") s.status = "cancelled";
+function markQueueCancelled(chapterId?: number) {
+    if (!chapterId || chapterId === selectedChapterId.value) {
+        segments.value.forEach((s) => {
+            if (s.status === "queued" || s.status === "processing") s.status = "cancelled";
+        });
+    }
+    const targets = chapterId ? chapters.value.filter((ch) => ch.id === chapterId) : chapters.value;
+    targets.forEach((ch) => {
+        ch.queued_count = 0;
+        ch.processing_count = 0;
     });
 }
 
 async function handleCancelQueue() {
     if (!selectedChapterId.value) return;
     const res = await cancelChapterQueue(selectedChapterId.value);
-    markQueueCancelled();
+    markQueueCancelled(selectedChapterId.value);
     Message.success(`已取消 ${res.cancelled_count} 个排队片段`);
 }
 
@@ -1250,11 +1430,76 @@ function statusLabel(status: string) {
 
 .chapter-batch-top {
     display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+}
+
+.chapter-batch-row {
+    display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
     min-height: 24px;
 }
+
+.icon-btn {
+    padding: 0 4px;
+}
+
+.chapter-filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.filter-chip-wrap {
+    min-width: 0;
+
+    :deep(.arco-trigger),
+    :deep(.arco-tooltip) {
+        display: block;
+        width: 100%;
+    }
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--color-border-2);
+    border-radius: 4px;
+    background: var(--color-fill-1);
+    color: var(--color-text-2);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        color: rgb(var(--primary-6));
+        border-color: rgb(var(--primary-3));
+        background: rgb(var(--primary-1));
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    &.is-danger {
+        color: rgb(var(--danger-6));
+
+        &:hover:not(:disabled) {
+            color: rgb(var(--danger-6));
+            border-color: rgb(var(--danger-3));
+            background: rgb(var(--danger-1));
+        }
+    }
+}
+
 
 .chapter-batch-actions {
     display: flex;
@@ -1354,10 +1599,16 @@ function statusLabel(status: string) {
 .chapter-meta {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 4px;
     font-size: 12px;
     color: var(--color-text-3);
     margin-top: 2px;
+
+    :deep(.arco-tag) {
+        padding: 0 4px;
+        margin: 0;
+    }
 }
 
 .segment-main {

@@ -14,7 +14,11 @@ type VsChapter struct {
 	// SplitStatus 按章节记录切割进度，用于防重复入队、取消和服务重启后的恢复
 	SplitStatus string `json:"split_status" gorm:"size:20;default:'';index;comment:切割状态（空/queued/running/done/failed/cancelled）"`
 
-	SegmentCount int `json:"segment_count" gorm:"->"`
+	SegmentCount    int `json:"segment_count" gorm:"->"`
+	AudioCount      int `json:"audio_count" gorm:"->"`       // 已有当前音频的片段数
+	FailedCount     int `json:"failed_count" gorm:"->"`      // 配音失败的片段数
+	QueuedCount     int `json:"queued_count" gorm:"->"`      // 排队中的片段数
+	ProcessingCount int `json:"processing_count" gorm:"->"`  // 正在生成的片段数
 
 	Project *VsProject `json:"project" gorm:"foreignKey:ProjectID;references:ProjectID"`
 }
