@@ -27,6 +27,9 @@ data:
     read_timeout: 0.2s
     write_timeout: 0.2s
 
+worker:
+  enabled: true
+
 storage:
   type: local
   local:
